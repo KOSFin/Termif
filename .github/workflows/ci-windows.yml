@@ -241,8 +241,17 @@ jobs:
             # MSI requires a strict X.Y.Z.B numeric version
             $msiVersion = "$major.$minor.$patch.$buildNumber"
 
-            # Set the top-level version to the MSI-compatible 4-part version
-            $tauriConfig.version = $msiVersion
+            # Ensure version is valid semver (strip pre-release/build metadata for MSI compat)
+            $tauriConfig.version = "$major.$minor.$patch"
+
+            # Set WiX-specific 4-part version for MSI installer
+            if (-not $tauriConfig.bundle.windows) {
+              $tauriConfig.bundle | Add-Member -MemberType NoteProperty -Name windows -Value ([PSCustomObject]@{})
+            }
+            if (-not $tauriConfig.bundle.windows.wix) {
+              $tauriConfig.bundle.windows | Add-Member -MemberType NoteProperty -Name wix -Value ([PSCustomObject]@{})
+            }
+            $tauriConfig.bundle.windows.wix | Add-Member -MemberType NoteProperty -Name version -Value $msiVersion -Force
 
             $tauriConfig | ConvertTo-Json -Depth 100 | Set-Content $tauriPath -Encoding utf8
 
