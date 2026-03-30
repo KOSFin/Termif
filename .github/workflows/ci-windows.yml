@@ -238,8 +238,15 @@ jobs:
               if ($buildNumber -eq 0) { $buildNumber = 65535 }
             }
 
+            # Keep version as semver, use productVersion for MSI 4-part version
             $msiVersion = "$major.$minor.$patch.$buildNumber"
-            $tauriConfig.version = $msiVersion
+
+            # Add bundle.windows.productVersion for MSI
+            if (-not $tauriConfig.bundle.windows) {
+              $tauriConfig.bundle | Add-Member -MemberType NoteProperty -Name windows -Value ([PSCustomObject]@{})
+            }
+            $tauriConfig.bundle.windows | Add-Member -MemberType NoteProperty -Name productVersion -Value $msiVersion -Force
+
             $tauriConfig | ConvertTo-Json -Depth 100 | Set-Content $tauriPath -Encoding utf8
 
             npm run tauri:build
