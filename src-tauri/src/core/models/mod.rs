@@ -140,7 +140,7 @@ pub struct ExperimentalSettings {
     pub input_overlay_mode: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PersistedUiState {
     pub tabs: Vec<PersistedTab>,
     pub active_tab_id: Option<String>,

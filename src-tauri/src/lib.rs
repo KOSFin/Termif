@@ -11,6 +11,7 @@ mod ui_events;
 use std::sync::Arc;
 
 use core::models::{AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup};
+use tauri::Manager;
 use tauri::State;
 
 use crate::{

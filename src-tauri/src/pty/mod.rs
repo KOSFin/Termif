@@ -103,7 +103,7 @@ impl TerminalManager {
             .master
             .take_writer()
             .map_err(|e| TermifError::Internal(e.to_string()))?;
-        let mut master = pair.master;
+        let master = pair.master;
 
         let output = Arc::new(Mutex::new(Vec::<u8>::with_capacity(16 * 1024)));
         let output_for_reader = Arc::clone(&output);
