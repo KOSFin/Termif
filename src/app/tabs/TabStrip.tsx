@@ -49,8 +49,17 @@ export function TabStrip(props: TabStripProps) {
               }}
             >
               <span className="tab-dot" />
-              <span className="tab-icon">{tab.kind === "ssh" || tab.kind === "ssh_picker" ? "◉" : "◈"}</span>
               <span className="tab-title">{tab.title}</span>
+              <span
+                className="tab-close"
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onClose(tab.id);
+                }}
+              >
+                ×
+              </span>
             </button>
           );
         })}

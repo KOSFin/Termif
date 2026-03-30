@@ -8,12 +8,39 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden;
   font-family: "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
   color: var(--text);
   background: radial-gradient(1200px 600px at 80% -5%, #24344b 0%, transparent 60%),
     radial-gradient(900px 500px at 8% 105%, #163542 0%, transparent 65%),
     var(--bg);
 }
+
+/* ── Scrollbar ───────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(60, 82, 110, 0.45);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(80, 110, 150, 0.6);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── Base elements ───────────────────────────────── */
 
 button,
 input,
@@ -28,6 +55,7 @@ button {
   background: linear-gradient(180deg, #1d2938, #182230);
   color: var(--text);
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 button:hover {
@@ -43,6 +71,8 @@ button.ghost {
   background: transparent;
 }
 
+/* ── App root ────────────────────────────────────── */
+
 .app-root {
   display: flex;
   flex-direction: column;
@@ -51,44 +81,71 @@ button.ghost {
   overflow: hidden;
 }
 
+/* ── Topbar ──────────────────────────────────────── */
+
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 56px;
+  height: 44px;
+  min-height: 44px;
   border-bottom: 1px solid var(--stroke-soft);
   backdrop-filter: blur(12px);
-  background: rgba(11, 16, 24, 0.72);
-  padding: 0 12px;
+  background: rgba(11, 16, 24, 0.78);
+  padding: 0 10px;
+  -webkit-app-region: drag;
+}
+
+.topbar button,
+.topbar .tabstrip {
+  -webkit-app-region: no-drag;
 }
 
 .topbar-left,
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .sidebar-toggle {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
 }
+
+.topbar-right button {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+/* ── Workspace ───────────────────────────────────── */
 
 .workspace {
   display: grid;
   grid-template-columns: auto 1fr;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
+/* ── Sidebar ─────────────────────────────────────── */
+
 .sidebar {
-  width: 340px;
-  min-width: 280px;
+  width: 320px;
+  min-width: 260px;
   border-right: 1px solid var(--stroke-soft);
   background: linear-gradient(180deg, rgba(18, 25, 36, 0.96), rgba(13, 20, 30, 0.95));
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-tools {
@@ -110,13 +167,18 @@ button.ghost {
 
 .sidebar-content {
   min-height: 0;
+  overflow: hidden;
 }
+
+/* ── Center pane ─────────────────────────────────── */
 
 .center-pane {
   min-width: 0;
   min-height: 0;
   display: flex;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(15, 21, 30, 0.88), rgba(10, 15, 22, 0.92));
+  position: relative;
 }
 
 .loading-screen {
@@ -124,61 +186,102 @@ button.ghost {
   color: var(--text-muted);
 }
 
+/* ── Tab strip ───────────────────────────────────── */
+
 .tabstrip {
   display: flex;
   align-items: center;
-  width: min(1120px, calc(100vw - 260px));
+  width: min(1120px, calc(100vw - 220px));
   min-width: 0;
 }
 
 .tabstrip-left {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-right: 8px;
+  gap: 4px;
+  overflow: hidden;
+  padding-right: 6px;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  max-width: 220px;
-  padding: 7px 10px;
-  border-radius: 10px;
+  gap: 6px;
+  min-width: 100px;
+  max-width: 200px;
+  padding: 5px 8px;
+  border-radius: 8px;
   border-color: transparent;
-  background: rgba(24, 34, 48, 0.55);
+  background: rgba(24, 34, 48, 0.45);
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.tab:hover {
+  background: rgba(30, 44, 62, 0.7);
 }
 
 .tab .tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .tab.active {
   background: linear-gradient(180deg, #243246, #1b2636);
   border-color: color-mix(in srgb, var(--tab-color, var(--accent)) 65%, #243046);
-  box-shadow: inset 0 0 0 1px rgba(107, 139, 180, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(107, 139, 180, 0.2);
 }
 
 .tab-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 100%;
   background: var(--tab-color, var(--accent));
+  flex-shrink: 0;
+}
+
+.tab-close {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: rgba(220, 80, 100, 0.25);
+  color: #ffc4ce;
 }
 
 .tabstrip-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-left: auto;
 }
 
 .tab-action {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
 .newtab-dropdown-wrap {
@@ -190,7 +293,7 @@ button.ghost {
   right: 0;
   top: calc(100% + 6px);
   display: grid;
-  width: 220px;
+  width: 200px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: #162130;
@@ -200,16 +303,19 @@ button.ghost {
 }
 
 .newtab-dropdown button {
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-radius: 0;
   border: 0;
   text-align: left;
   background: transparent;
+  font-size: 13px;
 }
 
 .newtab-dropdown button:hover {
   background: #223147;
 }
+
+/* ── Context menus ───────────────────────────────── */
 
 .context-anchor {
   position: fixed;
@@ -220,7 +326,7 @@ button.ghost {
 .tab-context-menu,
 .file-context-menu {
   position: fixed;
-  width: 220px;
+  width: 200px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: #141f2d;
@@ -235,8 +341,9 @@ button.ghost {
   border: 0;
   border-radius: 0;
   text-align: left;
-  padding: 9px 10px;
+  padding: 8px 10px;
   background: transparent;
+  font-size: 13px;
 }
 
 .tab-context-menu button:hover,
@@ -265,6 +372,8 @@ button.ghost {
   border-radius: 100%;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+/* ── File manager ────────────────────────────────── */
 
 .file-manager {
   display: grid;
@@ -296,10 +405,11 @@ button.ghost {
 }
 
 .file-list {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
   display: grid;
-  gap: 4px;
+  gap: 2px;
   align-content: start;
 }
 
@@ -308,10 +418,12 @@ button.ghost {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px;
+  padding: 7px 8px;
   text-align: left;
   border-color: transparent;
   background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
 .file-item:hover,
@@ -340,50 +452,22 @@ button.ghost {
   color: #ff9bad;
 }
 
+/* ── Terminal ────────────────────────────────────── */
+
 .terminal-pane-wrap {
-  display: grid;
-  grid-template-rows: 1fr auto;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .terminal-pane {
-  min-height: 0;
-  padding: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 6px 8px;
+  overflow: hidden;
 }
 
-.terminal-assist {
-  border-top: 1px solid var(--stroke-soft);
-  padding: 8px 10px;
-  background: rgba(16, 23, 34, 0.8);
-}
-
-.assist-title {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.assist-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.assist-list span {
-  font-family: "Cascadia Code", "JetBrains Mono", monospace;
-  font-size: 12px;
-  padding: 3px 8px;
-  border: 1px solid #2d3f55;
-  border-radius: 999px;
-  background: rgba(27, 39, 56, 0.7);
-}
-
-.assist-list .muted {
-  border-color: transparent;
-  color: var(--text-muted);
-  background: transparent;
-}
+/* ── SSH picker ──────────────────────────────────── */
 
 .ssh-picker {
   width: 100%;
@@ -497,6 +581,8 @@ button.ghost {
   gap: 8px;
 }
 
+/* ── Palette ─────────────────────────────────────── */
+
 .palette-overlay,
 .settings-overlay {
   position: fixed;
@@ -555,6 +641,8 @@ button.ghost {
   color: var(--text-muted);
   padding: 14px;
 }
+
+/* ── Settings ────────────────────────────────────── */
 
 .settings-panel {
   width: min(980px, calc(100vw - 60px));
@@ -620,6 +708,8 @@ button.ghost {
   justify-content: flex-end;
 }
 
+/* ── Toast ───────────────────────────────────────── */
+
 .toast {
   position: fixed;
   right: 16px;
@@ -630,7 +720,10 @@ button.ghost {
   background: rgba(22, 34, 52, 0.96);
   box-shadow: var(--shadow);
   z-index: 130;
+  font-size: 13px;
 }
+
+/* ── Editor ──────────────────────────────────────── */
 
 .editor-workspace {
   width: 100%;
@@ -708,9 +801,11 @@ button.ghost {
   color: var(--text-muted);
 }
 
+/* ── Responsive ──────────────────────────────────── */
+
 @media (max-width: 1180px) {
   .sidebar {
-    width: 300px;
+    width: 280px;
   }
 
   .ssh-grid {

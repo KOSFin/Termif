@@ -1,32 +1,22 @@
 import { invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface TerminalPaneProps {
   sessionId: string;
+  isVisible: boolean;
 }
 
-export function TerminalPane(props: TerminalPaneProps) {
-  const terminalRef = useRef<HTMLDivElement | null>(null);
+export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const [liveInput, setLiveInput] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
 
-  const suggestions = useMemo(() => {
-    const value = liveInput.trim();
-    if (!value) {
-      return history.slice(0, 3);
-    }
-
-    return history.filter((cmd) => cmd.startsWith(value)).slice(0, 3);
-  }, [history, liveInput]);
-
+  // Terminal lifecycle — only depends on sessionId
   useEffect(() => {
-    if (!terminalRef.current) {
-      return;
-    }
+    const el = containerRef.current;
+    if (!el) return;
 
     const xterm = new Terminal({
       cursorBlink: true,
@@ -38,69 +28,53 @@ export function TerminalPane(props: TerminalPaneProps) {
         background: "#131922",
         foreground: "#e4ecff",
         cursor: "#6db3ff",
+        selectionBackground: "#28405c",
         black: "#10151f",
-        brightBlack: "#3a4456"
+        brightBlack: "#3a4456",
       },
       scrollback: 20000,
-      allowProposedApi: true
+      allowProposedApi: true,
     });
 
     const fitAddon = new FitAddon();
     xterm.loadAddon(fitAddon);
-
-    xterm.open(terminalRef.current);
+    xterm.open(el);
     fitAddon.fit();
 
     xtermRef.current = xterm;
     fitRef.current = fitAddon;
 
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-      void invoke("resize_terminal", {
-        sessionId: props.sessionId,
-        cols: xterm.cols,
-        rows: xterm.rows
-      });
-    });
-    resizeObserver.observe(terminalRef.current);
-
+    // Input → backend
     const dataListener = xterm.onData((data) => {
-      void invoke("send_terminal_input", {
-        sessionId: props.sessionId,
-        data
-      });
-
-      if (data === "\r") {
-        const cmd = liveInput.trim();
-        if (cmd) {
-          setHistory((prev) => [cmd, ...prev.filter((x) => x !== cmd)].slice(0, 80));
-        }
-        setLiveInput("");
-        return;
-      }
-
-      if (data === "\u007f") {
-        setLiveInput((prev) => prev.slice(0, -1));
-        return;
-      }
-
-      if (/^[\x20-\x7E]+$/.test(data)) {
-        setLiveInput((prev) => `${prev}${data}`);
-      }
+      void invoke("send_terminal_input", { sessionId, data });
     });
 
+    // Output polling
+    let polling = true;
     const poll = window.setInterval(async () => {
+      if (!polling) return;
       try {
-        const chunk = await invoke<string>("read_terminal_output", { sessionId: props.sessionId });
-        if (chunk) {
-          xterm.write(chunk);
-        }
+        const chunk = await invoke<string>("read_terminal_output", { sessionId });
+        if (chunk) xterm.write(chunk);
       } catch {
-        // Session might already be closed; polling stops on unmount.
+        // session closed
       }
     }, 45);
 
+    // Resize observer
+    const resizeObserver = new ResizeObserver(() => {
+      if (!xtermRef.current || !fitRef.current) return;
+      fitAddon.fit();
+      void invoke("resize_terminal", {
+        sessionId,
+        cols: xterm.cols,
+        rows: xterm.rows,
+      });
+    });
+    resizeObserver.observe(el);
+
     return () => {
+      polling = false;
       window.clearInterval(poll);
       dataListener.dispose();
       resizeObserver.disconnect();
@@ -108,20 +82,33 @@ export function TerminalPane(props: TerminalPaneProps) {
       xtermRef.current = null;
       fitRef.current = null;
     };
-  }, [props.sessionId, liveInput]);
+  }, [sessionId]);
+
+  // Fit when becoming visible (tab switch)
+  useEffect(() => {
+    if (!isVisible) return;
+    // Small delay so the container has layout dimensions
+    const id = window.setTimeout(() => {
+      const xterm = xtermRef.current;
+      const fit = fitRef.current;
+      if (!xterm || !fit) return;
+      fit.fit();
+      void invoke("resize_terminal", {
+        sessionId,
+        cols: xterm.cols,
+        rows: xterm.rows,
+      });
+      xterm.focus();
+    }, 20);
+    return () => window.clearTimeout(id);
+  }, [isVisible, sessionId]);
 
   return (
-    <div className="terminal-pane-wrap">
-      <div className="terminal-pane" ref={terminalRef} />
-      <div className="terminal-assist">
-        <div className="assist-title">Recent Commands</div>
-        <div className="assist-list">
-          {suggestions.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-          {suggestions.length === 0 ? <span className="muted">No command suggestions yet</span> : null}
-        </div>
-      </div>
+    <div
+      className="terminal-pane-wrap"
+      style={{ display: isVisible ? undefined : "none" }}
+    >
+      <div className="terminal-pane" ref={containerRef} />
     </div>
   );
 }

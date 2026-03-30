@@ -235,8 +235,8 @@ export function AppShell() {
         </div>
 
         <div className="topbar-right">
-          <button onClick={() => setPaletteOpen(true)}>Palette</button>
-          <button onClick={() => setSettingsOpen(true)}>Settings</button>
+          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">⌘</button>
+          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
         </div>
       </header>
 
@@ -248,9 +248,16 @@ export function AppShell() {
 
           {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
 
-          {isInitialized && (activeTab?.kind === "local" || activeTab?.kind === "ssh") && activeTab.sessionId ? (
-            <TerminalPane sessionId={activeTab.sessionId} />
-          ) : null}
+          {isInitialized &&
+            tabs
+              .filter((t) => (t.kind === "local" || t.kind === "ssh") && t.sessionId)
+              .map((t) => (
+                <TerminalPane
+                  key={t.sessionId}
+                  sessionId={t.sessionId!}
+                  isVisible={t.id === activeTabId}
+                />
+              ))}
         </section>
       </main>
 
