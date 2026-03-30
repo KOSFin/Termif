@@ -202,24 +202,53 @@ jobs:
       - name: Build Tauri app (MSI-patched)
         shell: pwsh
         env:
-          APP_VERSION: ${{ env.APP_VERSION }}
+          APP_VERSION: ${{ steps.meta.outputs.app_version }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           $tauriPath = "src-tauri/tauri.conf.json"
           $backupPath = "src-tauri/tauri.conf.json.bak"
           Copy-Item $tauriPath $backupPath -Force
-          $tauriConfig = Get-Content $tauriPath -Raw | ConvertFrom-Json
-          # Use numeric-only version for MSI
-          if ($env:APP_VERSION -match '^(\d+)\.(\d+)\.(\d+)(?:-ci\.(\d+))?$') {
-            $major = $Matches[1]; $minor = $Matches[2]; $patch = $Matches[3];
-            $build = if ($Matches[4]) { $Matches[4] } else { '0' }
-            $msiVersion = "$major.$minor.$patch.$build"
+          try {
+            $tauriConfig = Get-Content $tauriPath -Raw | ConvertFrom-Json
+
+            $sourceVersion = $env:APP_VERSION
+            if ([string]::IsNullOrWhiteSpace($sourceVersion)) {
+              $sourceVersion = [string]$tauriConfig.version
+            }
+
+            if ($sourceVersion -notmatch '^(\d+)\.(\d+)\.(\d+)') {
+              throw "Version '$sourceVersion' does not start with X.Y.Z"
+            }
+
+            $major = $Matches[1]
+            $minor = $Matches[2]
+            $patch = $Matches[3]
+
+            $buildNumber = 0
+            if ($env:GITHUB_RUN_NUMBER -match '^\d+$') {
+              $buildNumber = [int]$env:GITHUB_RUN_NUMBER
+            }
+            elseif ($sourceVersion -match '(\d+)$') {
+              $buildNumber = [int]$Matches[1]
+            }
+
+            # MSI requires a numeric revision in 0..65535.
+            if ($buildNumber -gt 65535) {
+              $buildNumber = $buildNumber % 65535
+              if ($buildNumber -eq 0) { $buildNumber = 65535 }
+            }
+
+            $msiVersion = "$major.$minor.$patch.$buildNumber"
             $tauriConfig.version = $msiVersion
             $tauriConfig | ConvertTo-Json -Depth 100 | Set-Content $tauriPath -Encoding utf8
-          } else {
-            throw "APP_VERSION '$env:APP_VERSION' is not compatible with MSI version requirements"
+
+            npm run tauri:build
           }
-          npm run tauri:build
-          Move-Item $backupPath $tauriPath -Force
+          finally {
+            if (Test-Path $backupPath) {
+              Move-Item $backupPath $tauriPath -Force
+            }
+          }
 
       - name: Collect bundles and checksums
         shell: pwsh
