@@ -229,7 +229,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let persistence = Persistence::from_app(&app.handle())?;
+            let persistence = Persistence::from_app(app.handle())?;
             let hosts = Arc::new(HostStore::new(persistence.clone())?);
             let settings = Arc::new(SettingsStore::new(persistence.clone())?);
 

@@ -8,8 +8,6 @@ pub enum TermifError {
     Serde(#[from] serde_json::Error),
     #[error("session not found: {0}")]
     SessionNotFound(String),
-    #[error("ssh host not found: {0}")]
-    HostNotFound(String),
     #[error("unsupported operation: {0}")]
     Unsupported(String),
     #[error("internal error: {0}")]
