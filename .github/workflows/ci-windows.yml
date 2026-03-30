@@ -200,7 +200,25 @@ jobs:
         run: npm run build
 
       - name: Build Tauri app
-        run: npm run tauri:build
+          # Patch tauri.conf.json version for MSI, then restore after build
+          shell: pwsh
+          run: |
+            $tauriPath = "src-tauri/tauri.conf.json"
+            $backupPath = "src-tauri/tauri.conf.json.bak"
+            Copy-Item $tauriPath $backupPath -Force
+            $tauriConfig = Get-Content $tauriPath -Raw | ConvertFrom-Json
+            # Use numeric-only version for MSI
+            if ($env:APP_VERSION -match '^(\d+)\.(\d+)\.(\d+)(?:-ci\.(\d+))?$') {
+              $major = $Matches[1]; $minor = $Matches[2]; $patch = $Matches[3];
+              $build = if ($Matches[4]) { $Matches[4] } else { '0' }
+              $msiVersion = "$major.$minor.$patch.$build"
+              $tauriConfig.version = $msiVersion
+              $tauriConfig | ConvertTo-Json -Depth 100 | Set-Content $tauriPath -Encoding utf8
+            } else {
+              throw "APP_VERSION '$env:APP_VERSION' is not compatible with MSI version requirements"
+            }
+            npm run tauri:build
+            Move-Item $backupPath $tauriPath -Force
 
       - name: Collect bundles and checksums
         shell: pwsh
