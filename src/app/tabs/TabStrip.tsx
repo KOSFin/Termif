@@ -14,7 +14,7 @@ interface TabStripProps {
   onClose: (tabId: string) => void;
 }
 
-const palette = ["#4a91ff", "#44b38b", "#f2a65a", "#de6b7f", "#9a7ce5", "#7a8799"];
+const palette = ["#4a8fe7", "#3dba84", "#e0a84a", "#e05468", "#9a7ce5", "#6b7a8d"];
 
 export function TabStrip(props: TabStripProps) {
   const [contextTabId, setContextTabId] = useState<string>();
@@ -66,24 +66,24 @@ export function TabStrip(props: TabStripProps) {
       </div>
 
       <div className="tabstrip-actions">
-        <button className="tab-action" onClick={props.onNewDefault} title="New terminal tab">
+        <button className="tab-action" onClick={props.onNewDefault} title="New tab">
           +
         </button>
         <div className="newtab-dropdown-wrap">
           <button
             className="tab-action"
             title="New tab options"
-            onClick={() => setNewTabMenuOpen((value) => !value)}
+            onClick={() => setNewTabMenuOpen((v) => !v)}
           >
             ▾
           </button>
           {newTabMenuOpen ? (
             <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
-              <button onClick={() => props.onNewDefault()}>Default Terminal</button>
-              <button onClick={() => props.onNewShell("powershell")}>PowerShell</button>
-              <button onClick={() => props.onNewShell("cmd")}>CMD</button>
-              <button onClick={() => props.onNewShell("pwsh")}>PowerShell 7</button>
-              <button onClick={props.onNewSsh}>SSH Connection</button>
+              <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>Default Terminal</button>
+              <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>PowerShell</button>
+              <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>CMD</button>
+              <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>PowerShell 7</button>
+              <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>SSH Connection</button>
             </div>
           ) : null}
         </div>
@@ -105,7 +105,7 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Rename Tab
+              Rename
             </button>
             <div className="context-section">
               <div className="context-label">Color</div>
@@ -130,7 +130,7 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Duplicate Tab
+              Duplicate
             </button>
             <button
               className="danger"
@@ -139,7 +139,7 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Close Tab
+              Close
             </button>
           </div>
         </div>

@@ -8,228 +8,246 @@ interface SettingsPanelProps {
   onSave: (settings: AppSettings) => Promise<void>;
 }
 
+type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "experimental";
+
+const sections: { key: SettingsSection; label: string }[] = [
+  { key: "appearance", label: "Appearance" },
+  { key: "terminal", label: "Terminal" },
+  { key: "hotkeys", label: "Hotkeys" },
+  { key: "ssh", label: "SSH" },
+  { key: "file_manager", label: "File Manager" },
+  { key: "experimental", label: "Experimental" }
+];
+
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
+  const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
 
   useEffect(() => {
-    // Avoid direct setState in effect body; use microtask to prevent cascading renders
     Promise.resolve().then(() => setDraft(props.settings));
   }, [props.settings]);
 
-  if (!props.open || !draft) {
-    return null;
-  }
+  useEffect(() => {
+    if (props.open) setActiveSection("appearance");
+  }, [props.open]);
+
+  if (!props.open || !draft) return null;
 
   return (
     <div className="settings-overlay" onClick={props.onClose}>
-      <div className="settings-panel" onClick={(event) => event.stopPropagation()}>
-        <div className="settings-header">
-          <h2>Settings</h2>
-          <button onClick={props.onClose}>Close</button>
-        </div>
+      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+        <nav className="settings-nav">
+          {sections.map((s) => (
+            <button
+              key={s.key}
+              className={`settings-nav-item ${activeSection === s.key ? "active" : ""}`}
+              onClick={() => setActiveSection(s.key)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </nav>
 
-        <div className="settings-grid">
-          <section>
-            <h3>Appearance</h3>
-            <label>
-              Accent Color
-              <input
-                value={draft.appearance.accent_color}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          appearance: { ...prev.appearance, accent_color: event.target.value }
-                        }
-                      : prev
-                  )
-                }
-              />
-            </label>
-            <label>
-              UI Density
-              <select
-                value={draft.appearance.ui_density}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          appearance: { ...prev.appearance, ui_density: event.target.value }
-                        }
-                      : prev
-                  )
-                }
-              >
-                <option value="compact">Compact</option>
-                <option value="comfortable">Comfortable</option>
-              </select>
-            </label>
-          </section>
+        <div className="settings-content">
+          <div className="settings-content-header">
+            <h2>{sections.find((s) => s.key === activeSection)?.label}</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => void props.onSave(draft)} className="primary">Save</button>
+              <button onClick={props.onClose} className="ghost">Close</button>
+            </div>
+          </div>
 
-          <section>
-            <h3>Terminal</h3>
-            <label>
-              Default Shell
-              <select
-                value={draft.terminal.default_shell}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          terminal: { ...prev.terminal, default_shell: event.target.value }
-                        }
-                      : prev
-                  )
-                }
-              >
-                <option value="powershell">PowerShell</option>
-                <option value="cmd">CMD</option>
-                <option value="pwsh">PowerShell 7</option>
-              </select>
-            </label>
-            <label>
-              Cursor Style
-              <select
-                value={draft.terminal.cursor_style}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          terminal: { ...prev.terminal, cursor_style: event.target.value }
-                        }
-                      : prev
-                  )
-                }
-              >
-                <option value="bar">Bar</option>
-                <option value="block">Block</option>
-                <option value="underline">Underline</option>
-              </select>
-            </label>
-          </section>
-
-          <section>
-            <h3>Hotkeys</h3>
-            {draft.hotkeys.map((binding, index) => (
-              <label key={binding.command_id}>
-                {binding.command_id}
+          {activeSection === "appearance" && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <label>Accent Color</label>
                 <input
-                  value={binding.primary}
-                  onChange={(event) => {
-                    const next = [...draft.hotkeys];
-                    next[index] = { ...next[index], primary: event.target.value };
-                    setDraft((prev) => (prev ? { ...prev, hotkeys: next } : prev));
-                  }}
+                  value={draft.appearance.accent_color}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, accent_color: e.target.value } } : p
+                    )
+                  }
                 />
-              </label>
-            ))}
-          </section>
+              </div>
+              <div className="settings-row">
+                <label>UI Density</label>
+                <select
+                  value={draft.appearance.ui_density}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, ui_density: e.target.value } } : p
+                    )
+                  }
+                >
+                  <option value="compact">Compact</option>
+                  <option value="comfortable">Comfortable</option>
+                </select>
+              </div>
+            </div>
+          )}
 
-          <section>
-            <h3>SSH</h3>
-            <label>
-              Connect Timeout (s)
-              <input
-                type="number"
-                value={draft.ssh.connect_timeout_seconds}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          ssh: {
-                            ...prev.ssh,
-                            connect_timeout_seconds: Number(event.target.value) || 15
-                          }
-                        }
-                      : prev
-                  )
-                }
-              />
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={draft.ssh.strict_host_key_checking}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          ssh: {
-                            ...prev.ssh,
-                            strict_host_key_checking: event.target.checked
-                          }
-                        }
-                      : prev
-                  )
-                }
-              />
-              Strict Host Key Checking
-            </label>
-          </section>
+          {activeSection === "terminal" && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <label>Default Shell</label>
+                <select
+                  value={draft.terminal.default_shell}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, terminal: { ...p.terminal, default_shell: e.target.value } } : p
+                    )
+                  }
+                >
+                  <option value="powershell">PowerShell</option>
+                  <option value="cmd">CMD</option>
+                  <option value="pwsh">PowerShell 7</option>
+                </select>
+              </div>
+              <div className="settings-row">
+                <label>Font Family</label>
+                <input
+                  value={draft.terminal.font_family}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, terminal: { ...p.terminal, font_family: e.target.value } } : p
+                    )
+                  }
+                />
+              </div>
+              <div className="settings-row">
+                <label>Font Size</label>
+                <input
+                  type="number"
+                  value={draft.terminal.font_size}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, terminal: { ...p.terminal, font_size: Number(e.target.value) || 13 } } : p
+                    )
+                  }
+                />
+              </div>
+              <div className="settings-row">
+                <label>Cursor Style</label>
+                <select
+                  value={draft.terminal.cursor_style}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, terminal: { ...p.terminal, cursor_style: e.target.value } } : p
+                    )
+                  }
+                >
+                  <option value="bar">Bar</option>
+                  <option value="block">Block</option>
+                  <option value="underline">Underline</option>
+                </select>
+              </div>
+              <div className="settings-row">
+                <label>Scrollback Lines</label>
+                <input
+                  type="number"
+                  value={draft.terminal.scrollback_lines}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, terminal: { ...p.terminal, scrollback_lines: Number(e.target.value) || 20000 } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
 
-          <section>
-            <h3>File Manager</h3>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={draft.file_manager.show_hidden}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          file_manager: {
-                            ...prev.file_manager,
-                            show_hidden: event.target.checked
-                          }
-                        }
-                      : prev
-                  )
-                }
-              />
-              Show Hidden Files
-            </label>
-          </section>
+          {activeSection === "hotkeys" && (
+            <div className="settings-section">
+              {draft.hotkeys.map((binding, index) => (
+                <div className="settings-row" key={binding.command_id}>
+                  <label>{binding.command_id}</label>
+                  <input
+                    value={binding.primary}
+                    onChange={(e) => {
+                      const next = [...draft.hotkeys];
+                      next[index] = { ...next[index], primary: e.target.value };
+                      setDraft((p) => (p ? { ...p, hotkeys: next } : p));
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-          <section>
-            <h3>Experimental</h3>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={draft.experimental.input_overlay_mode}
-                onChange={(event) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          experimental: {
-                            ...prev.experimental,
-                            input_overlay_mode: event.target.checked
-                          }
-                        }
-                      : prev
-                  )
-                }
-              />
-              Input Overlay Mode
-            </label>
-          </section>
-        </div>
+          {activeSection === "ssh" && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <label>Connect Timeout (seconds)</label>
+                <input
+                  type="number"
+                  value={draft.ssh.connect_timeout_seconds}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, ssh: { ...p.ssh, connect_timeout_seconds: Number(e.target.value) || 15 } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+              <hr className="settings-divider" />
+              <div className="settings-row-toggle">
+                <span>Strict Host Key Checking</span>
+                <input
+                  type="checkbox"
+                  checked={draft.ssh.strict_host_key_checking}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, ssh: { ...p.ssh, strict_host_key_checking: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
 
-        <div className="settings-footer">
-          <button
-            onClick={() => {
-              void props.onSave(draft);
-            }}
-          >
-            Save
-          </button>
+          {activeSection === "file_manager" && (
+            <div className="settings-section">
+              <div className="settings-row-toggle">
+                <span>Show Hidden Files</span>
+                <input
+                  type="checkbox"
+                  checked={draft.file_manager.show_hidden}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, file_manager: { ...p.file_manager, show_hidden: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {activeSection === "experimental" && (
+            <div className="settings-section">
+              <div className="settings-row-toggle">
+                <span>Input Overlay Mode</span>
+                <input
+                  type="checkbox"
+                  checked={draft.experimental.input_overlay_mode}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, experimental: { ...p.experimental, input_overlay_mode: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

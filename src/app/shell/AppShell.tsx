@@ -79,7 +79,7 @@ export function AppShell() {
   const commands: PaletteCommand[] = [
     {
       id: "tab.new_default",
-      title: "Create New Default Terminal",
+      title: "New Default Terminal",
       category: "Tabs",
       action: () => {
         void createLocalTab(settings?.terminal.default_shell ?? "powershell");
@@ -87,7 +87,7 @@ export function AppShell() {
     },
     {
       id: "tab.new_powershell",
-      title: "Create PowerShell Tab",
+      title: "New PowerShell Tab",
       category: "Tabs",
       action: () => {
         void createLocalTab("powershell");
@@ -95,7 +95,7 @@ export function AppShell() {
     },
     {
       id: "tab.new_cmd",
-      title: "Create CMD Tab",
+      title: "New CMD Tab",
       category: "Tabs",
       action: () => {
         void createLocalTab("cmd");
@@ -103,7 +103,7 @@ export function AppShell() {
     },
     {
       id: "ssh.open",
-      title: "Open SSH Connection Flow",
+      title: "Open SSH Connection",
       category: "SSH",
       action: createSshPickerTab
     },
@@ -124,27 +124,19 @@ export function AppShell() {
       title: "Rename Current Tab",
       category: "Tabs",
       action: () => {
-        if (!activeTab) {
-          return;
-        }
+        if (!activeTab) return;
         const nextName = window.prompt("Rename tab", activeTab.title)?.trim();
-        if (nextName) {
-          renameTab(activeTab.id, nextName);
-        }
+        if (nextName) renameTab(activeTab.id, nextName);
       }
     },
     {
       id: "tab.recolor",
-      title: "Change Current Tab Color",
+      title: "Change Tab Color",
       category: "Tabs",
       action: () => {
-        if (!activeTab) {
-          return;
-        }
+        if (!activeTab) return;
         const color = window.prompt("Hex color", activeTab.color)?.trim();
-        if (color) {
-          setTabColor(activeTab.id, color);
-        }
+        if (color) setTabColor(activeTab.id, color);
       }
     },
     {
@@ -161,9 +153,7 @@ export function AppShell() {
       category: "Files",
       action: async () => {
         const name = window.prompt("File name")?.trim();
-        if (!name || !activeTab) {
-          return;
-        }
+        if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
         await loadCurrentFiles();
@@ -175,9 +165,7 @@ export function AppShell() {
       category: "Files",
       action: async () => {
         const name = window.prompt("Folder name")?.trim();
-        if (!name || !activeTab) {
-          return;
-        }
+        if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
         await loadCurrentFiles();
@@ -212,31 +200,29 @@ export function AppShell() {
   return (
     <div className="app-root">
       <header className="topbar">
-        <div className="topbar-left">
-          <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar">
-            ≡
-          </button>
-          <TabStrip
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onSelectTab={setActiveTab}
-            onNewDefault={() => void createLocalTab(settings?.terminal.default_shell ?? "powershell")}
-            onNewShell={(shell) => void createLocalTab(shell)}
-            onNewSsh={createSshPickerTab}
-            onRename={renameTab}
-            onColor={setTabColor}
-            onDuplicate={(tabId) => {
-              void duplicateTab(tabId);
-            }}
-            onClose={(tabId) => {
-              void closeTab(tabId);
-            }}
-          />
-        </div>
-
+        <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar">
+          ☰
+        </button>
+        <TabStrip
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onSelectTab={setActiveTab}
+          onNewDefault={() => void createLocalTab(settings?.terminal.default_shell ?? "powershell")}
+          onNewShell={(shell) => void createLocalTab(shell)}
+          onNewSsh={createSshPickerTab}
+          onRename={renameTab}
+          onColor={setTabColor}
+          onDuplicate={(tabId) => {
+            void duplicateTab(tabId);
+          }}
+          onClose={(tabId) => {
+            void closeTab(tabId);
+          }}
+        />
+        <div className="topbar-spacer" />
         <div className="topbar-right">
-          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">⌘</button>
-          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
+          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">&#x2318;</button>
+          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">&#x2699;</button>
         </div>
       </header>
 
@@ -244,7 +230,7 @@ export function AppShell() {
         {sidebarVisible ? <Sidebar /> : null}
 
         <section className="center-pane">
-          {!isInitialized ? <div className="loading-screen">Loading Termif...</div> : null}
+          {!isInitialized ? <div className="loading-screen">Loading...</div> : null}
 
           {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
 

@@ -13,7 +13,6 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
 
-  // Terminal lifecycle — only depends on sessionId
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -25,12 +24,20 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
       fontSize: 13,
       lineHeight: 1.3,
       theme: {
-        background: "#131922",
-        foreground: "#e4ecff",
-        cursor: "#6db3ff",
-        selectionBackground: "#28405c",
-        black: "#10151f",
+        background: "#0a0e14",
+        foreground: "#d4dae6",
+        cursor: "#4a8fe7",
+        selectionBackground: "#1c3050",
+        black: "#0a0e14",
         brightBlack: "#3a4456",
+        red: "#e05468",
+        green: "#3dba84",
+        yellow: "#e0a84a",
+        blue: "#4a8fe7",
+        magenta: "#9a7ce5",
+        cyan: "#5fb4d4",
+        white: "#d4dae6",
+        brightWhite: "#eef1f8",
       },
       scrollback: 20000,
       allowProposedApi: true,
@@ -44,12 +51,10 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
     xtermRef.current = xterm;
     fitRef.current = fitAddon;
 
-    // Input → backend
     const dataListener = xterm.onData((data) => {
       void invoke("send_terminal_input", { sessionId, data });
     });
 
-    // Output polling
     let polling = true;
     const poll = window.setInterval(async () => {
       if (!polling) return;
@@ -61,7 +66,6 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
       }
     }, 45);
 
-    // Resize observer
     const resizeObserver = new ResizeObserver(() => {
       if (!xtermRef.current || !fitRef.current) return;
       fitAddon.fit();
@@ -84,23 +88,19 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
     };
   }, [sessionId]);
 
-  // Fit when becoming visible (tab switch)
+  // Fit immediately when becoming visible
   useEffect(() => {
     if (!isVisible) return;
-    // Small delay so the container has layout dimensions
-    const id = window.setTimeout(() => {
-      const xterm = xtermRef.current;
-      const fit = fitRef.current;
-      if (!xterm || !fit) return;
-      fit.fit();
-      void invoke("resize_terminal", {
-        sessionId,
-        cols: xterm.cols,
-        rows: xterm.rows,
-      });
-      xterm.focus();
-    }, 20);
-    return () => window.clearTimeout(id);
+    const xterm = xtermRef.current;
+    const fit = fitRef.current;
+    if (!xterm || !fit) return;
+    fit.fit();
+    void invoke("resize_terminal", {
+      sessionId,
+      cols: xterm.cols,
+      rows: xterm.rows,
+    });
+    xterm.focus();
   }, [isVisible, sessionId]);
 
   return (
