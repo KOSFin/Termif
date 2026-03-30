@@ -90,6 +90,7 @@ jobs:
           $refName = "${env:GITHUB_REF_NAME}"
           $isTagBuild = "${env:GITHUB_REF}" -like "refs/tags/v*"
 
+
           if ($isTagBuild) {
             $appVersion = $refName.Substring(1)
             $releaseTag = $refName
@@ -98,8 +99,11 @@ jobs:
             $publishRelease = "true"
           }
           else {
+            # Only numeric prerelease for MSI: X.Y.Z.<run_number>
+            $baseParts = $baseVersion -split '\.'
+            if ($baseParts.Length -lt 3) { throw "Base version must be X.Y.Z" }
+            $appVersion = "$($baseParts[0]).$($baseParts[1]).$($baseParts[2]).$env:GITHUB_RUN_NUMBER"
             $safeRef = $refName -replace '[^A-Za-z0-9._-]', '-'
-            $appVersion = "$baseVersion-ci.$env:GITHUB_RUN_NUMBER.$shortSha"
             $releaseTag = "ci-$safeRef-$env:GITHUB_RUN_NUMBER-$shortSha"
             $releaseName = "Termif CI $safeRef $shortSha"
             $preRelease = "true"
