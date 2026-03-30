@@ -1,0 +1,8 @@
+# Example package.metadata for Tauri build
+[package]
+name = "termif"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata]
+# Add any required metadata fields here
