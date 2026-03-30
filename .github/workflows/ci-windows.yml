@@ -46,3 +46,6 @@ jobs:
       - name: Rust tests
         working-directory: src-tauri
         run: cargo test --all-targets --all-features
+
+      - name: Tauri smoke build (no bundle)
+        run: npm run tauri:build -- --no-bundle
