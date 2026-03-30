@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+import {
+  PaletteIcon,
+  TerminalIcon,
+  KeyboardIcon,
+  GlobeIcon,
+  FolderSimpleIcon,
+  FlaskIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import type { AppSettings } from "@/types/models";
 
 interface SettingsPanelProps {
@@ -10,14 +19,57 @@ interface SettingsPanelProps {
 
 type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "experimental";
 
-const sections: { key: SettingsSection; label: string }[] = [
-  { key: "appearance", label: "Appearance" },
-  { key: "terminal", label: "Terminal" },
-  { key: "hotkeys", label: "Hotkeys" },
-  { key: "ssh", label: "SSH" },
-  { key: "file_manager", label: "File Manager" },
-  { key: "experimental", label: "Experimental" }
+const sections: { key: SettingsSection; label: string; icon: React.ReactNode }[] = [
+  { key: "appearance", label: "Appearance", icon: <PaletteIcon size={15} /> },
+  { key: "terminal", label: "Terminal", icon: <TerminalIcon size={15} /> },
+  { key: "hotkeys", label: "Hotkeys", icon: <KeyboardIcon size={15} /> },
+  { key: "ssh", label: "SSH", icon: <GlobeIcon size={15} /> },
+  { key: "file_manager", label: "File Manager", icon: <FolderSimpleIcon size={15} /> },
+  { key: "experimental", label: "Experimental", icon: <FlaskIcon size={15} /> }
 ];
+
+const accentPresets = ["#4a8fe7", "#3dba84", "#e0a84a", "#e05468", "#9a7ce5", "#5fb4d4", "#d47ea8", "#7cb87a"];
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      className={`toggle-switch ${checked ? "on" : ""}`}
+      onClick={() => onChange(!checked)}
+      role="switch"
+      aria-checked={checked}
+    >
+      <span className="toggle-knob" />
+    </button>
+  );
+}
+
+function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="color-picker">
+      <div className="color-picker-swatches">
+        {accentPresets.map((color) => (
+          <button
+            key={color}
+            type="button"
+            className={`color-picker-swatch ${value === color ? "active" : ""}`}
+            style={{ background: color }}
+            onClick={() => onChange(color)}
+          />
+        ))}
+      </div>
+      <div className="color-picker-input-row">
+        <div className="color-picker-preview" style={{ background: value }} />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="#4a8fe7"
+          maxLength={7}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
@@ -37,12 +89,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
     <div className="settings-overlay" onClick={props.onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <nav className="settings-nav">
+          <div className="settings-nav-header">Settings</div>
           {sections.map((s) => (
             <button
               key={s.key}
               className={`settings-nav-item ${activeSection === s.key ? "active" : ""}`}
               onClick={() => setActiveSection(s.key)}
             >
+              <span className="settings-nav-icon">{s.icon}</span>
               {s.label}
             </button>
           ))}
@@ -53,7 +107,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <h2>{sections.find((s) => s.key === activeSection)?.label}</h2>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => void props.onSave(draft)} className="primary">Save</button>
-              <button onClick={props.onClose} className="ghost">Close</button>
+              <button onClick={props.onClose} className="ghost">
+                <XIcon size={14} />
+              </button>
             </div>
           </div>
 
@@ -61,11 +117,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-section">
               <div className="settings-row">
                 <label>Accent Color</label>
-                <input
+                <ColorPicker
                   value={draft.appearance.accent_color}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     setDraft((p) =>
-                      p ? { ...p, appearance: { ...p.appearance, accent_color: e.target.value } } : p
+                      p ? { ...p, appearance: { ...p.appearance, accent_color: v } } : p
                     )
                   }
                 />
@@ -196,13 +252,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <hr className="settings-divider" />
               <div className="settings-row-toggle">
                 <span>Strict Host Key Checking</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={draft.ssh.strict_host_key_checking}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     setDraft((p) =>
                       p
-                        ? { ...p, ssh: { ...p.ssh, strict_host_key_checking: e.target.checked } }
+                        ? { ...p, ssh: { ...p.ssh, strict_host_key_checking: v } }
                         : p
                     )
                   }
@@ -215,13 +270,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-section">
               <div className="settings-row-toggle">
                 <span>Show Hidden Files</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={draft.file_manager.show_hidden}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     setDraft((p) =>
                       p
-                        ? { ...p, file_manager: { ...p.file_manager, show_hidden: e.target.checked } }
+                        ? { ...p, file_manager: { ...p.file_manager, show_hidden: v } }
                         : p
                     )
                   }
@@ -234,13 +288,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-section">
               <div className="settings-row-toggle">
                 <span>Input Overlay Mode</span>
-                <input
-                  type="checkbox"
+                <ToggleSwitch
                   checked={draft.experimental.input_overlay_mode}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     setDraft((p) =>
                       p
-                        ? { ...p, experimental: { ...p.experimental, input_overlay_mode: e.target.checked } }
+                        ? { ...p, experimental: { ...p.experimental, input_overlay_mode: v } }
                         : p
                     )
                   }

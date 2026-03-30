@@ -1,4 +1,14 @@
 import { useMemo, useState } from "react";
+import {
+  PlusIcon,
+  XIcon,
+  ArrowClockwiseIcon,
+  PencilIcon,
+  TrashIcon,
+  GlobeIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+} from "@phosphor-icons/react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshHostEntry } from "@/types/models";
 
@@ -114,18 +124,22 @@ export function SshHostPicker(props: SshHostPickerProps) {
   return (
     <div className="ssh-picker">
       <div className="ssh-header">
-        <h2>SSH Hosts</h2>
+        <h2><GlobeIcon size={20} weight="bold" /> SSH Hosts</h2>
         <div className="ssh-header-actions">
-          <button onClick={() => openNewHostModal()} className="primary">New Host</button>
+          <button onClick={() => openNewHostModal()} className="primary">
+            <PlusIcon size={14} weight="bold" /> New Host
+          </button>
           <button
             onClick={() => {
               const name = window.prompt("Group name")?.trim();
               if (name) void createHostGroup(name);
             }}
           >
-            New Group
+            <PlusIcon size={14} /> New Group
           </button>
-          <button onClick={() => void refreshHosts()}>Refresh</button>
+          <button onClick={() => void refreshHosts()}>
+            <ArrowClockwiseIcon size={14} /> Refresh
+          </button>
         </div>
       </div>
 
@@ -146,9 +160,16 @@ export function SshHostPicker(props: SshHostPickerProps) {
                       {bundle.hosts.length} host{bundle.hosts.length !== 1 ? "s" : ""}
                     </div>
                   </div>
+                  <span className="ssh-group-chevron">
+                    {expandedGroups.has(bundle.group.id) ? <CaretDownIcon size={14} /> : <CaretRightIcon size={14} />}
+                  </span>
                   <div className="ssh-group-actions" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openNewHostModal(bundle.group.id)} title="Add host">+</button>
-                    <button onClick={() => void deleteHostGroup(bundle.group.id)} title="Delete group">×</button>
+                    <button onClick={() => openNewHostModal(bundle.group.id)} title="Add host">
+                      <PlusIcon size={13} />
+                    </button>
+                    <button onClick={() => void deleteHostGroup(bundle.group.id)} title="Delete group">
+                      <TrashIcon size={13} />
+                    </button>
                   </div>
                 </div>
                 {expandedGroups.has(bundle.group.id) && (
@@ -228,7 +249,9 @@ export function SshHostPicker(props: SshHostPickerProps) {
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{draft.id ? "Edit Host" : "New Host"}</h3>
-              <button className="ghost" onClick={() => setDraft(null)}>×</button>
+              <button className="ghost" onClick={() => setDraft(null)}>
+                <XIcon size={14} />
+              </button>
             </div>
             <div className="modal-body">
               <label>
@@ -326,10 +349,14 @@ function HostCard(props: HostCardProps) {
           {props.connecting ? "..." : "Connect"}
         </button>
         {props.onEdit ? (
-          <button className="ghost" onClick={props.onEdit}>Edit</button>
+          <button className="ghost" onClick={props.onEdit} title="Edit">
+            <PencilIcon size={14} />
+          </button>
         ) : null}
         {props.onDelete ? (
-          <button className="danger ghost" onClick={props.onDelete}>Del</button>
+          <button className="danger ghost" onClick={props.onDelete} title="Delete">
+            <TrashIcon size={14} />
+          </button>
         ) : null}
       </div>
     </div>

@@ -12,6 +12,10 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const visibleRef = useRef(isVisible);
+
+  // Keep visibleRef in sync
+  visibleRef.current = isVisible;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -46,7 +50,11 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
     const fitAddon = new FitAddon();
     xterm.loadAddon(fitAddon);
     xterm.open(el);
-    fitAddon.fit();
+
+    // Only fit if visible (has dimensions)
+    if (visibleRef.current) {
+      fitAddon.fit();
+    }
 
     xtermRef.current = xterm;
     fitRef.current = fitAddon;
@@ -66,20 +74,27 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
       }
     }, 45);
 
+    // Debounced ResizeObserver - skip when not visible
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      if (!xtermRef.current || !fitRef.current) return;
-      fitAddon.fit();
-      void invoke("resize_terminal", {
-        sessionId,
-        cols: xterm.cols,
-        rows: xterm.rows,
-      });
+      if (!visibleRef.current || !xtermRef.current || !fitRef.current) return;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!visibleRef.current || !xtermRef.current || !fitRef.current) return;
+        fitRef.current.fit();
+        void invoke("resize_terminal", {
+          sessionId,
+          cols: xtermRef.current.cols,
+          rows: xtermRef.current.rows,
+        });
+      }, 80);
     });
     resizeObserver.observe(el);
 
     return () => {
       polling = false;
       window.clearInterval(poll);
+      if (resizeTimer) clearTimeout(resizeTimer);
       dataListener.dispose();
       resizeObserver.disconnect();
       xterm.dispose();
@@ -88,19 +103,38 @@ export function TerminalPane({ sessionId, isVisible }: TerminalPaneProps) {
     };
   }, [sessionId]);
 
-  // Fit immediately when becoming visible
+  // Fit when becoming visible - use RAF + setTimeout to let layout settle
   useEffect(() => {
     if (!isVisible) return;
     const xterm = xtermRef.current;
     const fit = fitRef.current;
     if (!xterm || !fit) return;
-    fit.fit();
-    void invoke("resize_terminal", {
-      sessionId,
-      cols: xterm.cols,
-      rows: xterm.rows,
+
+    let cancelled = false;
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      // Additional frame to let layout fully resolve after display change
+      const timerId = setTimeout(() => {
+        if (cancelled) return;
+        fit.fit();
+        void invoke("resize_terminal", {
+          sessionId,
+          cols: xterm.cols,
+          rows: xterm.rows,
+        });
+        xterm.focus();
+      }, 0);
+      // Store timerId for cleanup
+      cleanupTimer = timerId;
     });
-    xterm.focus();
+
+    let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      if (cleanupTimer) clearTimeout(cleanupTimer);
+    };
   }, [isVisible, sessionId]);
 
   return (

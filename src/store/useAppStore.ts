@@ -16,6 +16,7 @@ interface AppState {
   tabs: AppTab[];
   activeTabId?: string;
   sidebarVisible: boolean;
+  sidebarWidth: number;
   paletteOpen: boolean;
   settingsOpen: boolean;
   selectedSidebarTool: "files";
@@ -40,6 +41,7 @@ interface AppState {
   setTabColor: (tabId: string, color: string) => void;
   setActiveTab: (tabId: string) => void;
   toggleSidebar: () => void;
+  setSidebarWidth: (width: number) => void;
   setPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   refreshHosts: () => Promise<void>;
@@ -92,6 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   tabs: [],
   activeTabId: undefined,
   sidebarVisible: true,
+  sidebarWidth: 280,
   paletteOpen: false,
   settingsOpen: false,
   selectedSidebarTool: "files",
@@ -315,6 +318,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
 
+  setSidebarWidth: (width) => set({ sidebarWidth: width }),
+
   setPaletteOpen: (open) => set({ paletteOpen: open }),
 
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -451,4 +456,3 @@ export const useAppStore = create<AppState>((set, get) => ({
     }, 1800);
   }
 }));
-

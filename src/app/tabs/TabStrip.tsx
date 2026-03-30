@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { PlusIcon, CaretDownIcon, XIcon, TerminalIcon, GlobeIcon, CopyIcon, PencilIcon, PaletteIcon, TrashIcon } from "@phosphor-icons/react";
 import type { AppTab } from "@/types/models";
 
 interface TabStripProps {
@@ -36,6 +37,7 @@ export function TabStrip(props: TabStripProps) {
       <div className="tabstrip-left">
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
+          const isSSH = tab.kind === "ssh" || tab.kind === "ssh_picker";
           return (
             <button
               key={tab.id}
@@ -48,7 +50,9 @@ export function TabStrip(props: TabStripProps) {
                 setContextPosition({ x: event.clientX, y: event.clientY });
               }}
             >
-              <span className="tab-dot" />
+              <span className="tab-type-icon">
+                {isSSH ? <GlobeIcon size={13} weight="bold" /> : <TerminalIcon size={13} weight="bold" />}
+              </span>
               <span className="tab-title">{tab.title}</span>
               <span
                 className="tab-close"
@@ -58,7 +62,7 @@ export function TabStrip(props: TabStripProps) {
                   props.onClose(tab.id);
                 }}
               >
-                ×
+                <XIcon size={11} weight="bold" />
               </span>
             </button>
           );
@@ -66,27 +70,38 @@ export function TabStrip(props: TabStripProps) {
       </div>
 
       <div className="tabstrip-actions">
-        <button className="tab-action" onClick={props.onNewDefault} title="New tab">
-          +
-        </button>
-        <div className="newtab-dropdown-wrap">
+        <div className="newtab-group">
+          <button className="tab-action newtab-btn" onClick={props.onNewDefault} title="New tab">
+            <PlusIcon size={14} weight="bold" />
+          </button>
+          <div className="newtab-divider" />
           <button
-            className="tab-action"
+            className="tab-action newtab-dropdown-btn"
             title="New tab options"
             onClick={() => setNewTabMenuOpen((v) => !v)}
           >
-            ▾
+            <CaretDownIcon size={11} weight="bold" />
           </button>
-          {newTabMenuOpen ? (
-            <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
-              <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>Default Terminal</button>
-              <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>PowerShell</button>
-              <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>CMD</button>
-              <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>PowerShell 7</button>
-              <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>SSH Connection</button>
-            </div>
-          ) : null}
         </div>
+        {newTabMenuOpen ? (
+          <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
+            <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>
+              <TerminalIcon size={14} /> Default Terminal
+            </button>
+            <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>
+              <TerminalIcon size={14} /> PowerShell
+            </button>
+            <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>
+              <TerminalIcon size={14} /> CMD
+            </button>
+            <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>
+              <TerminalIcon size={14} /> PowerShell 7
+            </button>
+            <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>
+              <GlobeIcon size={14} /> SSH Connection
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {contextTab && contextPosition ? (
@@ -105,10 +120,10 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Rename
+              <PencilIcon size={14} /> Rename
             </button>
             <div className="context-section">
-              <div className="context-label">Color</div>
+              <div className="context-label"><PaletteIcon size={12} /> Color</div>
               <div className="color-row">
                 {palette.map((color) => (
                   <button
@@ -130,7 +145,7 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Duplicate
+              <CopyIcon size={14} /> Duplicate
             </button>
             <button
               className="danger"
@@ -139,7 +154,7 @@ export function TabStrip(props: TabStripProps) {
                 closeContext();
               }}
             >
-              Close
+              <TrashIcon size={14} /> Close
             </button>
           </div>
         </div>

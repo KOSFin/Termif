@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { ListIcon, CommandIcon, GearSixIcon } from "@phosphor-icons/react";
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
@@ -17,6 +18,8 @@ export function AppShell() {
     tabs,
     activeTabId,
     sidebarVisible,
+    sidebarWidth,
+    setSidebarWidth,
     paletteOpen,
     settingsOpen,
     settings,
@@ -41,6 +44,8 @@ export function AppShell() {
     tabs: state.tabs,
     activeTabId: state.activeTabId,
     sidebarVisible: state.sidebarVisible,
+    sidebarWidth: state.sidebarWidth,
+    setSidebarWidth: state.setSidebarWidth,
     paletteOpen: state.paletteOpen,
     settingsOpen: state.settingsOpen,
     settings: state.settings,
@@ -75,6 +80,40 @@ export function AppShell() {
     },
     onOpenSettings: () => setSettingsOpen(true)
   });
+
+  // Splitter drag logic
+  const isDragging = useRef(false);
+
+  const onSplitterMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      const next = Math.min(500, Math.max(180, startWidth + delta));
+      setSidebarWidth(next);
+    };
+
+    const onUp = () => {
+      isDragging.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [sidebarWidth, setSidebarWidth]);
+
+  const onSplitterDoubleClick = useCallback(() => {
+    setSidebarWidth(sidebarWidth <= 200 ? 280 : 180);
+  }, [sidebarWidth, setSidebarWidth]);
 
   const commands: PaletteCommand[] = [
     {
@@ -201,7 +240,7 @@ export function AppShell() {
     <div className="app-root">
       <header className="topbar">
         <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar">
-          ☰
+          <ListIcon size={16} weight="bold" />
         </button>
         <TabStrip
           tabs={tabs}
@@ -221,13 +260,28 @@ export function AppShell() {
         />
         <div className="topbar-spacer" />
         <div className="topbar-right">
-          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">&#x2318;</button>
-          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">&#x2699;</button>
+          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">
+            <CommandIcon size={14} weight="bold" />
+          </button>
+          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">
+            <GearSixIcon size={14} weight="bold" />
+          </button>
         </div>
       </header>
 
       <main className="workspace">
-        {sidebarVisible ? <Sidebar /> : null}
+        {sidebarVisible ? (
+          <>
+            <aside className="sidebar" style={{ width: sidebarWidth }}>
+              <Sidebar />
+            </aside>
+            <div
+              className="splitter"
+              onMouseDown={onSplitterMouseDown}
+              onDoubleClick={onSplitterDoubleClick}
+            />
+          </>
+        ) : null}
 
         <section className="center-pane">
           {!isInitialized ? <div className="loading-screen">Loading...</div> : null}

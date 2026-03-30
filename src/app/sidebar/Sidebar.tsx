@@ -11,16 +11,9 @@ export function Sidebar() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-tools">
-        <button className="active">Files</button>
-      </div>
-      <div className="sidebar-content">
-        <FileManagerPane
-          activeSessionId={activeTab?.sessionId}
-          isRemote={activeTab?.kind === "ssh"}
-        />
-      </div>
-    </aside>
+    <FileManagerPane
+      activeSessionId={activeTab?.sessionId}
+      isRemote={activeTab?.kind === "ssh"}
+    />
   );
 }
