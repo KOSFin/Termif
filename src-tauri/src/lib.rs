@@ -14,10 +14,7 @@ use core::models::{AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshH
 use tauri::State;
 
 use crate::{
-    fs as fs_ops,
-    persistence::Persistence,
-    pty::TerminalManager,
-    settings::SettingsStore,
+    fs as fs_ops, persistence::Persistence, pty::TerminalManager, settings::SettingsStore,
     ssh::HostStore,
 };
 
@@ -49,7 +46,10 @@ fn create_local_session(
 }
 
 #[tauri::command]
-fn create_ssh_session(host_alias: String, state: State<'_, AppState>) -> Result<SessionDto, String> {
+fn create_ssh_session(
+    host_alias: String,
+    state: State<'_, AppState>,
+) -> Result<SessionDto, String> {
     state
         .terminal
         .spawn_ssh_session(host_alias)
@@ -57,7 +57,11 @@ fn create_ssh_session(host_alias: String, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
-fn send_terminal_input(session_id: String, data: String, state: State<'_, AppState>) -> Result<(), String> {
+fn send_terminal_input(
+    session_id: String,
+    data: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     state
         .terminal
         .send_input(&session_id, data)
@@ -73,7 +77,12 @@ fn read_terminal_output(session_id: String, state: State<'_, AppState>) -> Resul
 }
 
 #[tauri::command]
-fn resize_terminal(session_id: String, cols: u16, rows: u16, state: State<'_, AppState>) -> Result<(), String> {
+fn resize_terminal(
+    session_id: String,
+    cols: u16,
+    rows: u16,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     state
         .terminal
         .resize(&session_id, cols, rows)
@@ -89,7 +98,10 @@ fn close_terminal_session(session_id: String, state: State<'_, AppState>) -> Res
 }
 
 #[tauri::command]
-fn list_local_entries(path: String, show_hidden: bool) -> Result<Vec<core::models::FileEntryDto>, String> {
+fn list_local_entries(
+    path: String,
+    show_hidden: bool,
+) -> Result<Vec<core::models::FileEntryDto>, String> {
     fs_ops::list_local_entries(&path, show_hidden).map_err(|e| e.to_string())
 }
 
@@ -155,7 +167,10 @@ fn load_ssh_hosts(state: State<'_, AppState>) -> SshHostsPayload {
 }
 
 #[tauri::command]
-fn save_managed_ssh_host(host: SshHostEntry, state: State<'_, AppState>) -> Result<SshHostEntry, String> {
+fn save_managed_ssh_host(
+    host: SshHostEntry,
+    state: State<'_, AppState>,
+) -> Result<SshHostEntry, String> {
     state
         .hosts
         .save_managed_host(host)
@@ -177,7 +192,10 @@ fn create_ssh_group(name: String, state: State<'_, AppState>) -> Result<SshHostG
 
 #[tauri::command]
 fn delete_ssh_group(group_id: String, state: State<'_, AppState>) -> Result<(), String> {
-    state.hosts.delete_group(&group_id).map_err(|e| e.to_string())
+    state
+        .hosts
+        .delete_group(&group_id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

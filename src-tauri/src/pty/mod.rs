@@ -113,7 +113,9 @@ impl TerminalManager {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        let mut lock = output_for_reader.lock().expect("output buffer lock poisoned");
+                        let mut lock = output_for_reader
+                            .lock()
+                            .expect("output buffer lock poisoned");
                         lock.extend_from_slice(&buf[..n]);
                         if lock.len() > 4_000_000 {
                             let drain = lock.len().saturating_sub(2_500_000);

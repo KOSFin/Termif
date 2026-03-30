@@ -1,8 +1,19 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use uuid::Uuid;
 
-use crate::{core::{errors::TermifError, models::{SshHostEntry, SshHostGroup, SshHostSource}}, persistence::Persistence};
+use crate::{
+    core::{
+        errors::TermifError,
+        models::{SshHostEntry, SshHostGroup, SshHostSource},
+    },
+    persistence::Persistence,
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct HostState {
@@ -26,7 +37,11 @@ impl HostStore {
     }
 
     pub fn list_groups(&self) -> Vec<SshHostGroup> {
-        self.state.lock().expect("host state lock poisoned").groups.clone()
+        self.state
+            .lock()
+            .expect("host state lock poisoned")
+            .groups
+            .clone()
     }
 
     pub fn list_managed_hosts(&self) -> Vec<SshHostEntry> {
@@ -90,7 +105,9 @@ impl HostStore {
 }
 
 fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
-    let home = std::env::var("USERPROFILE").map(PathBuf::from).map_err(|e| TermifError::Internal(e.to_string()))?;
+    let home = std::env::var("USERPROFILE")
+        .map(PathBuf::from)
+        .map_err(|e| TermifError::Internal(e.to_string()))?;
     let ssh_config = home.join(".ssh").join("config");
     if !ssh_config.exists() {
         return Ok(Vec::new());
