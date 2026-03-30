@@ -92,17 +92,31 @@ jobs:
 
 
           if ($isTagBuild) {
-            $appVersion = $refName.Substring(1)
+            $rawTagVersion = $refName.Substring(1)
+            if ($rawTagVersion -match '^(\d+)\.(\d+)\.(\d+)\.(\d+)$') {
+              # Normalize legacy 4-part tag version to SemVer build metadata.
+              $appVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3])+build.$($Matches[4])"
+            }
+            elseif ($rawTagVersion -match '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
+              $appVersion = $rawTagVersion
+            }
+            else {
+              throw "Tag version '$rawTagVersion' must be SemVer (for example: 1.2.3, 1.2.3-rc.1, 1.2.3+build.7)"
+            }
             $releaseTag = $refName
             $releaseName = "Termif $appVersion"
             $preRelease = "false"
             $publishRelease = "true"
           }
           else {
-            # Only numeric prerelease for MSI: X.Y.Z.<run_number>
-            $baseParts = $baseVersion -split '\.'
-            if ($baseParts.Length -lt 3) { throw "Base version must be X.Y.Z" }
-            $appVersion = "$($baseParts[0]).$($baseParts[1]).$($baseParts[2]).$env:GITHUB_RUN_NUMBER"
+            # Build a CI semver compatible with Tauri: X.Y.Z-ci.<run_number>
+            if ($baseVersion -notmatch '^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$') {
+              throw "Base version must start with X.Y.Z"
+            }
+            $major = $Matches[1]
+            $minor = $Matches[2]
+            $patch = $Matches[3]
+            $appVersion = "$major.$minor.$patch-ci.$env:GITHUB_RUN_NUMBER"
             $safeRef = $refName -replace '[^A-Za-z0-9._-]', '-'
             $releaseTag = "ci-$safeRef-$env:GITHUB_RUN_NUMBER-$shortSha"
             $releaseName = "Termif CI $safeRef $shortSha"
