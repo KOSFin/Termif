@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
@@ -34,7 +34,10 @@ export function AppShell() {
     toggleSidebar,
     loadCurrentFiles,
     saveSettings,
-    toast
+    toast,
+    activateNextTab,
+    activatePrevTab,
+    activateTabByIndex
   } = useAppStore((state) => ({
     isInitialized: state.isInitialized,
     initialize: state.initialize,
@@ -58,23 +61,97 @@ export function AppShell() {
     toggleSidebar: state.toggleSidebar,
     loadCurrentFiles: state.loadCurrentFiles,
     saveSettings: state.saveSettings,
-    toast: state.toast
+    toast: state.toast,
+    activateNextTab: state.activateNextTab,
+    activatePrevTab: state.activatePrevTab,
+    activateTabByIndex: state.activateTabByIndex
   }));
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
+
+  // ── Tab switcher state (Windows Alt+Tab style) ────────────────────
+  const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
+  const [tabSwitcherIndex, setTabSwitcherIndex] = useState(0);
+  const tabSwitcherOpenRef = useRef(false);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
 
-  useHotkeys({
+  // ── Disable browser right-click context menu globally ─────────────
+  useEffect(() => {
+    const prevent = (e: MouseEvent) => {
+      // Allow our custom context menus (they stopPropagation themselves)
+      // This captures at the document level to block the browser default
+      const target = e.target as HTMLElement;
+      // Don't block on textarea/input for paste context
+      if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", prevent);
+    return () => document.removeEventListener("contextmenu", prevent);
+  }, []);
+
+  const hotkeyHandlers = useCallback(() => ({
     onOpenPalette: () => setPaletteOpen(true),
     onToggleSidebar: () => toggleSidebar(),
     onNewTab: () => {
       void createLocalTab(settings?.terminal.default_shell ?? "powershell");
     },
-    onOpenSettings: () => setSettingsOpen(true)
-  });
+    onOpenSettings: () => setSettingsOpen(true),
+    onCloseTab: () => {
+      if (activeTabId) void closeTab(activeTabId);
+    },
+    onNextTab: () => activateNextTab(),
+    onPrevTab: () => activatePrevTab(),
+    onTabByIndex: (index: number) => activateTabByIndex(index),
+    onRefreshFiles: () => {
+      void loadCurrentFiles();
+    },
+    onTabSwitcherOpen: (direction: 1 | -1) => {
+      if (tabs.length < 2) return;
+      if (!tabSwitcherOpenRef.current) {
+        // First press — open switcher, move selection
+        const currentIdx = tabs.findIndex((t) => t.id === activeTabId);
+        const nextIdx = (currentIdx + direction + tabs.length) % tabs.length;
+        setTabSwitcherIndex(nextIdx);
+        setTabSwitcherOpen(true);
+        tabSwitcherOpenRef.current = true;
+      } else {
+        // Subsequent press — cycle selection
+        setTabSwitcherIndex((prev) => (prev + direction + tabs.length) % tabs.length);
+      }
+    },
+    onTabSwitcherClose: () => {
+      if (!tabSwitcherOpenRef.current) return;
+      // Ctrl released — switch to selected tab
+      const target = tabs[tabSwitcherIndex];
+      if (target) setActiveTab(target.id);
+      setTabSwitcherOpen(false);
+      tabSwitcherOpenRef.current = false;
+    },
+    onEscape: () => {
+      if (tabSwitcherOpenRef.current) {
+        setTabSwitcherOpen(false);
+        tabSwitcherOpenRef.current = false;
+        return;
+      }
+      if (paletteOpen) {
+        setPaletteOpen(false);
+        return;
+      }
+      if (settingsOpen) {
+        setSettingsOpen(false);
+      }
+    }
+  }), [
+    tabs, activeTabId, paletteOpen, settingsOpen, settings,
+    setPaletteOpen, toggleSidebar, createLocalTab, setSettingsOpen,
+    closeTab, activateNextTab, activatePrevTab, activateTabByIndex,
+    loadCurrentFiles, setActiveTab, tabSwitcherIndex
+  ]);
+
+  useHotkeys(hotkeyHandlers());
 
   const commands: PaletteCommand[] = [
     {
@@ -120,6 +197,14 @@ export function AppShell() {
       action: toggleSidebar
     },
     {
+      id: "tab.close",
+      title: "Close Current Tab",
+      category: "Tabs",
+      action: () => {
+        if (activeTab) void closeTab(activeTab.id);
+      }
+    },
+    {
       id: "tab.rename",
       title: "Rename Current Tab",
       category: "Tabs",
@@ -138,6 +223,18 @@ export function AppShell() {
         const color = window.prompt("Hex color", activeTab.color)?.trim();
         if (color) setTabColor(activeTab.id, color);
       }
+    },
+    {
+      id: "tab.next",
+      title: "Next Tab",
+      category: "Tabs",
+      action: activateNextTab
+    },
+    {
+      id: "tab.prev",
+      title: "Previous Tab",
+      category: "Tabs",
+      action: activatePrevTab
     },
     {
       id: "files.refresh",
@@ -200,7 +297,7 @@ export function AppShell() {
   return (
     <div className="app-root">
       <header className="topbar">
-        <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar">
+        <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar (Ctrl+B)">
           ☰
         </button>
         <TabStrip
@@ -227,7 +324,8 @@ export function AppShell() {
       </header>
 
       <main className="workspace">
-        {sidebarVisible ? <Sidebar /> : null}
+        {/* Sidebar always in DOM — CSS handles visibility to preserve state */}
+        <Sidebar hidden={!sidebarVisible} />
 
         <section className="center-pane">
           {!isInitialized ? <div className="loading-screen">Loading...</div> : null}
@@ -247,6 +345,29 @@ export function AppShell() {
               ))}
         </section>
       </main>
+
+      {/* ── Tab switcher overlay (Windows Alt+Tab style) ─────────── */}
+      {tabSwitcherOpen && (
+        <div className="tab-switcher-overlay">
+          <div className="tab-switcher-panel">
+            {tabs.map((tab, idx) => (
+              <button
+                key={tab.id}
+                className={`tab-switcher-item${idx === tabSwitcherIndex ? " selected" : ""}${tab.id === activeTabId ? " current" : ""}`}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setTabSwitcherOpen(false);
+                  tabSwitcherOpenRef.current = false;
+                }}
+              >
+                <span className="tab-switcher-dot" style={{ background: tab.color }} />
+                <span className="tab-switcher-title">{tab.title}</span>
+                <span className="tab-switcher-index">{idx + 1}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
 

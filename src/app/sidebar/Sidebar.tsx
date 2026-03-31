@@ -2,7 +2,11 @@ import { useMemo } from "react";
 import { FileManagerPane } from "@/features/file_manager/FileManagerPane";
 import { useAppStore } from "@/store/useAppStore";
 
-export function Sidebar() {
+interface SidebarProps {
+  hidden?: boolean;
+}
+
+export function Sidebar({ hidden }: SidebarProps) {
   const { tabs, activeTabId } = useAppStore((state) => ({
     tabs: state.tabs,
     activeTabId: state.activeTabId
@@ -11,7 +15,7 @@ export function Sidebar() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${hidden ? " sidebar-hidden" : ""}`}>
       <div className="sidebar-tools">
         <button className="active">Files</button>
       </div>

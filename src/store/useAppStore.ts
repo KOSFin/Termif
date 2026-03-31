@@ -39,6 +39,9 @@ interface AppState {
   renameTab: (tabId: string, name: string) => void;
   setTabColor: (tabId: string, color: string) => void;
   setActiveTab: (tabId: string) => void;
+  activateNextTab: () => void;
+  activatePrevTab: () => void;
+  activateTabByIndex: (index: number) => void;
   toggleSidebar: () => void;
   setPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -142,8 +145,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           // Skip
         }
       } else if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
-        // Don't auto-reconnect SSH on startup — just restore as a picker tab so
-        // the user decides when to connect.
         restoredTabs.push({
           id: savedTab.id,
           title: savedTab.title,
@@ -171,7 +172,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeTabId: persisted.active_tab_id ?? restoredTabs[0].id,
         isInitialized: true
       });
-      // Load files for active tab in background
       get().loadCurrentFiles().catch(() => {});
     }
 
@@ -245,7 +245,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     await persistUiState(get());
-    // Load files for new active tab using cache
     get().loadCurrentFilesFromCache();
   },
 
@@ -297,9 +296,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveTab: (tabId) => {
     set({ activeTabId: tabId });
     void persistUiState(get());
-    // Use cached files for instant tab switch, refresh in background
     get().loadCurrentFilesFromCache();
     get().loadCurrentFiles().catch(() => {});
+  },
+
+  activateNextTab: () => {
+    const { tabs, activeTabId } = get();
+    if (tabs.length < 2) return;
+    const idx = tabs.findIndex((t) => t.id === activeTabId);
+    const next = tabs[(idx + 1) % tabs.length];
+    get().setActiveTab(next.id);
+  },
+
+  activatePrevTab: () => {
+    const { tabs, activeTabId } = get();
+    if (tabs.length < 2) return;
+    const idx = tabs.findIndex((t) => t.id === activeTabId);
+    const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+    get().setActiveTab(prev.id);
+  },
+
+  activateTabByIndex: (index) => {
+    const { tabs } = get();
+    if (index >= 0 && index < tabs.length) {
+      get().setActiveTab(tabs[index].id);
+    }
   },
 
   toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
@@ -345,7 +366,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().tabPaths[activeTab.id] ??
       (activeTab.kind === "ssh" ? "/" : "C:/");
 
-    set({ fileLoading: true, fileError: undefined });
+    // Show cached data instantly — only show loading spinner if no cache exists
+    const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${currentPath}`;
+    const cached = get().dirCache[cacheKey];
+
+    if (cached) {
+      // Cache hit: show cached data immediately, fetch in background silently
+      set({ fileEntries: cached, fileLoading: false, fileError: undefined });
+    } else {
+      // No cache: show loading indicator
+      set({ fileLoading: true, fileError: undefined });
+    }
 
     try {
       const entries =
@@ -358,9 +389,6 @@ export const useAppStore = create<AppState>((set, get) => ({
               path: currentPath,
               showHidden: get().settings?.file_manager.show_hidden ?? false
             });
-
-      // Cache the result
-      const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${currentPath}`;
 
       set((state) => ({
         fileEntries: entries,
@@ -376,7 +404,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Internal: load from cache without IPC
   loadCurrentFilesFromCache: () => {
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
@@ -440,4 +467,3 @@ export const useAppStore = create<AppState>((set, get) => ({
     }, 1800);
   }
 }));
-

@@ -6,7 +6,14 @@ use std::{
     time::UNIX_EPOCH,
 };
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 use crate::core::{errors::TermifError, models::FileEntryDto};
+
+/// Windows flag to prevent console window from flashing when spawning child processes.
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 // ── Local file operations ─────────────────────────────────────────────────────
 
@@ -101,14 +108,18 @@ pub fn list_remote_entries_ssh(alias: &str, path: &str) -> Result<Vec<FileEntryD
         quoted, quoted
     );
 
-    let output = Command::new("ssh")
-        .arg("-o")
+    let mut cmd = Command::new("ssh");
+    cmd.arg("-o")
         .arg("BatchMode=yes")
         .arg("-o")
         .arg("ConnectTimeout=5")
         .arg(alias)
-        .arg(&remote_cmd)
-        .output()?;
+        .arg(&remote_cmd);
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = cmd.output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -200,14 +211,18 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
 /// Read a text file from a remote host via SSH exec + `cat`.
 pub fn read_remote_text_file(alias: &str, path: &str) -> Result<String, TermifError> {
     let quoted = shell_single_quote(path);
-    let output = Command::new("ssh")
-        .arg("-o")
+    let mut cmd = Command::new("ssh");
+    cmd.arg("-o")
         .arg("BatchMode=yes")
         .arg("-o")
         .arg("ConnectTimeout=5")
         .arg(alias)
-        .arg(format!("cat {}", quoted))
-        .output()?;
+        .arg(format!("cat {}", quoted));
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = cmd.output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -224,8 +239,8 @@ pub fn read_remote_text_file(alias: &str, path: &str) -> Result<String, TermifEr
 /// Write a text file to a remote host via SSH exec + stdin pipe.
 pub fn write_remote_text_file(alias: &str, path: &str, content: &str) -> Result<(), TermifError> {
     let quoted = shell_single_quote(path);
-    let mut child = Command::new("ssh")
-        .arg("-o")
+    let mut cmd = Command::new("ssh");
+    cmd.arg("-o")
         .arg("BatchMode=yes")
         .arg("-o")
         .arg("ConnectTimeout=5")
@@ -233,8 +248,12 @@ pub fn write_remote_text_file(alias: &str, path: &str, content: &str) -> Result<
         .arg(format!("cat > {}", quoted))
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let mut child = cmd.spawn()?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(content.as_bytes())?;

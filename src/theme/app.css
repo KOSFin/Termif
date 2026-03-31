@@ -200,13 +200,21 @@ textarea:focus {
 
 .sidebar {
   width: 280px;
-  min-width: 240px;
+  min-width: 0;
   border-right: 1px solid var(--stroke);
   background: var(--bg-elev-1);
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 0;
   overflow: hidden;
+  transition: width 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.sidebar-hidden {
+  width: 0;
+  border-right-color: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-tools {
@@ -1186,10 +1194,93 @@ textarea:focus {
   color: var(--text-muted);
 }
 
+/* ── Tab switcher (Ctrl+Tab overlay) ─────────────── */
+
+.tab-switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.tab-switcher-panel {
+  width: min(420px, calc(100vw - 60px));
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev-1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.tab-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.08s, border-color 0.08s;
+}
+
+.tab-switcher-item:hover {
+  background: var(--bg-hover);
+}
+
+.tab-switcher-item.selected {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.tab-switcher-item.current {
+  color: var(--text-muted);
+}
+
+.tab-switcher-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tab-switcher-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tab-switcher-index {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--bg-elev-2);
+  flex-shrink: 0;
+}
+
 /* ── Responsive ──────────────────────────────────── */
 
 @media (max-width: 1024px) {
-  .sidebar {
+  .sidebar:not(.sidebar-hidden) {
     width: 240px;
   }
 
@@ -1203,7 +1294,7 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
-  .sidebar {
+  .sidebar:not(.sidebar-hidden) {
     width: 100%;
     max-height: 40vh;
   }
