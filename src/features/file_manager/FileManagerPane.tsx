@@ -1,5 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  RefreshCw,
+  FilePlus,
+  FolderPlus,
+  Folder,
+  File,
+  Eye,
+  FolderOpen as FolderOpenIcon,
+  Copy,
+  Type,
+  Pencil,
+  Trash2,
+  Terminal
+} from "lucide-react";
 import { openEditorWindow } from "./editorWindow";
 import { useAppStore } from "@/store/useAppStore";
 import type { FileEntryDto } from "@/types/models";
@@ -131,10 +146,18 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   return (
     <div className="file-manager" onClick={() => setContextMenu(undefined)}>
       <div className="file-toolbar">
-        <button onClick={() => void goParentPath()} title="Back">&#x2190;</button>
-        <button onClick={() => void loadCurrentFiles()} title="Refresh">&#x21BB;</button>
-        <button onClick={() => void onCreateEntry(false)} title="New file">+</button>
-        <button onClick={() => void onCreateEntry(true)} title="New folder">&#x1F4C1;</button>
+        <button onClick={() => void goParentPath()} title="Back">
+          <ArrowLeft size={14} strokeWidth={2} />
+        </button>
+        <button onClick={() => void loadCurrentFiles()} title="Refresh" className={fileLoading ? "spinning" : ""}>
+          <RefreshCw size={14} strokeWidth={2} />
+        </button>
+        <button onClick={() => void onCreateEntry(false)} title="New file">
+          <FilePlus size={14} strokeWidth={2} />
+        </button>
+        <button onClick={() => void onCreateEntry(true)} title="New folder">
+          <FolderPlus size={14} strokeWidth={2} />
+        </button>
       </div>
 
       <div className="breadcrumbs">
@@ -145,7 +168,6 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         ))}
       </div>
 
-      {fileLoading ? <div className="file-status">Loading...</div> : null}
       {fileError ? <div className="file-status error">{fileError}</div> : null}
 
       <div className="file-list">
@@ -162,11 +184,14 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             }}
           >
             <span className={`file-icon ${entry.is_dir ? "dir" : "file"}`}>
-              {entry.is_dir ? "\uD83D\uDCC2" : "\uD83D\uDCC4"}
+              {entry.is_dir ? <Folder size={15} strokeWidth={1.8} /> : <File size={15} strokeWidth={1.8} />}
             </span>
             <span className="file-name">{entry.name}</span>
           </button>
         ))}
+        {!fileLoading && fileEntries.length === 0 && !fileError && (
+          <div className="file-status">Empty directory</div>
+        )}
       </div>
 
       {contextMenu ? (
@@ -176,13 +201,27 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button onClick={() => { onPreviewFile(contextMenu.file); setContextMenu(undefined); }}>Preview</button>
-            <button onClick={() => { void onOpenFile(contextMenu.file); setContextMenu(undefined); }}>Open</button>
-            <button onClick={() => { void onCopy(contextMenu.file.path, "path"); setContextMenu(undefined); }}>Copy Path</button>
-            <button onClick={() => { void onCopy(contextMenu.file.name, "name"); setContextMenu(undefined); }}>Copy Name</button>
-            <button onClick={() => { void onRename(contextMenu.file); setContextMenu(undefined); }}>Rename</button>
-            <button className="danger" onClick={() => { void onDelete(contextMenu.file); setContextMenu(undefined); }}>Delete</button>
-            <button onClick={() => { void onCdHere(contextMenu.file); setContextMenu(undefined); }}>CD Here</button>
+            <button onClick={() => { onPreviewFile(contextMenu.file); setContextMenu(undefined); }}>
+              <Eye size={13} strokeWidth={2} /> Preview
+            </button>
+            <button onClick={() => { void onOpenFile(contextMenu.file); setContextMenu(undefined); }}>
+              <FolderOpenIcon size={13} strokeWidth={2} /> Open
+            </button>
+            <button onClick={() => { void onCopy(contextMenu.file.path, "path"); setContextMenu(undefined); }}>
+              <Copy size={13} strokeWidth={2} /> Copy Path
+            </button>
+            <button onClick={() => { void onCopy(contextMenu.file.name, "name"); setContextMenu(undefined); }}>
+              <Type size={13} strokeWidth={2} /> Copy Name
+            </button>
+            <button onClick={() => { void onRename(contextMenu.file); setContextMenu(undefined); }}>
+              <Pencil size={13} strokeWidth={2} /> Rename
+            </button>
+            <button className="danger" onClick={() => { void onDelete(contextMenu.file); setContextMenu(undefined); }}>
+              <Trash2 size={13} strokeWidth={2} /> Delete
+            </button>
+            <button onClick={() => { void onCdHere(contextMenu.file); setContextMenu(undefined); }}>
+              <Terminal size={13} strokeWidth={2} /> CD Here
+            </button>
           </div>
         </div>
       ) : null}

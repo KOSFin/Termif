@@ -21,13 +21,32 @@ pub fn list_local_entries(path: &str, show_hidden: bool) -> Result<Vec<FileEntry
     let mut entries = Vec::new();
 
     for item in fs::read_dir(path)? {
-        let item = item?;
+        let item = match item {
+            Ok(entry) => entry,
+            Err(_) => continue, // skip entries we can't read
+        };
+
         let file_name = item.file_name().to_string_lossy().to_string();
         if !show_hidden && file_name.starts_with('.') {
             continue;
         }
 
-        let metadata = item.metadata()?;
+        // Skip entries whose metadata we can't read (locked files, permission issues)
+        let metadata = match item.metadata() {
+            Ok(m) => m,
+            Err(_) => {
+                // Still include the entry with default values so it shows up in the list
+                entries.push(FileEntryDto {
+                    name: file_name,
+                    path: item.path().to_string_lossy().to_string(),
+                    is_dir: item.path().is_dir(),
+                    size: 0,
+                    modified_unix: None,
+                });
+                continue;
+            }
+        };
+
         let modified_unix = metadata
             .modified()
             .ok()
@@ -143,10 +162,9 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
             continue;
         }
 
-        let parts: Vec<&str> = line
-            .splitn(9, char::is_whitespace)
-            .filter(|s| !s.is_empty())
-            .collect();
+        // Collapse whitespace runs into single spaces, then split
+        let collapsed: String = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        let parts: Vec<&str> = collapsed.splitn(9, ' ').collect();
 
         // Minimum fields: perms links user group size [timestamp] name
         // GNU ls with --time-style=+%s: perms links user group size timestamp name  (7+)
@@ -176,7 +194,7 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
             continue;
         };
 
-        if name == "." || name == ".." {
+        if name.is_empty() || name == "." || name == ".." {
             continue;
         }
 

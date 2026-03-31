@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { X, ChevronDown, Plus } from "lucide-react";
 import type { AppTab } from "@/types/models";
 
 interface TabStripProps {
@@ -48,7 +49,6 @@ export function TabStrip(props: TabStripProps) {
                 setContextPosition({ x: event.clientX, y: event.clientY });
               }}
             >
-              <span className="tab-dot" />
               <span className="tab-title">{tab.title}</span>
               <span
                 className="tab-close"
@@ -58,7 +58,7 @@ export function TabStrip(props: TabStripProps) {
                   props.onClose(tab.id);
                 }}
               >
-                ×
+                <X size={11} strokeWidth={2.5} />
               </span>
             </button>
           );
@@ -67,7 +67,7 @@ export function TabStrip(props: TabStripProps) {
 
       <div className="tabstrip-actions">
         <button className="tab-action" onClick={props.onNewDefault} title="New tab">
-          +
+          <Plus size={15} strokeWidth={2} />
         </button>
         <div className="newtab-dropdown-wrap">
           <button
@@ -75,7 +75,7 @@ export function TabStrip(props: TabStripProps) {
             title="New tab options"
             onClick={() => setNewTabMenuOpen((v) => !v)}
           >
-            ▾
+            <ChevronDown size={13} strokeWidth={2} />
           </button>
           {newTabMenuOpen ? (
             <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>

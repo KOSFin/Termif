@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Minus, Square, X, Command, Settings } from "lucide-react";
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
@@ -69,10 +71,19 @@ export function AppShell() {
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
+  // ── Window controls ─────────────────────────────────────────────────
+  const appWindow = getCurrentWindow();
+
+  const onMinimize = () => void appWindow.minimize();
+  const onMaximize = () => void appWindow.toggleMaximize();
+  const onCloseWindow = () => void appWindow.close();
+
   // ── Tab switcher state (Windows Alt+Tab style) ────────────────────
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [tabSwitcherIndex, setTabSwitcherIndex] = useState(0);
   const tabSwitcherOpenRef = useRef(false);
+  const tabSwitcherTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const tabSwitcherPendingRef = useRef(false);
 
   useEffect(() => {
     void initialize();
@@ -81,10 +92,7 @@ export function AppShell() {
   // ── Disable browser right-click context menu globally ─────────────
   useEffect(() => {
     const prevent = (e: MouseEvent) => {
-      // Allow our custom context menus (they stopPropagation themselves)
-      // This captures at the document level to block the browser default
       const target = e.target as HTMLElement;
-      // Don't block on textarea/input for paste context
       if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
       e.preventDefault();
     };
@@ -110,30 +118,46 @@ export function AppShell() {
     },
     onTabSwitcherOpen: (direction: 1 | -1) => {
       if (tabs.length < 2) return;
-      if (!tabSwitcherOpenRef.current) {
-        // First press — open switcher, move selection
+      if (!tabSwitcherOpenRef.current && !tabSwitcherPendingRef.current) {
+        // First press — start delay, move selection
         const currentIdx = tabs.findIndex((t) => t.id === activeTabId);
         const nextIdx = (currentIdx + direction + tabs.length) % tabs.length;
         setTabSwitcherIndex(nextIdx);
-        setTabSwitcherOpen(true);
-        tabSwitcherOpenRef.current = true;
+        tabSwitcherPendingRef.current = true;
+        tabSwitcherTimerRef.current = setTimeout(() => {
+          if (tabSwitcherPendingRef.current) {
+            setTabSwitcherOpen(true);
+            tabSwitcherOpenRef.current = true;
+          }
+        }, 150);
       } else {
         // Subsequent press — cycle selection
         setTabSwitcherIndex((prev) => (prev + direction + tabs.length) % tabs.length);
       }
     },
     onTabSwitcherClose: () => {
-      if (!tabSwitcherOpenRef.current) return;
+      if (!tabSwitcherOpenRef.current && !tabSwitcherPendingRef.current) return;
+      // Clear pending timer if still waiting
+      if (tabSwitcherTimerRef.current) {
+        clearTimeout(tabSwitcherTimerRef.current);
+        tabSwitcherTimerRef.current = undefined;
+      }
       // Ctrl released — switch to selected tab
       const target = tabs[tabSwitcherIndex];
       if (target) setActiveTab(target.id);
       setTabSwitcherOpen(false);
       tabSwitcherOpenRef.current = false;
+      tabSwitcherPendingRef.current = false;
     },
     onEscape: () => {
-      if (tabSwitcherOpenRef.current) {
+      if (tabSwitcherOpenRef.current || tabSwitcherPendingRef.current) {
+        if (tabSwitcherTimerRef.current) {
+          clearTimeout(tabSwitcherTimerRef.current);
+          tabSwitcherTimerRef.current = undefined;
+        }
         setTabSwitcherOpen(false);
         tabSwitcherOpenRef.current = false;
+        tabSwitcherPendingRef.current = false;
         return;
       }
       if (paletteOpen) {
@@ -296,10 +320,7 @@ export function AppShell() {
 
   return (
     <div className="app-root">
-      <header className="topbar">
-        <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar (Ctrl+B)">
-          ☰
-        </button>
+      <header className="topbar" data-tauri-drag-region>
         <TabStrip
           tabs={tabs}
           activeTabId={activeTabId}
@@ -316,15 +337,28 @@ export function AppShell() {
             void closeTab(tabId);
           }}
         />
-        <div className="topbar-spacer" />
+        <div className="topbar-spacer" data-tauri-drag-region />
         <div className="topbar-right">
-          <button onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">&#x2318;</button>
-          <button onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">&#x2699;</button>
+          <button className="topbar-btn" onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">
+            <Command size={14} strokeWidth={2} />
+          </button>
+          <button className="topbar-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">
+            <Settings size={14} strokeWidth={2} />
+          </button>
+          <div className="topbar-divider" />
+          <button className="window-btn" onClick={onMinimize} title="Minimize">
+            <Minus size={14} strokeWidth={2} />
+          </button>
+          <button className="window-btn" onClick={onMaximize} title="Maximize">
+            <Square size={11} strokeWidth={2} />
+          </button>
+          <button className="window-btn window-btn-close" onClick={onCloseWindow} title="Close">
+            <X size={14} strokeWidth={2} />
+          </button>
         </div>
       </header>
 
       <main className="workspace">
-        {/* Sidebar always in DOM — CSS handles visibility to preserve state */}
         <Sidebar hidden={!sidebarVisible} />
 
         <section className="center-pane">
@@ -358,6 +392,7 @@ export function AppShell() {
                   setActiveTab(tab.id);
                   setTabSwitcherOpen(false);
                   tabSwitcherOpenRef.current = false;
+                  tabSwitcherPendingRef.current = false;
                 }}
               >
                 <span className="tab-switcher-dot" style={{ background: tab.color }} />

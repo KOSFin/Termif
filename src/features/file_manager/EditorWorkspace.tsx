@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X, Save, FolderOpen } from "lucide-react";
 
 interface EditorTab {
   id: string;
@@ -7,7 +8,7 @@ interface EditorTab {
   mode: "preview" | "edit";
   content: string;
   dirty: boolean;
-  sessionId?: string; // present for remote SSH files
+  sessionId?: string;
   error?: string;
 }
 
@@ -24,6 +25,8 @@ function parseQuery() {
 export function EditorWorkspace() {
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
@@ -47,7 +50,6 @@ export function EditorWorkspace() {
     try {
       let content: string;
       if (sessionId) {
-        // Remote file via SSH
         content = await invoke<string>("read_remote_text_file", { sessionId, path });
       } else {
         content = await invoke<string>("read_text_file", { path });
@@ -79,7 +81,7 @@ export function EditorWorkspace() {
     }
   };
 
-  const saveActive = async () => {
+  const saveActive = useCallback(async () => {
     if (!activeTab || activeTab.mode === "preview") return;
     try {
       if (activeTab.sessionId) {
@@ -95,7 +97,6 @@ export function EditorWorkspace() {
         prev.map((tab) => (tab.id === activeTab.id ? { ...tab, dirty: false } : tab))
       );
     } catch (err) {
-      // Show error inline
       setTabs((prev) =>
         prev.map((tab) =>
           tab.id === activeTab.id
@@ -104,9 +105,8 @@ export function EditorWorkspace() {
         )
       );
     }
-  };
+  }, [activeTab]);
 
-  // Ctrl+S / Cmd+S keyboard shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -116,8 +116,15 @@ export function EditorWorkspace() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [saveActive]);
+
+  const lineCount = activeTab ? activeTab.content.split("\n").length : 0;
+
+  const syncScroll = () => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
 
   return (
     <div className="editor-workspace">
@@ -131,7 +138,7 @@ export function EditorWorkspace() {
             >
               {tab.path.split(/[\\/]/).pop()}
               {tab.dirty ? " *" : ""}
-              {tab.sessionId ? " ☁" : ""}
+              {tab.sessionId ? " (remote)" : ""}
               <span
                 className="editor-tab-close"
                 onClick={(event) => {
@@ -139,13 +146,14 @@ export function EditorWorkspace() {
                   closeTab(tab.id);
                 }}
               >
-                ×
+                <X size={11} strokeWidth={2.5} />
               </span>
             </button>
           ))}
         </div>
         <div className="editor-actions">
           <button
+            className="editor-action-btn"
             onClick={() => {
               const path = window.prompt("Open file path")?.trim();
               if (path) {
@@ -153,15 +161,17 @@ export function EditorWorkspace() {
                 void openPath(path, "edit", sessionId);
               }
             }}
+            title="Open file"
           >
-            Open
+            <FolderOpen size={14} strokeWidth={2} />
           </button>
           <button
+            className="editor-action-btn"
             onClick={() => void saveActive()}
             disabled={!activeTab || activeTab.mode === "preview"}
             title="Save (Ctrl+S)"
           >
-            Save
+            <Save size={14} strokeWidth={2} />
           </button>
         </div>
       </header>
@@ -171,26 +181,35 @@ export function EditorWorkspace() {
       {activeTab ? (
         <main className="editor-main">
           <div className="editor-meta">
-            <span>{activeTab.path}</span>
+            <span className="editor-meta-path">{activeTab.path}</span>
             <span className="editor-meta-badge">
               {activeTab.sessionId ? "remote" : "local"} · {activeTab.mode}
             </span>
           </div>
           {activeTab.error ? <div className="editor-error">{activeTab.error}</div> : null}
-          <textarea
-            className="editor-textarea"
-            value={activeTab.content}
-            readOnly={activeTab.mode === "preview"}
-            spellCheck={false}
-            onChange={(event) => {
-              const value = event.target.value;
-              setTabs((prev) =>
-                prev.map((tab) =>
-                  tab.id === activeTab.id ? { ...tab, content: value, dirty: true } : tab
-                )
-              );
-            }}
-          />
+          <div className="editor-body">
+            <div className="editor-line-numbers" ref={lineNumbersRef}>
+              {Array.from({ length: lineCount }, (_, i) => (
+                <div key={i} className="editor-line-number">{i + 1}</div>
+              ))}
+            </div>
+            <textarea
+              ref={textareaRef}
+              className="editor-textarea"
+              value={activeTab.content}
+              readOnly={activeTab.mode === "preview"}
+              spellCheck={false}
+              onScroll={syncScroll}
+              onChange={(event) => {
+                const value = event.target.value;
+                setTabs((prev) =>
+                  prev.map((tab) =>
+                    tab.id === activeTab.id ? { ...tab, content: value, dirty: true } : tab
+                  )
+                );
+              }}
+            />
+          </div>
         </main>
       ) : null}
     </div>

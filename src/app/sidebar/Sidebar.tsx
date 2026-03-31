@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { FolderOpen } from "lucide-react";
 import { FileManagerPane } from "@/features/file_manager/FileManagerPane";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -17,7 +18,9 @@ export function Sidebar({ hidden }: SidebarProps) {
   return (
     <aside className={`sidebar${hidden ? " sidebar-hidden" : ""}`}>
       <div className="sidebar-tools">
-        <button className="active">Files</button>
+        <button className="active" title="Files">
+          <FolderOpen size={15} strokeWidth={2} />
+        </button>
       </div>
       <div className="sidebar-content">
         <FileManagerPane

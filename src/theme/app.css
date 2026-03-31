@@ -1,4 +1,4 @@
-* {
+﻿* {
   box-sizing: border-box;
 }
 
@@ -14,11 +14,11 @@ body,
   background: var(--bg);
 }
 
-/* ── Scrollbar ───────────────────────────────────── */
+/* == Scrollbar ================================================ */
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -38,7 +38,7 @@ body,
   background: transparent;
 }
 
-/* ── Base elements ───────────────────────────────── */
+/* == Base elements ============================================ */
 
 button,
 input,
@@ -54,7 +54,7 @@ button {
   color: var(--text);
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
 }
 
 button:hover {
@@ -111,7 +111,7 @@ textarea:focus {
   border-color: var(--accent);
 }
 
-/* ── App root ────────────────────────────────────── */
+/* == App root ================================================= */
 
 .app-root {
   display: flex;
@@ -121,18 +121,17 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* ── Topbar ──────────────────────────────────────── */
+/* == Topbar =================================================== */
 
 .topbar {
   display: flex;
   align-items: center;
-  height: 42px;
-  min-height: 42px;
+  height: 38px;
+  min-height: 38px;
   border-bottom: 1px solid var(--stroke);
   background: var(--bg-elev-1);
-  padding: 0 8px;
-  gap: 4px;
-  -webkit-app-region: drag;
+  padding: 0;
+  gap: 0;
 }
 
 .topbar button,
@@ -140,53 +139,68 @@ textarea:focus {
   -webkit-app-region: no-drag;
 }
 
-.sidebar-toggle {
-  width: 30px;
-  height: 30px;
-  font-size: 16px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-}
-
-.sidebar-toggle:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-
 .topbar-spacer {
   flex: 1;
+  height: 100%;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   flex-shrink: 0;
 }
 
-.topbar-right button {
-  width: 30px;
-  height: 30px;
-  font-size: 14px;
+.topbar-btn {
+  width: 32px;
+  height: 38px;
   display: grid;
   place-items: center;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
 }
 
-.topbar-right button:hover {
+.topbar-btn:hover {
   color: var(--text);
   background: var(--bg-hover);
 }
 
-/* ── Workspace ───────────────────────────────────── */
+.topbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--stroke);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.window-btn {
+  width: 46px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+
+.window-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.window-btn-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* == Workspace ================================================ */
 
 .workspace {
   display: grid;
@@ -196,7 +210,7 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* ── Sidebar ─────────────────────────────────────── */
+/* == Sidebar ================================================== */
 
 .sidebar {
   width: 280px;
@@ -220,18 +234,28 @@ textarea:focus {
 .sidebar-tools {
   display: flex;
   gap: 2px;
-  padding: 6px;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--stroke);
 }
 
 .sidebar-tools button {
-  flex: 1;
-  padding: 6px 8px;
-  font-size: 12px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 13px;
   border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
-  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sidebar-tools button:hover {
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 .sidebar-tools button.active {
@@ -244,7 +268,7 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* ── Center pane ─────────────────────────────────── */
+/* == Center pane ============================================== */
 
 .center-pane {
   min-width: 0;
@@ -261,21 +285,22 @@ textarea:focus {
   font-size: 14px;
 }
 
-/* ── Tab strip ───────────────────────────────────── */
+/* == Tab strip ================================================ */
 
 .tabstrip {
   display: flex;
   align-items: center;
   min-width: 0;
   flex: 1;
-  gap: 2px;
+  gap: 0;
 }
 
 .tabstrip-left {
   display: flex;
-  gap: 2px;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  flex: 1;
   flex-wrap: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -291,19 +316,21 @@ textarea:focus {
   gap: 6px;
   min-width: 90px;
   max-width: 180px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  padding: 0 10px;
+  border-radius: 0;
+  border: none;
   background: transparent;
   font-size: 12px;
   white-space: nowrap;
   flex-shrink: 0;
-  height: 30px;
+  height: 38px;
   color: var(--text-muted);
+  position: relative;
+  transition: background 0.1s, color 0.1s;
 }
 
 .tab:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
 }
 
@@ -315,33 +342,34 @@ textarea:focus {
 }
 
 .tab.active {
-  background: var(--bg-active);
-  border-color: var(--stroke);
-  color: var(--text);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 15%, transparent);
+  color: #fff;
 }
 
-.tab-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
   background: var(--tab-color, var(--accent));
-  flex-shrink: 0;
 }
 
 .tab-close {
   width: 16px;
   height: 16px;
   min-width: 16px;
-  font-size: 11px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
   opacity: 0;
-  transition: opacity 0.1s;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
 }
 
 .tab:hover .tab-close,
@@ -365,13 +393,14 @@ textarea:focus {
 .tab-action {
   width: 28px;
   height: 28px;
-  font-size: 14px;
   display: grid;
   place-items: center;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
 }
 
 .tab-action:hover {
@@ -409,7 +438,7 @@ textarea:focus {
   background: var(--bg-hover);
 }
 
-/* ── Context menus ───────────────────────────────── */
+/* == Context menus ============================================ */
 
 .context-anchor {
   position: fixed;
@@ -437,6 +466,9 @@ textarea:focus {
   padding: 7px 10px;
   background: transparent;
   font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .tab-context-menu button:hover,
@@ -474,7 +506,7 @@ textarea:focus {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* ── File manager ────────────────────────────────── */
+/* == File manager ============================================= */
 
 .file-manager {
   display: grid;
@@ -491,20 +523,30 @@ textarea:focus {
 }
 
 .file-toolbar button {
-  width: 30px;
-  height: 28px;
-  font-size: 13px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
   display: grid;
   place-items: center;
+  transition: background 0.1s, color 0.1s;
 }
 
 .file-toolbar button:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: rotate 0.8s linear infinite;
 }
 
 .breadcrumbs {
@@ -525,6 +567,7 @@ textarea:focus {
   white-space: nowrap;
   font-size: 11px;
   border: none;
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
 }
@@ -546,15 +589,16 @@ textarea:focus {
 .file-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 5px 8px;
+  padding: 4px 8px;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   font-size: 12px;
   color: var(--text);
+  transition: background 0.1s;
 }
 
 .file-item:hover {
@@ -567,9 +611,9 @@ textarea:focus {
 }
 
 .file-icon {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
   width: 18px;
-  text-align: center;
   flex-shrink: 0;
 }
 
@@ -597,14 +641,8 @@ textarea:focus {
   color: var(--danger);
 }
 
-/* ── Terminal ────────────────────────────────────── */
+/* == Terminal ================================================= */
 
-/*
- * All terminal panes are always in the DOM (never unmounted) so xterm.js
- * keeps its buffers alive across tab switches.  We stack them with
- * position:absolute and toggle visibility — NOT display:none, which
- * breaks FitAddon dimension calculations.
- */
 .terminal-pane-wrap {
   position: absolute;
   inset: 0;
@@ -627,7 +665,7 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* ── SSH Connecting overlay ──────────────────────── */
+/* == SSH Connecting overlay ==================================== */
 
 .terminal-connecting {
   position: absolute;
@@ -666,7 +704,7 @@ textarea:focus {
   animation: spin 0.8s linear infinite;
 }
 
-/* ── SSH picker ──────────────────────────────────── */
+/* == SSH picker =============================================== */
 
 .ssh-picker {
   width: 100%;
@@ -864,7 +902,7 @@ textarea:focus {
   text-align: center;
 }
 
-/* ── SSH Modal ───────────────────────────────────── */
+/* == SSH Modal ================================================ */
 
 .modal-overlay {
   position: fixed;
@@ -918,7 +956,7 @@ textarea:focus {
   border-top: 1px solid var(--stroke);
 }
 
-/* ── Palette ─────────────────────────────────────── */
+/* == Palette ================================================== */
 
 .palette-overlay {
   position: fixed;
@@ -991,7 +1029,7 @@ textarea:focus {
   font-size: 13px;
 }
 
-/* ── Settings ────────────────────────────────────── */
+/* == Settings ================================================= */
 
 .settings-overlay {
   position: fixed;
@@ -1003,7 +1041,9 @@ textarea:focus {
 }
 
 .settings-panel {
-  width: min(760px, calc(100vw - 40px));
+  width: 760px;
+  height: 560px;
+  max-width: calc(100vw - 40px);
   max-height: calc(100vh - 60px);
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
@@ -1019,6 +1059,16 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
+}
+
+.settings-nav-header {
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .settings-nav-item {
@@ -1030,6 +1080,10 @@ textarea:focus {
   color: var(--text-muted);
   text-align: left;
   cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  transition: background 0.1s, color 0.1s;
 }
 
 .settings-nav-item:hover {
@@ -1100,7 +1154,53 @@ textarea:focus {
   margin: 8px 0;
 }
 
-/* ── Toast ───────────────────────────────────────── */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.theme-card {
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  transition: border-color 0.1s;
+}
+
+.theme-card:hover {
+  border-color: var(--text-muted);
+}
+
+.theme-card.active {
+  border-color: var(--accent);
+}
+
+.theme-preview {
+  width: 100%;
+  height: 40px;
+  border-radius: 4px;
+}
+
+/* == Toast ==================================================== */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .toast {
   position: fixed;
@@ -1113,9 +1213,10 @@ textarea:focus {
   z-index: 130;
   font-size: 13px;
   color: var(--text);
+  animation: toast-in 0.2s ease-out;
 }
 
-/* ── Editor ──────────────────────────────────────── */
+/* == Editor =================================================== */
 
 .editor-workspace {
   width: 100%;
@@ -1130,34 +1231,119 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px;
+  padding: 0 8px;
+  height: 38px;
   border-bottom: 1px solid var(--stroke);
 }
 
 .editor-tabs {
   display: flex;
-  gap: 4px;
+  gap: 0;
   overflow-x: auto;
+  flex: 1;
+  min-width: 0;
 }
 
 .editor-tab {
-  padding: 5px 10px;
+  padding: 0 10px;
+  height: 38px;
   display: inline-flex;
   gap: 6px;
   align-items: center;
   font-size: 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  white-space: nowrap;
+  position: relative;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
 .editor-tab.active {
-  border-color: var(--accent-dim);
   background: var(--bg-active);
+  color: var(--text);
+}
+
+.editor-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.editor-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.editor-tab:hover .editor-tab-close {
+  opacity: 1;
+}
+
+.editor-tab-close:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.editor-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.editor-action-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.editor-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.editor-action-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
 }
 
 .editor-main {
-  padding: 10px;
   display: grid;
   grid-template-rows: auto auto 1fr;
-  gap: 8px;
+  gap: 0;
   min-height: 0;
 }
 
@@ -1166,26 +1352,56 @@ textarea:focus {
   justify-content: space-between;
   color: var(--text-muted);
   font-size: 12px;
-}
-
-.editor-main textarea {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-md);
-  background: var(--bg-panel);
-  color: var(--text);
-  font-family: "Cascadia Code", "JetBrains Mono", monospace;
-  font-size: 13px;
-  line-height: 1.35;
-  padding: 10px;
-  resize: none;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--stroke);
 }
 
 .editor-error {
   color: var(--danger);
   font-size: 13px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--danger-dim);
+}
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-line-numbers {
+  width: 40px;
+  flex-shrink: 0;
+  background: var(--bg-elev-1);
+  overflow: hidden;
+  padding-top: 10px;
+  user-select: none;
+}
+
+.editor-line-number {
+  height: 20px;
+  font-size: 12px;
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  text-align: right;
+  color: var(--text-muted);
+  padding-right: 8px;
+  line-height: 20px;
+}
+
+.editor-textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 10px;
+  resize: none;
+  outline: none;
+  height: auto;
 }
 
 .editor-empty {
@@ -1194,7 +1410,7 @@ textarea:focus {
   color: var(--text-muted);
 }
 
-/* ── Tab switcher (Ctrl+Tab overlay) ─────────────── */
+/* == Tab switcher (Ctrl+Tab overlay) ========================== */
 
 .tab-switcher-overlay {
   position: fixed;
@@ -1277,7 +1493,7 @@ textarea:focus {
   flex-shrink: 0;
 }
 
-/* ── Responsive ──────────────────────────────────── */
+/* == Responsive =============================================== */
 
 @media (max-width: 1024px) {
   .sidebar:not(.sidebar-hidden) {
@@ -1301,6 +1517,9 @@ textarea:focus {
 
   .settings-panel {
     grid-template-columns: 1fr;
+    width: 100%;
+    height: auto;
+    max-height: calc(100vh - 40px);
   }
 
   .settings-nav {
