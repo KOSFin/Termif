@@ -1,6 +1,14 @@
-use std::{fs, path::PathBuf, process::Command, time::UNIX_EPOCH};
+use std::{
+    fs,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::UNIX_EPOCH,
+};
 
 use crate::core::{errors::TermifError, models::FileEntryDto};
+
+// ── Local file operations ─────────────────────────────────────────────────────
 
 pub fn list_local_entries(path: &str, show_hidden: bool) -> Result<Vec<FileEntryDto>, TermifError> {
     let mut entries = Vec::new();
@@ -74,55 +82,94 @@ pub fn copy_entry(from: &str, to: &str) -> Result<(), TermifError> {
     let from_path = PathBuf::from(from);
     if from_path.is_dir() {
         return Err(TermifError::Unsupported(
-            "directory copy is not implemented for MVP".to_string(),
+            "directory copy not supported".to_string(),
         ));
     }
     fs::copy(from, to)?;
     Ok(())
 }
 
+// ── Remote SSH file operations ────────────────────────────────────────────────
+
+/// List a remote directory using `ls -lA --time-style=+%s` for Unix timestamps.
+/// Falls back to `ls -lA` if --time-style is not supported (BSD/macOS).
 pub fn list_remote_entries_ssh(alias: &str, path: &str) -> Result<Vec<FileEntryDto>, TermifError> {
     let quoted = shell_single_quote(path);
-    let remote_cmd = format!("ls -la {}", quoted);
+    // Try GNU ls with Unix timestamps first; older ls versions may not support --time-style.
+    let remote_cmd = format!("ls -lA --time-style=+%s {} 2>/dev/null || ls -lA {}", quoted, quoted);
 
     let output = Command::new("ssh")
-        .arg("-o")
-        .arg("BatchMode=yes")
-        .arg("-o")
-        .arg("ConnectTimeout=5")
+        .arg("-o").arg("BatchMode=yes")
+        .arg("-o").arg("ConnectTimeout=5")
         .arg(alias)
-        .arg(remote_cmd)
+        .arg(&remote_cmd)
         .output()?;
 
     if !output.status.success() {
-        return Err(TermifError::Internal(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(TermifError::Internal(if stderr.is_empty() {
+            "ssh ls failed".to_string()
+        } else {
+            stderr
+        }));
     }
 
     let text = String::from_utf8_lossy(&output.stdout);
+    parse_ls_output(&text, path)
+}
+
+fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, TermifError> {
     let mut result = Vec::new();
 
     for line in text.lines() {
-        if line.starts_with("total ") || line.trim().is_empty() {
+        let line = line.trim();
+        if line.starts_with("total ") || line.is_empty() {
             continue;
         }
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 9 {
+
+        let parts: Vec<&str> = line.splitn(9, char::is_whitespace)
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // Minimum fields: perms links user group size [timestamp] name
+        // GNU ls with --time-style=+%s: perms links user group size timestamp name  (7+)
+        // Traditional ls -la:           perms links user group size mon day time name (9+)
+        if parts.len() < 7 {
             continue;
         }
+
         let perms = parts[0];
         let is_dir = perms.starts_with('d');
         let size = parts[4].parse::<u64>().unwrap_or(0);
-        let name = parts[8..].join(" ");
+
+        // Detect format: if parts[5] looks like a Unix timestamp (all digits, 9-10 chars)
+        let (modified_unix, name) = if parts.len() >= 7
+            && parts[5].chars().all(|c| c.is_ascii_digit())
+            && parts[5].len() >= 9
+        {
+            // GNU --time-style=+%s format: field 5 = timestamp, field 6+ = name
+            let ts = parts[5].parse::<u64>().ok();
+            let name = parts[6..].join(" ");
+            (ts, name)
+        } else if parts.len() >= 9 {
+            // Traditional: fields 5-7 = date/time, field 8+ = name
+            let name = parts[8..].join(" ");
+            (None, name)
+        } else {
+            continue;
+        };
+
         if name == "." || name == ".." {
             continue;
         }
 
-        let remote_path = if path.ends_with('/') {
-            format!("{}{}", path, name)
+        // Strip symlink target " -> dest"
+        let name = name.split(" -> ").next().unwrap_or(&name).to_string();
+
+        let remote_path = if base_path.ends_with('/') {
+            format!("{}{}", base_path, name)
         } else {
-            format!("{}/{}", path, name)
+            format!("{}/{}", base_path, name)
         };
 
         result.push(FileEntryDto {
@@ -130,7 +177,7 @@ pub fn list_remote_entries_ssh(alias: &str, path: &str) -> Result<Vec<FileEntryD
             path: remote_path,
             is_dir,
             size,
-            modified_unix: None,
+            modified_unix,
         });
     }
 
@@ -142,6 +189,58 @@ pub fn list_remote_entries_ssh(alias: &str, path: &str) -> Result<Vec<FileEntryD
     });
 
     Ok(result)
+}
+
+/// Read a text file from a remote host via SSH exec + `cat`.
+pub fn read_remote_text_file(alias: &str, path: &str) -> Result<String, TermifError> {
+    let quoted = shell_single_quote(path);
+    let output = Command::new("ssh")
+        .arg("-o").arg("BatchMode=yes")
+        .arg("-o").arg("ConnectTimeout=5")
+        .arg(alias)
+        .arg(format!("cat {}", quoted))
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(TermifError::Internal(if stderr.is_empty() {
+            format!("cannot read remote file: {}", path)
+        } else {
+            stderr
+        }));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Write a text file to a remote host via SSH exec + stdin pipe.
+pub fn write_remote_text_file(alias: &str, path: &str, content: &str) -> Result<(), TermifError> {
+    let quoted = shell_single_quote(path);
+    let mut child = Command::new("ssh")
+        .arg("-o").arg("BatchMode=yes")
+        .arg("-o").arg("ConnectTimeout=5")
+        .arg(alias)
+        .arg(format!("cat > {}", quoted))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(content.as_bytes())?;
+    }
+
+    let result = child.wait_with_output()?;
+    if !result.status.success() {
+        let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
+        return Err(TermifError::Internal(if stderr.is_empty() {
+            format!("cannot write remote file: {}", path)
+        } else {
+            stderr
+        }));
+    }
+
+    Ok(())
 }
 
 fn shell_single_quote(value: &str) -> String {

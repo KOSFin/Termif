@@ -7,6 +7,7 @@ import type { FileEntryDto } from "@/types/models";
 interface FileManagerPaneProps {
   activeSessionId?: string;
   isRemote: boolean;
+  sshAlias?: string;
 }
 
 interface FileContextMenu {
@@ -81,11 +82,12 @@ export function FileManagerPane(props: FileManagerPaneProps) {
       await navigatePath(entry.path);
       return;
     }
-    openEditorWindow(entry.path, "edit");
+    openEditorWindow(entry.path, "edit", props.isRemote ? props.activeSessionId : undefined);
   };
 
   const onPreviewFile = (entry: FileEntryDto) => {
-    if (!entry.is_dir) openEditorWindow(entry.path, "preview");
+    if (!entry.is_dir)
+      openEditorWindow(entry.path, "preview", props.isRemote ? props.activeSessionId : undefined);
   };
 
   const onDelete = async (entry: FileEntryDto) => {

@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default Termif capabilities — main window and editor windows",
+  "windows": ["main", "editor-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-create",
+    "core:webview:allow-create-webview-window"
+  ]
+}

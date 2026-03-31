@@ -7,6 +7,7 @@ use std::{
 };
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use tauri::ipc::Channel;
 use uuid::Uuid;
 
 use crate::core::{
@@ -20,11 +21,13 @@ enum SessionControl {
     Shutdown,
 }
 
-#[derive(Clone)]
 struct SessionRuntime {
     dto: SessionDto,
     control_tx: mpsc::Sender<SessionControl>,
-    output: Arc<Mutex<Vec<u8>>>,
+    /// Pending output buffered before a channel is attached.
+    pending: Arc<Mutex<Vec<u8>>>,
+    /// Push channel attached by the frontend.
+    channel: Arc<Mutex<Option<Channel<String>>>>,
 }
 
 #[derive(Clone, Default)]
@@ -47,7 +50,6 @@ impl TerminalManager {
             cwd: cwd.clone(),
             ssh_alias: None,
         };
-
         self.spawn_session(dto, program, args, cwd)
     }
 
@@ -60,7 +62,6 @@ impl TerminalManager {
             cwd: None,
             ssh_alias: Some(host_alias.clone()),
         };
-
         self.spawn_session(dto, "ssh".to_string(), vec![host_alias], None)
     }
 
@@ -105,21 +106,34 @@ impl TerminalManager {
             .map_err(|e| TermifError::Internal(e.to_string()))?;
         let master = pair.master;
 
-        let output = Arc::new(Mutex::new(Vec::<u8>::with_capacity(16 * 1024)));
-        let output_for_reader = Arc::clone(&output);
+        let pending: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::with_capacity(16 * 1024)));
+        let channel: Arc<Mutex<Option<Channel<String>>>> = Arc::new(Mutex::new(None));
+
+        let pending_r = Arc::clone(&pending);
+        let channel_r = Arc::clone(&channel);
+
+        // Reader thread: reads PTY output and routes to channel (push) or pending buffer.
         thread::spawn(move || {
-            let mut buf = [0u8; 8192];
+            let mut buf = [0u8; 4096];
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        let mut lock = output_for_reader
-                            .lock()
-                            .expect("output buffer lock poisoned");
-                        lock.extend_from_slice(&buf[..n]);
-                        if lock.len() > 4_000_000 {
-                            let drain = lock.len().saturating_sub(2_500_000);
-                            lock.drain(0..drain);
+                        // Clone the channel handle out of the lock before calling send()
+                        // to avoid holding the mutex across an IPC call.
+                        let ch = channel_r.lock().expect("channel lock poisoned").clone();
+                        if let Some(ch) = ch {
+                            let text = String::from_utf8_lossy(&buf[..n]).into_owned();
+                            // Ignore send errors (frontend may have closed).
+                            let _ = ch.send(text);
+                        } else {
+                            let mut lock = pending_r.lock().expect("pending lock poisoned");
+                            lock.extend_from_slice(&buf[..n]);
+                            // Cap at 4 MB; drain oldest 1.5 MB when exceeded.
+                            if lock.len() > 4_000_000 {
+                                let drain = lock.len().saturating_sub(2_500_000);
+                                lock.drain(0..drain);
+                            }
                         }
                     }
                     Err(_) => break,
@@ -155,7 +169,8 @@ impl TerminalManager {
         let runtime = SessionRuntime {
             dto: dto.clone(),
             control_tx,
-            output,
+            pending,
+            channel,
         };
 
         self.sessions
@@ -164,6 +179,35 @@ impl TerminalManager {
             .insert(dto.id.clone(), runtime);
 
         Ok(dto)
+    }
+
+    /// Attach a frontend Channel to stream PTY output.
+    /// Any data buffered before this call is flushed immediately.
+    pub fn attach_channel(
+        &self,
+        session_id: &str,
+        ch: Channel<String>,
+    ) -> Result<(), TermifError> {
+        let sessions = self.sessions.lock().expect("sessions lock poisoned");
+        let session = sessions
+            .get(session_id)
+            .ok_or_else(|| TermifError::SessionNotFound(session_id.to_string()))?;
+
+        // Flush pending buffer first so no early output is lost.
+        let buffered = {
+            let mut lock = session.pending.lock().expect("pending lock poisoned");
+            if lock.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8_lossy(&std::mem::take(&mut *lock)).into_owned())
+            }
+        };
+        if let Some(data) = buffered {
+            let _ = ch.send(data);
+        }
+
+        *session.channel.lock().expect("channel lock poisoned") = Some(ch);
+        Ok(())
     }
 
     pub fn get_session(&self, session_id: &str) -> Option<SessionDto> {
@@ -196,18 +240,18 @@ impl TerminalManager {
             .map_err(|e| TermifError::Internal(e.to_string()))
     }
 
+    /// Legacy polling read — kept so old code paths don't hard-error,
+    /// but new code uses attach_channel instead.
     pub fn read_output(&self, session_id: &str) -> Result<String, TermifError> {
         let sessions = self.sessions.lock().expect("sessions lock poisoned");
         let session = sessions
             .get(session_id)
             .ok_or_else(|| TermifError::SessionNotFound(session_id.to_string()))?;
-
-        let mut output = session.output.lock().expect("output buffer lock poisoned");
-        if output.is_empty() {
+        let mut pending = session.pending.lock().expect("pending lock poisoned");
+        if pending.is_empty() {
             return Ok(String::new());
         }
-
-        let bytes = std::mem::take(&mut *output);
+        let bytes = std::mem::take(&mut *pending);
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
 

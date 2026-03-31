@@ -242,6 +242,7 @@ export function AppShell() {
                   key={t.sessionId}
                   sessionId={t.sessionId!}
                   isVisible={t.id === activeTabId}
+                  sshAlias={t.sshAlias}
                 />
               ))}
         </section>

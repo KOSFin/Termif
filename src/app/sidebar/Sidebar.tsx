@@ -19,6 +19,7 @@ export function Sidebar() {
         <FileManagerPane
           activeSessionId={activeTab?.sessionId}
           isRemote={activeTab?.kind === "ssh"}
+          sshAlias={activeTab?.sshAlias}
         />
       </div>
     </aside>

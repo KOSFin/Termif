@@ -591,10 +591,25 @@ textarea:focus {
 
 /* ── Terminal ────────────────────────────────────── */
 
+/*
+ * All terminal panes are always in the DOM (never unmounted) so xterm.js
+ * keeps its buffers alive across tab switches.  We stack them with
+ * position:absolute and toggle visibility — NOT display:none, which
+ * breaks FitAddon dimension calculations.
+ */
 .terminal-pane-wrap {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
   overflow: hidden;
+}
+
+.terminal-pane-wrap.active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
 }
 
 .terminal-pane {
@@ -602,6 +617,45 @@ textarea:focus {
   height: 100%;
   padding: 4px 6px;
   overflow: hidden;
+}
+
+/* ── SSH Connecting overlay ──────────────────────── */
+
+.terminal-connecting {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(10, 14, 20, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.terminal-connecting-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.terminal-connecting-inner strong {
+  color: var(--text);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.terminal-connecting-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--stroke);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* ── SSH picker ──────────────────────────────────── */

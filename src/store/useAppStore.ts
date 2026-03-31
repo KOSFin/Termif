@@ -142,27 +142,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           // Skip
         }
       } else if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
-        try {
-          const session = await invoke<SessionDto>("create_ssh_session", {
-            hostAlias: savedTab.ssh_alias
-          });
-          restoredTabs.push({
-            ...makeTabFromSession(session),
-            id: savedTab.id,
-            title: savedTab.title,
-            color: savedTab.color,
-            icon: savedTab.icon,
-            sshAlias: savedTab.ssh_alias
-          });
-        } catch {
-          restoredTabs.push({
-            id: savedTab.id,
-            title: savedTab.title,
-            color: savedTab.color,
-            icon: "globe",
-            kind: "ssh_picker"
-          });
-        }
+        // Don't auto-reconnect SSH on startup — just restore as a picker tab so
+        // the user decides when to connect.
+        restoredTabs.push({
+          id: savedTab.id,
+          title: savedTab.title,
+          color: savedTab.color,
+          icon: "globe",
+          kind: "ssh_picker",
+          sshAlias: savedTab.ssh_alias
+        });
       } else {
         restoredTabs.push({
           id: savedTab.id,

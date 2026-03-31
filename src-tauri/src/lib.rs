@@ -11,6 +11,7 @@ mod ui_events;
 use std::sync::Arc;
 
 use core::models::{AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup};
+use tauri::ipc::Channel;
 use tauri::Manager;
 use tauri::State;
 
@@ -33,6 +34,8 @@ struct SshHostsPayload {
     managed: Vec<SshHostEntry>,
     groups: Vec<SshHostGroup>,
 }
+
+// ── Terminal commands ─────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn create_local_session(
@@ -57,6 +60,21 @@ fn create_ssh_session(
         .map_err(|e| e.to_string())
 }
 
+/// Attach a push Channel to a terminal session.
+/// The channel receives PTY output in real time — no polling needed.
+/// Any output buffered since session creation is flushed immediately.
+#[tauri::command]
+fn stream_terminal_output(
+    session_id: String,
+    on_data: Channel<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .terminal
+        .attach_channel(&session_id, on_data)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn send_terminal_input(
     session_id: String,
@@ -69,6 +87,7 @@ fn send_terminal_input(
         .map_err(|e| e.to_string())
 }
 
+/// Legacy polling read — kept for backward compatibility.
 #[tauri::command]
 fn read_terminal_output(session_id: String, state: State<'_, AppState>) -> Result<String, String> {
     state
@@ -97,6 +116,8 @@ fn close_terminal_session(session_id: String, state: State<'_, AppState>) -> Res
         .close_session(&session_id)
         .map_err(|e| e.to_string())
 }
+
+// ── File system commands ──────────────────────────────────────────────────────
 
 #[tauri::command]
 fn list_local_entries(
@@ -134,6 +155,45 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
     fs_ops::write_text_file(&path, &content).map_err(|e| e.to_string())
 }
 
+/// Read a text file from a remote SSH host.
+#[tauri::command]
+fn read_remote_text_file(
+    session_id: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let session = state
+        .terminal
+        .get_session(&session_id)
+        .ok_or_else(|| "session not found".to_string())?;
+
+    let alias = session
+        .ssh_alias
+        .ok_or_else(|| "remote file ops require an SSH session".to_string())?;
+
+    fs_ops::read_remote_text_file(&alias, &path).map_err(|e| e.to_string())
+}
+
+/// Write a text file to a remote SSH host.
+#[tauri::command]
+fn write_remote_text_file(
+    session_id: String,
+    path: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let session = state
+        .terminal
+        .get_session(&session_id)
+        .ok_or_else(|| "session not found".to_string())?;
+
+    let alias = session
+        .ssh_alias
+        .ok_or_else(|| "remote file ops require an SSH session".to_string())?;
+
+    fs_ops::write_remote_text_file(&alias, &path, &content).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn create_fs_entry(path: String, is_dir: bool) -> Result<(), String> {
     fs_ops::create_entry(&path, is_dir).map_err(|e| e.to_string())
@@ -154,17 +214,14 @@ fn copy_fs_entry(from: String, to: String) -> Result<(), String> {
     fs_ops::copy_entry(&from, &to).map_err(|e| e.to_string())
 }
 
+// ── SSH host management ───────────────────────────────────────────────────────
+
 #[tauri::command]
 fn load_ssh_hosts(state: State<'_, AppState>) -> SshHostsPayload {
     let imported = state.hosts.import_ssh_config_hosts();
     let managed = state.hosts.list_managed_hosts();
     let groups = state.hosts.list_groups();
-
-    SshHostsPayload {
-        imported,
-        managed,
-        groups,
-    }
+    SshHostsPayload { imported, managed, groups }
 }
 
 #[tauri::command]
@@ -199,6 +256,8 @@ fn delete_ssh_group(group_id: String, state: State<'_, AppState>) -> Result<(), 
         .map_err(|e| e.to_string())
 }
 
+// ── Settings & persistence ────────────────────────────────────────────────────
+
 #[tauri::command]
 fn load_settings(state: State<'_, AppState>) -> AppSettings {
     state.settings.get()
@@ -225,6 +284,8 @@ fn save_ui_state(ui_state: PersistedUiState, state: State<'_, AppState>) -> Resu
         .map_err(|e| e.to_string())
 }
 
+// ── App entry point ───────────────────────────────────────────────────────────
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -244,6 +305,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             create_local_session,
             create_ssh_session,
+            stream_terminal_output,
             send_terminal_input,
             read_terminal_output,
             resize_terminal,
@@ -252,6 +314,8 @@ pub fn run() {
             list_remote_entries,
             read_text_file,
             write_text_file,
+            read_remote_text_file,
+            write_remote_text_file,
             create_fs_entry,
             rename_fs_entry,
             delete_fs_entry,
