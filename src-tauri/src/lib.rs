@@ -221,7 +221,11 @@ fn load_ssh_hosts(state: State<'_, AppState>) -> SshHostsPayload {
     let imported = state.hosts.import_ssh_config_hosts();
     let managed = state.hosts.list_managed_hosts();
     let groups = state.hosts.list_groups();
-    SshHostsPayload { imported, managed, groups }
+    SshHostsPayload {
+        imported,
+        managed,
+        groups,
+    }
 }
 
 #[tauri::command]

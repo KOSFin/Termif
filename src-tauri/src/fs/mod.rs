@@ -96,11 +96,16 @@ pub fn copy_entry(from: &str, to: &str) -> Result<(), TermifError> {
 pub fn list_remote_entries_ssh(alias: &str, path: &str) -> Result<Vec<FileEntryDto>, TermifError> {
     let quoted = shell_single_quote(path);
     // Try GNU ls with Unix timestamps first; older ls versions may not support --time-style.
-    let remote_cmd = format!("ls -lA --time-style=+%s {} 2>/dev/null || ls -lA {}", quoted, quoted);
+    let remote_cmd = format!(
+        "ls -lA --time-style=+%s {} 2>/dev/null || ls -lA {}",
+        quoted, quoted
+    );
 
     let output = Command::new("ssh")
-        .arg("-o").arg("BatchMode=yes")
-        .arg("-o").arg("ConnectTimeout=5")
+        .arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("ConnectTimeout=5")
         .arg(alias)
         .arg(&remote_cmd)
         .output()?;
@@ -127,7 +132,8 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
             continue;
         }
 
-        let parts: Vec<&str> = line.splitn(9, char::is_whitespace)
+        let parts: Vec<&str> = line
+            .splitn(9, char::is_whitespace)
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -195,8 +201,10 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
 pub fn read_remote_text_file(alias: &str, path: &str) -> Result<String, TermifError> {
     let quoted = shell_single_quote(path);
     let output = Command::new("ssh")
-        .arg("-o").arg("BatchMode=yes")
-        .arg("-o").arg("ConnectTimeout=5")
+        .arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("ConnectTimeout=5")
         .arg(alias)
         .arg(format!("cat {}", quoted))
         .output()?;
@@ -217,8 +225,10 @@ pub fn read_remote_text_file(alias: &str, path: &str) -> Result<String, TermifEr
 pub fn write_remote_text_file(alias: &str, path: &str, content: &str) -> Result<(), TermifError> {
     let quoted = shell_single_quote(path);
     let mut child = Command::new("ssh")
-        .arg("-o").arg("BatchMode=yes")
-        .arg("-o").arg("ConnectTimeout=5")
+        .arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("ConnectTimeout=5")
         .arg(alias)
         .arg(format!("cat > {}", quoted))
         .stdin(Stdio::piped())

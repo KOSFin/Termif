@@ -183,11 +183,7 @@ impl TerminalManager {
 
     /// Attach a frontend Channel to stream PTY output.
     /// Any data buffered before this call is flushed immediately.
-    pub fn attach_channel(
-        &self,
-        session_id: &str,
-        ch: Channel<String>,
-    ) -> Result<(), TermifError> {
+    pub fn attach_channel(&self, session_id: &str, ch: Channel<String>) -> Result<(), TermifError> {
         let sessions = self.sessions.lock().expect("sessions lock poisoned");
         let session = sessions
             .get(session_id)
