@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{Read, Write},
     path::PathBuf,
     sync::{mpsc, Arc, Mutex},
@@ -21,7 +21,7 @@ use crate::core::{
 };
 
 const DIR_CACHE_TTL: Duration = Duration::from_millis(1_500);
-const MONITORING_SCRIPT: &str = "grep '^cpu ' /proc/stat 2>/dev/null; sleep 0.5; grep '^cpu ' /proc/stat 2>/dev/null; echo '===REACH_SEP==='; cat /proc/meminfo; echo '===REACH_SEP==='; df -P /; echo '===REACH_SEP==='; w -hs || who";
+const MONITORING_SCRIPT: &str = "grep '^cpu ' /proc/stat 2>/dev/null; sleep 0.5; grep '^cpu ' /proc/stat 2>/dev/null; echo '===REACH_SEP==='; cat /proc/meminfo; echo '===REACH_SEP==='; df -P /; echo '===REACH_SEP==='; w -hs || who; echo '===REACH_SEP==='; date '+%s %Z' 2>/dev/null || date +%s 2>/dev/null";
 const REACH_SEP: &str = "===REACH_SEP===";
 
 #[derive(Clone, Debug)]
@@ -879,12 +879,22 @@ fn parse_system_stats(output: &str) -> SystemStatsDto {
     let meminfo_section = sections.get(1).copied().unwrap_or_default();
     let disk_section = sections.get(2).copied().unwrap_or_default();
     let users_section = sections.get(3).copied().unwrap_or_default();
+    let clock_section = sections.get(4).copied().unwrap_or_default();
+    let user_names = parse_user_names(users_section);
+    let (server_time_epoch, server_tz) = parse_server_clock(clock_section);
 
     SystemStatsDto {
         cpu: parse_cpu_percent(cpu_section),
         ram: parse_ram_percent(meminfo_section),
         disk: parse_disk_percent(disk_section),
-        users: parse_users_count(users_section),
+        users: Some(user_names.len() as u32),
+        user_names: if user_names.is_empty() {
+            None
+        } else {
+            Some(user_names)
+        },
+        server_time_epoch,
+        server_tz,
     }
 }
 
@@ -962,13 +972,33 @@ fn parse_disk_percent(disk_section: &str) -> Option<f32> {
     None
 }
 
-fn parse_users_count(users_section: &str) -> Option<u32> {
-    Some(
-        users_section
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .count() as u32,
-    )
+fn parse_user_names(users_section: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut seen = HashSet::new();
+
+    for line in users_section.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let Some(first_col) = line.split_whitespace().next() else {
+            continue;
+        };
+        if seen.insert(first_col.to_string()) {
+            names.push(first_col.to_string());
+        }
+    }
+
+    names
+}
+
+fn parse_server_clock(clock_section: &str) -> (Option<i64>, Option<String>) {
+    for line in clock_section.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let mut cols = line.split_whitespace();
+        let epoch = cols.next().and_then(|raw| raw.parse::<i64>().ok());
+        if let Some(epoch) = epoch {
+            let tz = cols.next().map(|value| value.to_string());
+            return (Some(epoch), tz);
+        }
+    }
+
+    (None, None)
 }
 
 #[derive(Debug, Clone, Copy)]

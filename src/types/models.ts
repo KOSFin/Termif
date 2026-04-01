@@ -80,6 +80,9 @@ export interface SystemStats {
   ram?: number | null;
   disk?: number | null;
   users?: number | null;
+  user_names?: string[] | null;
+  server_time_epoch?: number | null;
+  server_tz?: string | null;
 }
 
 export interface PersistedTab {

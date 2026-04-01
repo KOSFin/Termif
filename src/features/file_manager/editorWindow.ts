@@ -4,6 +4,7 @@ export interface EditorWindowTabSeed {
   path: string;
   mode: "preview" | "edit";
   sessionId?: string;
+  serverLabel?: string;
   content?: string;
   dirty?: boolean;
   error?: string;
@@ -28,10 +29,12 @@ function createEditorWebviewWindow(params: URLSearchParams, title: string) {
 export function openEditorWindow(
   path: string,
   mode: "preview" | "edit",
-  sessionId?: string
+  sessionId?: string,
+  serverLabel?: string
 ) {
   const params = new URLSearchParams({ path, mode });
   if (sessionId) params.set("sessionId", sessionId);
+  if (serverLabel) params.set("serverLabel", serverLabel);
   createEditorWebviewWindow(
     params,
     mode === "preview" ? `Preview — ${path.split(/[\\/]/).pop()}` : `Edit — ${path.split(/[\\/]/).pop()}`

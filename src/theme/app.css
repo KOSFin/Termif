@@ -168,8 +168,8 @@ textarea:focus {
 }
 
 .topbar-spacer {
-  flex: 1;
-  min-width: 72px;
+  flex: 0 0 clamp(56px, 8vw, 112px);
+  min-width: 56px;
   height: 100%;
   -webkit-app-region: drag;
 }
@@ -354,16 +354,19 @@ textarea:focus {
 .tabstrip-scroll {
   display: flex;
   gap: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  max-width: 100%;
   min-width: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
 .tabstrip-scroll.limited {
+  overflow-x: auto;
+  flex: 1 1 auto;
   border-right: 1px solid var(--stroke);
 }
 
@@ -1441,7 +1444,7 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   padding: 0 8px;
-  height: 38px;
+  height: 44px;
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -1455,9 +1458,9 @@ textarea:focus {
 
 .editor-tab {
   padding: 0 10px;
-  height: 38px;
+  height: 44px;
   display: inline-flex;
-  gap: 6px;
+  gap: 7px;
   align-items: center;
   font-size: 12px;
   border: none;
@@ -1487,6 +1490,30 @@ textarea:focus {
   right: 0;
   height: 2px;
   background: var(--accent);
+}
+
+.editor-tab-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 1px;
+}
+
+.editor-tab-title {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab-subtitle {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .editor-tab-close {
@@ -1828,8 +1855,8 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 34px;
-  min-height: 34px;
+  height: 42px;
+  min-height: 42px;
   border-bottom: 1px solid var(--stroke);
   background: var(--bg-elev-1);
   padding: 0;
@@ -1851,9 +1878,9 @@ textarea:focus {
 .editor-inline-tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 0 10px;
-  height: 34px;
+  height: 42px;
   font-size: 12px;
   border: none;
   border-radius: 0;
@@ -1888,15 +1915,29 @@ textarea:focus {
 .editor-inline-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 150px;
+  white-space: nowrap;
+}
+
+.editor-inline-tab-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 1px;
+}
+
+.editor-inline-tab-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .editor-inline-tab-badge {
-  font-size: 10px;
-  color: var(--text-muted);
-  background: var(--bg-elev-2);
-  padding: 1px 4px;
-  border-radius: 3px;
+  display: none;
 }
 
 .editor-inline-tab-close {
@@ -2145,6 +2186,46 @@ textarea:focus {
   border: 1px solid var(--stroke);
   background: var(--bg-elev-2);
   white-space: nowrap;
+}
+
+.status-users-wrap {
+  position: relative;
+}
+
+.status-users-dropdown {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 170px;
+  max-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  z-index: 120;
+}
+
+.status-users-wrap:hover .status-users-dropdown,
+.status-users-wrap:focus-within .status-users-dropdown {
+  display: block;
+}
+
+.status-users-item {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
+}
+
+.status-users-item:last-child {
+  border-bottom: none;
+}
+
+.status-users-item.muted {
+  color: var(--text-muted);
 }
 
 .status-ok {

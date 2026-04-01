@@ -24,6 +24,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
   const {
     editorFiles,
     activeEditorFileId,
+    tabs,
     closeEditorFile,
     setActiveEditorFile,
     updateEditorContent,
@@ -35,6 +36,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
   } = useAppStore((s) => ({
     editorFiles: s.editorFiles,
     activeEditorFileId: s.activeEditorFileId,
+    tabs: s.tabs,
     closeEditorFile: s.closeEditorFile,
     setActiveEditorFile: s.setActiveEditorFile,
     updateEditorContent: s.updateEditorContent,
@@ -97,6 +99,23 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
 
   const filename = (f: EditorFile) => f.path.split(/[\\/]/).pop() ?? f.path;
 
+  const resolveServerLabel = useCallback((file: EditorFile) => {
+    if (!file.sessionId) {
+      return "Local machine";
+    }
+
+    const sourceTab = tabs.find((tab) => tab.sessionId === file.sessionId);
+    if (sourceTab?.sshAlias) {
+      return sourceTab.sshAlias;
+    }
+
+    if (sourceTab?.title) {
+      return sourceTab.title.replace(/^SSH:\s*/i, "");
+    }
+
+    return "Remote server";
+  }, [tabs]);
+
   const popoutEditorWorkspace = () => {
     if (editorFiles.length === 0) return;
     const activeIndex = Math.max(0, editorFiles.findIndex((f) => f.id === activeEditorFileId));
@@ -105,6 +124,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
         path: f.path,
         mode: f.mode,
         sessionId: f.sessionId,
+        serverLabel: resolveServerLabel(f),
         content: f.content,
         dirty: f.dirty,
         error: f.error,
@@ -130,11 +150,13 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
               title={f.path}
             >
               <FileCode size={12} strokeWidth={2} />
-              <span className="editor-inline-tab-title">
-                {filename(f)}
-                {f.dirty ? " *" : ""}
+              <span className="editor-inline-tab-meta">
+                <span className="editor-inline-tab-title">
+                  {filename(f)}
+                  {f.dirty ? " *" : ""}
+                </span>
+                <span className="editor-inline-tab-subtitle">{resolveServerLabel(f)}</span>
               </span>
-              {f.sessionId ? <span className="editor-inline-tab-badge">remote</span> : null}
               <span
                 className="editor-inline-tab-close"
                 role="button"

@@ -10,6 +10,7 @@ interface EditorTab {
   content: string;
   dirty: boolean;
   sessionId?: string;
+  serverLabel?: string;
   error?: string;
 }
 
@@ -20,6 +21,7 @@ function parseQuery() {
   const path = params.get("path") ? decodeURIComponent(params.get("path") as string) : "";
   const mode = params.get("mode") === "preview" ? "preview" : "edit";
   const sessionId = params.get("sessionId") ?? undefined;
+  const serverLabel = params.get("serverLabel") ?? undefined;
   const activeRaw = Number.parseInt(params.get("active") ?? "0", 10);
   const activeIndex = Number.isFinite(activeRaw) ? activeRaw : 0;
 
@@ -38,6 +40,7 @@ function parseQuery() {
               path: obj.path,
               mode: obj.mode === "preview" ? "preview" : "edit",
               sessionId: obj.sessionId,
+              serverLabel: typeof obj.serverLabel === "string" ? obj.serverLabel : undefined,
               content: typeof obj.content === "string" ? obj.content : undefined,
               dirty: !!obj.dirty,
               error: typeof obj.error === "string" ? obj.error : undefined,
@@ -50,7 +53,7 @@ function parseQuery() {
     }
   }
 
-  return { path, mode: mode as "preview" | "edit", sessionId, tabs, activeIndex };
+  return { path, mode: mode as "preview" | "edit", sessionId, serverLabel, tabs, activeIndex };
 }
 
 export function EditorWorkspace() {
@@ -74,6 +77,7 @@ export function EditorWorkspace() {
       content: seed.content ?? "",
       dirty: !!seed.dirty,
       sessionId: seed.sessionId,
+      serverLabel: seed.serverLabel ?? (seed.sessionId ? "Remote server" : "Local machine"),
       error: seed.error,
     }));
 
@@ -106,18 +110,23 @@ export function EditorWorkspace() {
   }, []);
 
   useEffect(() => {
-    const { path, mode, sessionId, tabs: seededTabs, activeIndex } = parseQuery();
+    const { path, mode, sessionId, serverLabel, tabs: seededTabs, activeIndex } = parseQuery();
     if (seededTabs.length > 0) {
       void hydrateFromSeeds(seededTabs, activeIndex);
       return;
     }
     if (path) {
-      void openPath(path, mode, sessionId);
+      void openPath(path, mode, sessionId, serverLabel);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrateFromSeeds]);
 
-  const openPath = async (path: string, mode: "preview" | "edit", sessionId?: string) => {
+  const openPath = async (
+    path: string,
+    mode: "preview" | "edit",
+    sessionId?: string,
+    serverLabel?: string
+  ) => {
     const existing = tabsRef.current.find((tab) => tab.path === path && tab.sessionId === sessionId);
     if (existing) {
       setActiveTabId(existing.id);
@@ -133,7 +142,18 @@ export function EditorWorkspace() {
       } else {
         content = await invoke<string>("read_text_file", { path });
       }
-      setTabs((prev) => [...prev, { id, path, mode, content, dirty: false, sessionId }]);
+      setTabs((prev) => [
+        ...prev,
+        {
+          id,
+          path,
+          mode,
+          content,
+          dirty: false,
+          sessionId,
+          serverLabel: serverLabel ?? (sessionId ? "Remote server" : "Local machine"),
+        }
+      ]);
       setActiveTabId(id);
     } catch (error) {
       setTabs((prev) => [
@@ -145,6 +165,7 @@ export function EditorWorkspace() {
           content: "",
           dirty: false,
           sessionId,
+          serverLabel: serverLabel ?? (sessionId ? "Remote server" : "Local machine"),
           error: error instanceof Error ? error.message : String(error)
         }
       ]);
@@ -255,7 +276,7 @@ export function EditorWorkspace() {
               const path = window.prompt("Open file path")?.trim();
               if (path) {
                 const { sessionId } = parseQuery();
-                void openPath(path, "edit", sessionId);
+                void openPath(path, "edit", sessionId, sessionId ? "Remote server" : "Local machine");
               }
             }}
             title="Open file"
@@ -304,9 +325,13 @@ export function EditorWorkspace() {
                     tab.id === activeTab.id ? { ...tab, content: value, dirty: true } : tab
                   )
                 );
-              }}
-            />
-          </div>
+                  <span className="editor-tab-meta">
+                    <span className="editor-tab-title">
+                      {tab.path.split(/[\\/]/).pop()}
+                      {tab.dirty ? " *" : ""}
+                    </span>
+                    <span className="editor-tab-subtitle">{tab.serverLabel ?? (tab.sessionId ? "Remote server" : "Local machine")}</span>
+                  </span>
         </main>
       ) : null}
     </div>

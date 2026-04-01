@@ -224,14 +224,14 @@ export function AppShell() {
   ]);
 
   useEffect(() => {
-    if (!statusBarEnabled || !statusBarShowServerTime || !remoteStatusFetchedAt) {
+    if (!statusBarEnabled || !statusBarShowServerTime) {
       return;
     }
     const timer = window.setInterval(() => {
       setClockTick((v) => v + 1);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [remoteStatusFetchedAt, statusBarEnabled, statusBarShowServerTime]);
+  }, [statusBarEnabled, statusBarShowServerTime]);
 
   useEffect(() => {
     void initialize();
@@ -470,11 +470,46 @@ export function AppShell() {
         : { width: `${100 - editorSplitPercent}%` })
     : undefined;
 
-  const updatedAgoLabel = useMemo(() => {
-    if (!remoteStatusFetchedAt) return "--";
-    const deltaSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
-    return `${deltaSec}s ago`;
-  }, [clockTick, remoteStatusFetchedAt]);
+  const remoteUsers = useMemo(
+    () => (remoteStatus?.user_names ?? []).filter((name) => !!name),
+    [remoteStatus?.user_names]
+  );
+
+  const statusClock = useMemo(() => {
+    if (!statusBarEnabled || !statusBarShowServerTime) {
+      return { value: "", zone: "", visible: false };
+    }
+
+    if (activeTab?.kind === "ssh") {
+      const serverEpoch = remoteStatus?.server_time_epoch;
+      if (serverEpoch === null || serverEpoch === undefined || !remoteStatusFetchedAt) {
+        return { value: "--", zone: "", visible: true };
+      }
+
+      const elapsedSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
+      const liveEpoch = serverEpoch + elapsedSec;
+      const date = new Date(liveEpoch * 1000);
+      return {
+        value: formatClock(date),
+        zone: remoteStatus?.server_tz ?? "",
+        visible: true,
+      };
+    }
+
+    return {
+      value: formatClock(new Date()),
+      zone: "",
+      visible: true,
+    };
+  }, [
+    activeTab?.kind,
+    clockTick,
+    remoteStatus?.server_time_epoch,
+    remoteStatus?.server_tz,
+    remoteStatusFetchedAt,
+    statusBarEnabled,
+    statusBarShowServerTime,
+  ]);
 
   const cpuLevel = classifyPercent(remoteStatus?.cpu ?? null);
   const ramLevel = classifyPercent(remoteStatus?.ram ?? null);
@@ -774,13 +809,28 @@ export function AppShell() {
           ) : null}
 
           {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className="status-metric">
-              Users {remoteStatus?.users !== null && remoteStatus?.users !== undefined ? remoteStatus.users : "--"}
-            </span>
+            <div className="status-users-wrap">
+              <span className="status-metric status-users-trigger">
+                Users {remoteStatus?.users !== null && remoteStatus?.users !== undefined ? remoteStatus.users : "--"}
+              </span>
+              <div className="status-users-dropdown">
+                {remoteUsers.length > 0 ? (
+                  remoteUsers.map((user, idx) => (
+                    <div key={`${user}-${idx}`} className="status-users-item">
+                      {user}
+                    </div>
+                  ))
+                ) : (
+                  <div className="status-users-item muted">No active users</div>
+                )}
+              </div>
+            </div>
           ) : null}
 
-          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowServerTime ? (
-            <span className="status-metric">Updated {updatedAgoLabel}</span>
+          {statusClock.visible ? (
+            <span className="status-metric">
+              Time {statusClock.value}{statusClock.zone ? ` ${statusClock.zone}` : ""}
+            </span>
           ) : null}
 
           {remoteStatusError ? <span className="status-metric status-danger">{remoteStatusError}</span> : null}
@@ -839,6 +889,15 @@ export function AppShell() {
       ) : null}
     </div>
   );
+}
+
+function formatClock(date: Date): string {
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
 
 function classifyPercent(value: number | null): "ok" | "warn" | "danger" {

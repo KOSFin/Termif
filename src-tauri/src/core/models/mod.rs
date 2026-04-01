@@ -33,6 +33,9 @@ pub struct SystemStatsDto {
     pub ram: Option<f32>,
     pub disk: Option<f32>,
     pub users: Option<u32>,
+    pub user_names: Option<Vec<String>>,
+    pub server_time_epoch: Option<i64>,
+    pub server_tz: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
