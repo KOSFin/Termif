@@ -72,7 +72,8 @@ async fn create_ssh_session(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<SessionDto, String> {
-    let connect_options = resolve_ssh_connect_options(&state.hosts, state.settings.get(), &host_alias);
+    let connect_options =
+        resolve_ssh_connect_options(&state.hosts, state.settings.get(), &host_alias);
 
     let session = state
         .terminal
@@ -97,7 +98,10 @@ async fn create_ssh_session_with_options(
     let connect_options = SshConnectOptions {
         alias: options.alias.trim().to_string(),
         host: options.host.trim().to_string(),
-        user: options.user.map(|v| v.trim().to_string()).filter(|v| !v.is_empty()),
+        user: options
+            .user
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
         port: options.port.unwrap_or(22),
         identity_file: options
             .identity_file

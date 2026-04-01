@@ -467,7 +467,11 @@ impl SshClientRuntime {
             .map_err(|e| TermifError::Internal(e.to_string()))?;
 
         let user = resolve_ssh_user(options);
-        if let Some(password) = options.password.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(password) = options
+            .password
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             let auth = handle
                 .authenticate_password(user.clone(), password.to_string())
                 .await
@@ -792,9 +796,7 @@ fn resolve_ssh_key_path(options: &SshConnectOptions) -> Result<PathBuf, TermifEr
     if let Some(identity_file) = &options.identity_file {
         let trimmed = identity_file.trim();
         if trimmed.is_empty() {
-            return Err(TermifError::Internal(
-                "identity_file is empty".to_string(),
-            ));
+            return Err(TermifError::Internal("identity_file is empty".to_string()));
         }
 
         if !trimmed.contains('/') && !trimmed.contains('\\') && !trimmed.contains(':') {

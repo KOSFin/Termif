@@ -11,7 +11,7 @@ import { useHotkeys } from "@/hooks/useHotkeys";
 import { useAppStore, type EditorDock } from "@/store/useAppStore";
 import type { AppTab, SystemStats } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
-import { SshHostPicker } from "@/features/ssh/SshHostPicker";
+import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
 
 export function AppShell() {
