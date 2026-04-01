@@ -6,9 +6,7 @@ use std::{
 
 use tauri::{AppHandle, Emitter};
 
-use crate::{
-    core::{errors::TermifError, models::SystemStatsDto},
-};
+use crate::core::{errors::TermifError, models::SystemStatsDto};
 
 const REACH_SEP: &str = "===REACH_SEP===";
 const MONITORING_EVENT_PREFIX: &str = "monitoring-";
@@ -173,7 +171,11 @@ fn parse_ram_percent(meminfo_section: &str) -> Option<f32> {
 }
 
 fn parse_disk_percent(disk_section: &str) -> Option<f32> {
-    for line in disk_section.lines().map(str::trim).filter(|line| !line.is_empty()) {
+    for line in disk_section
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
         if line.starts_with("Filesystem") {
             continue;
         }
@@ -192,7 +194,12 @@ fn parse_disk_percent(disk_section: &str) -> Option<f32> {
 }
 
 fn parse_users_count(users_section: &str) -> Option<u32> {
-    Some(users_section.lines().filter(|line| !line.trim().is_empty()).count() as u32)
+    Some(
+        users_section
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .count() as u32,
+    )
 }
 
 fn parse_percent_value(raw: &str) -> Option<f32> {

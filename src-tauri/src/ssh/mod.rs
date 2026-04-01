@@ -182,3 +182,4 @@ fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
     Ok(host_map.into_values().collect())
 }
 
+
