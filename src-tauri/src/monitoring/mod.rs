@@ -1,8 +1,12 @@
 use std::{
     collections::HashMap,
+    process::Stdio,
     sync::{Arc, Mutex},
     time::Duration,
 };
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 use tauri::{AppHandle, Emitter};
 
@@ -12,6 +16,9 @@ const REACH_SEP: &str = "===REACH_SEP===";
 const MONITORING_EVENT_PREFIX: &str = "monitoring-";
 const MONITORING_INTERVAL: Duration = Duration::from_secs(3);
 const SSH_MONITORING_SCRIPT: &str = "grep '^cpu ' /proc/stat 2>/dev/null; sleep 0.5; grep '^cpu ' /proc/stat 2>/dev/null; echo '===REACH_SEP==='; cat /proc/meminfo; echo '===REACH_SEP==='; df -P /; echo '===REACH_SEP==='; w -hs || who";
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Clone, Default)]
 pub struct MonitoringStore {
@@ -85,15 +92,21 @@ pub async fn monitoring_loop(
 }
 
 async fn collect_system_stats(handle: &str) -> Result<SystemStatsDto, TermifError> {
-    let output = tokio::process::Command::new("ssh")
+    let mut command = tokio::process::Command::new("ssh");
+    command
         .arg("-o")
         .arg("BatchMode=yes")
         .arg("-o")
         .arg("ConnectTimeout=4")
         .arg(handle)
         .arg(SSH_MONITORING_SCRIPT)
-        .output()
-        .await?;
+        .stdin(Stdio::null())
+        .kill_on_drop(true);
+
+    #[cfg(target_os = "windows")]
+    command.as_std_mut().creation_flags(CREATE_NO_WINDOW);
+
+    let output = command.output().await?;
 
     if !output.status.success() {
         return Err(TermifError::Internal(
