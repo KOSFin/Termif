@@ -10,6 +10,10 @@ export interface HotkeyHandlers {
   onPrevTab: () => void;
   onTabByIndex: (index: number) => void;
   onRefreshFiles: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  onToggleEditor: () => void;
   onTabSwitcherOpen: (direction: 1 | -1) => void;
   onTabSwitcherClose: () => void;
   onEscape: () => void;
@@ -80,6 +84,34 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       if (code === "F5" || (ctrl && code === "KeyR")) {
         e.preventDefault();
         handlers.onRefreshFiles();
+        return;
+      }
+
+      // ── Ctrl+= / Ctrl+Plus — zoom in ─────────────────────────────
+      if (ctrl && (code === "Equal" || code === "NumpadAdd")) {
+        e.preventDefault();
+        handlers.onZoomIn();
+        return;
+      }
+
+      // ── Ctrl+- / Ctrl+Minus — zoom out ───────────────────────────
+      if (ctrl && (code === "Minus" || code === "NumpadSubtract")) {
+        e.preventDefault();
+        handlers.onZoomOut();
+        return;
+      }
+
+      // ── Ctrl+0 — reset zoom ──────────────────────────────────────
+      if (ctrl && code === "Digit0") {
+        e.preventDefault();
+        handlers.onZoomReset();
+        return;
+      }
+
+      // ── Ctrl+E — toggle editor panel ──────────────────────────────
+      if (ctrl && !shift && code === "KeyE") {
+        e.preventDefault();
+        handlers.onToggleEditor();
         return;
       }
 

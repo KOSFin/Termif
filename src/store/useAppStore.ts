@@ -10,6 +10,21 @@ import type {
   SshHostGroup,
   SshHostsPayload
 } from "@/types/models";
+import { detectLanguage } from "@/features/editor/languageMap";
+
+export interface EditorFile {
+  id: string;
+  path: string;
+  mode: "preview" | "edit";
+  content: string;
+  originalContent: string;
+  dirty: boolean;
+  sessionId?: string;
+  error?: string;
+  languageId: string;
+  languageName: string;
+  encoding: string;
+}
 
 interface AppState {
   isInitialized: boolean;
@@ -30,6 +45,17 @@ interface AppState {
   selectedFile?: FileEntryDto;
   lastToast?: string;
   dirCache: Record<string, FileEntryDto[]>;
+  tabMruOrder: string[];
+
+  // Editor state
+  editorFiles: EditorFile[];
+  activeEditorFileId?: string;
+  editorVisible: boolean;
+  editorSplitPercent: number;
+
+  // Zoom
+  zoomLevel: number;
+
   initialize: () => Promise<void>;
   createLocalTab: (shellProfile?: string) => Promise<void>;
   createSshPickerTab: () => void;
@@ -57,6 +83,22 @@ interface AppState {
   setSelectedFile: (file?: FileEntryDto) => void;
   saveSettings: (settings: AppSettings) => Promise<void>;
   toast: (message: string) => void;
+
+  // Editor actions
+  openFile: (path: string, mode: "preview" | "edit", sessionId?: string) => Promise<void>;
+  closeEditorFile: (fileId: string) => boolean;
+  setActiveEditorFile: (fileId: string) => void;
+  updateEditorContent: (fileId: string, content: string) => void;
+  saveEditorFile: (fileId: string) => Promise<void>;
+  setEditorVisible: (visible: boolean) => void;
+  setEditorSplitPercent: (pct: number) => void;
+  setEditorLanguage: (fileId: string, langId: string, langName: string) => void;
+  hasUnsavedEditorFiles: () => boolean;
+
+  // Zoom actions
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomReset: () => void;
 }
 
 const defaultTabColor = "#4a8fe7";
@@ -109,6 +151,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedFile: undefined,
   lastToast: undefined,
   dirCache: {},
+  tabMruOrder: [],
+
+  // Editor state
+  editorFiles: [],
+  activeEditorFileId: undefined,
+  editorVisible: false,
+  editorSplitPercent: 50,
+
+  // Zoom
+  zoomLevel: 100,
 
   initialize: async () => {
     if (get().isInitialized) return;
@@ -186,7 +238,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const tab = makeTabFromSession(session);
     set((state) => ({
       tabs: [...state.tabs, tab],
-      activeTabId: tab.id
+      activeTabId: tab.id,
+      tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     await persistUiState(get());
     get().loadCurrentFiles().catch(() => {});
@@ -202,7 +255,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set((state) => ({
       tabs: [...state.tabs, tab],
-      activeTabId: tab.id
+      activeTabId: tab.id,
+      tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     void persistUiState(get());
   },
@@ -236,8 +290,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const tabs = get().tabs.filter((item) => item.id !== tabId);
-    const activeTabId = get().activeTabId === tabId ? tabs[0]?.id : get().activeTabId;
-    set({ tabs, activeTabId });
+    const mru = get().tabMruOrder.filter((id) => id !== tabId);
+    const activeTabId = get().activeTabId === tabId
+      ? (mru[0] ?? tabs[0]?.id)
+      : get().activeTabId;
+    set({ tabs, activeTabId, tabMruOrder: mru });
 
     if (tabs.length === 0) {
       await get().createLocalTab(get().settings?.terminal.default_shell ?? "powershell");
@@ -294,7 +351,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setActiveTab: (tabId) => {
-    set({ activeTabId: tabId });
+    set((state) => ({
+      activeTabId: tabId,
+      tabMruOrder: [tabId, ...state.tabMruOrder.filter((id) => id !== tabId)]
+    }));
     void persistUiState(get());
     get().loadCurrentFilesFromCache();
     get().loadCurrentFiles().catch(() => {});
@@ -465,5 +525,154 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ lastToast: undefined });
       }
     }, 1800);
-  }
+  },
+
+  // ── Editor actions ─────────────────────────────────────────────────
+
+  openFile: async (path, mode, sessionId) => {
+    const existing = get().editorFiles.find(
+      (f) => f.path === path && f.sessionId === sessionId
+    );
+    if (existing) {
+      set({ activeEditorFileId: existing.id, editorVisible: true });
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const filename = path.split(/[\\/]/).pop() ?? path;
+    const lang = detectLanguage(filename);
+
+    try {
+      const content: string = sessionId
+        ? await invoke<string>("read_remote_text_file", { sessionId, path })
+        : await invoke<string>("read_text_file", { path });
+
+      const file: EditorFile = {
+        id,
+        path,
+        mode,
+        content,
+        originalContent: content,
+        dirty: false,
+        sessionId,
+        languageId: lang.id,
+        languageName: lang.name,
+        encoding: "UTF-8",
+      };
+      set((state) => ({
+        editorFiles: [...state.editorFiles, file],
+        activeEditorFileId: id,
+        editorVisible: true,
+      }));
+    } catch (error) {
+      const file: EditorFile = {
+        id,
+        path,
+        mode,
+        content: "",
+        originalContent: "",
+        dirty: false,
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+        languageId: lang.id,
+        languageName: lang.name,
+        encoding: "UTF-8",
+      };
+      set((state) => ({
+        editorFiles: [...state.editorFiles, file],
+        activeEditorFileId: id,
+        editorVisible: true,
+      }));
+    }
+  },
+
+  closeEditorFile: (fileId) => {
+    const file = get().editorFiles.find((f) => f.id === fileId);
+    if (file?.dirty) {
+      const ok = window.confirm(`"${file.path.split(/[\\/]/).pop()}" has unsaved changes. Close anyway?`);
+      if (!ok) return false;
+    }
+
+    const files = get().editorFiles.filter((f) => f.id !== fileId);
+    const activeId =
+      get().activeEditorFileId === fileId
+        ? files[files.length - 1]?.id
+        : get().activeEditorFileId;
+
+    set({
+      editorFiles: files,
+      activeEditorFileId: activeId,
+      editorVisible: files.length > 0,
+    });
+    return true;
+  },
+
+  setActiveEditorFile: (fileId) => {
+    set({ activeEditorFileId: fileId });
+  },
+
+  updateEditorContent: (fileId, content) => {
+    set((state) => ({
+      editorFiles: state.editorFiles.map((f) =>
+        f.id === fileId ? { ...f, content, dirty: content !== f.originalContent } : f
+      ),
+    }));
+  },
+
+  saveEditorFile: async (fileId) => {
+    const file = get().editorFiles.find((f) => f.id === fileId);
+    if (!file || file.mode === "preview") return;
+
+    try {
+      if (file.sessionId) {
+        await invoke("write_remote_text_file", {
+          sessionId: file.sessionId,
+          path: file.path,
+          content: file.content,
+        });
+      } else {
+        await invoke("write_text_file", { path: file.path, content: file.content });
+      }
+      set((state) => ({
+        editorFiles: state.editorFiles.map((f) =>
+          f.id === fileId ? { ...f, dirty: false, originalContent: f.content, error: undefined } : f
+        ),
+      }));
+      get().toast("File saved");
+    } catch (err) {
+      set((state) => ({
+        editorFiles: state.editorFiles.map((f) =>
+          f.id === fileId
+            ? { ...f, error: err instanceof Error ? err.message : String(err) }
+            : f
+        ),
+      }));
+    }
+  },
+
+  setEditorVisible: (visible) => set({ editorVisible: visible }),
+
+  setEditorSplitPercent: (pct) => set({ editorSplitPercent: Math.max(15, Math.min(85, pct)) }),
+
+  setEditorLanguage: (fileId, langId, langName) => {
+    set((state) => ({
+      editorFiles: state.editorFiles.map((f) =>
+        f.id === fileId ? { ...f, languageId: langId, languageName: langName } : f
+      ),
+    }));
+  },
+
+  hasUnsavedEditorFiles: () => get().editorFiles.some((f) => f.dirty),
+
+  // ── Zoom actions ───────────────────────────────────────────────────
+
+  zoomIn: () => {
+    set((state) => ({ zoomLevel: Math.min(200, state.zoomLevel + 10) }));
+  },
+
+  zoomOut: () => {
+    set((state) => ({ zoomLevel: Math.max(50, state.zoomLevel - 10) }));
+  },
+
+  zoomReset: () => set({ zoomLevel: 100 }),
 }));

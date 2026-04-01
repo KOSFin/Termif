@@ -69,6 +69,7 @@ impl Default for AppSettings {
             appearance: AppearanceSettings {
                 accent_color: "#61a0ff".to_string(),
                 ui_density: "comfortable".to_string(),
+                tab_switching_mode: "mru".to_string(),
             },
             terminal: TerminalSettings {
                 default_shell: "powershell".to_string(),
@@ -106,6 +107,12 @@ impl Default for AppSettings {
 pub struct AppearanceSettings {
     pub accent_color: String,
     pub ui_density: String,
+    #[serde(default = "default_tab_switching_mode")]
+    pub tab_switching_mode: String,
+}
+
+fn default_tab_switching_mode() -> String {
+    "mru".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

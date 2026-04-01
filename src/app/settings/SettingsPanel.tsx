@@ -131,6 +131,20 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <option value="comfortable">Comfortable</option>
                 </select>
               </div>
+              <div className="settings-row">
+                <label>Tab Switching Order (Ctrl+Tab)</label>
+                <select
+                  value={draft.appearance.tab_switching_mode ?? "mru"}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, tab_switching_mode: e.target.value } } : p
+                    )
+                  }
+                >
+                  <option value="mru">Most Recently Used</option>
+                  <option value="positional">Positional (left to right)</option>
+                </select>
+              </div>
             </div>
           )}
 

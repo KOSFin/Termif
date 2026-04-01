@@ -15,7 +15,6 @@ import {
   Trash2,
   Terminal
 } from "lucide-react";
-import { openEditorWindow } from "./editorWindow";
 import { useAppStore } from "@/store/useAppStore";
 import type { FileEntryDto } from "@/types/models";
 
@@ -44,7 +43,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     tabPaths,
     tabs,
     activeTabId,
-    toast
+    toast,
+    openFile
   } = useAppStore((state) => ({
     fileEntries: state.fileEntries,
     fileLoading: state.fileLoading,
@@ -57,7 +57,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     tabPaths: state.tabPaths,
     tabs: state.tabs,
     activeTabId: state.activeTabId,
-    toast: state.toast
+    toast: state.toast,
+    openFile: state.openFile
   }));
 
   const [contextMenu, setContextMenu] = useState<FileContextMenu>();
@@ -97,12 +98,12 @@ export function FileManagerPane(props: FileManagerPaneProps) {
       await navigatePath(entry.path);
       return;
     }
-    openEditorWindow(entry.path, "edit", props.isRemote ? props.activeSessionId : undefined);
+    void openFile(entry.path, "edit", props.isRemote ? props.activeSessionId : undefined);
   };
 
   const onPreviewFile = (entry: FileEntryDto) => {
     if (!entry.is_dir)
-      openEditorWindow(entry.path, "preview", props.isRemote ? props.activeSessionId : undefined);
+      void openFile(entry.path, "preview", props.isRemote ? props.activeSessionId : undefined);
   };
 
   const onDelete = async (entry: FileEntryDto) => {

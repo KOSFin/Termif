@@ -46,6 +46,7 @@ export interface AppSettings {
   appearance: {
     accent_color: string;
     ui_density: string;
+    tab_switching_mode: string;
   };
   terminal: {
     default_shell: string;

@@ -139,8 +139,28 @@ textarea:focus {
   -webkit-app-region: no-drag;
 }
 
+.sidebar-toggle-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sidebar-toggle-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
 .topbar-spacer {
   flex: 1;
+  min-width: 60px;
   height: 100%;
 }
 
@@ -274,6 +294,7 @@ textarea:focus {
   min-width: 0;
   min-height: 0;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--bg);
   position: relative;
@@ -291,8 +312,9 @@ textarea:focus {
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
   gap: 0;
+  max-width: calc(100% - 200px);
 }
 
 .tabstrip-left {
@@ -300,7 +322,6 @@ textarea:focus {
   gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  flex: 1;
   flex-wrap: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -661,7 +682,7 @@ textarea:focus {
 .terminal-pane {
   width: 100%;
   height: 100%;
-  padding: 4px 6px;
+  padding: 12px 16px;
   overflow: hidden;
 }
 
@@ -1491,6 +1512,290 @@ textarea:focus {
   border-radius: 4px;
   background: var(--bg-elev-2);
   flex-shrink: 0;
+}
+
+/* == Center pane split layout ================================= */
+
+.editor-split-top {
+  min-height: 120px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-handle {
+  height: 4px;
+  min-height: 4px;
+  background: var(--stroke);
+  cursor: row-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.split-handle:hover {
+  background: var(--accent);
+}
+
+.terminal-split-bottom {
+  flex: 1;
+  min-height: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-split-bottom.terminal-full {
+  flex: 1;
+  height: 100%;
+}
+
+/* == Inline editor panel ====================================== */
+
+.editor-inline-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.editor-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 34px;
+  min-height: 34px;
+  border-bottom: 1px solid var(--stroke);
+  background: var(--bg-elev-1);
+  padding: 0;
+}
+
+.editor-inline-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.editor-inline-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-inline-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 34px;
+  font-size: 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-inline-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.editor-inline-tab.active {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+.editor-inline-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.editor-inline-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.editor-inline-tab-badge {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-elev-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.editor-inline-tab-close {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.editor-inline-tab:hover .editor-inline-tab-close {
+  opacity: 1;
+}
+
+.editor-inline-tab-close:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.editor-inline-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+
+.editor-inline-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-inline-error {
+  color: var(--danger);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--danger-dim);
+}
+
+.editor-inline-empty {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* == CodeMirror overrides ===================================== */
+
+.codemirror-container {
+  height: 100%;
+  overflow: hidden;
+}
+
+.codemirror-container .cm-editor {
+  height: 100%;
+}
+
+.codemirror-container .cm-scroller {
+  overflow: auto;
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+}
+
+.codemirror-container .cm-gutters {
+  border-right: 1px solid var(--stroke);
+}
+
+/* == Editor status bar ======================================== */
+
+.editor-statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elev-1);
+  border-top: 1px solid var(--stroke);
+}
+
+.editor-statusbar-left,
+.editor-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-statusbar-item {
+  cursor: pointer;
+  padding: 1px 5px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-statusbar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.editor-statusbar-text {
+  white-space: nowrap;
+}
+
+.editor-statusbar-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-elev-2);
+  font-size: 10px;
+}
+
+.editor-statusbar-item-wrap {
+  position: relative;
+}
+
+.editor-selector-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  z-index: 60;
+  margin-bottom: 4px;
+}
+
+.editor-selector-dropdown button {
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.editor-selector-dropdown button:hover {
+  background: var(--bg-hover);
+}
+
+.editor-selector-dropdown button.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* == Tab highlight polish ===================================== */
+
+.tab:not(.active) {
+  background: rgba(255, 255, 255, 0.015);
 }
 
 /* == Responsive =============================================== */
