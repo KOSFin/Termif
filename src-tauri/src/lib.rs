@@ -19,7 +19,10 @@ use tauri::Manager;
 use tauri::State;
 
 use crate::{
-    fs as fs_ops, persistence::Persistence, pty::TerminalManager, settings::SettingsStore,
+    fs as fs_ops,
+    persistence::Persistence,
+    pty::{SshConnectOptions, TerminalManager},
+    settings::SettingsStore,
     ssh::HostStore,
 };
 
@@ -54,19 +57,22 @@ fn create_local_session(
 }
 
 #[tauri::command]
-fn create_ssh_session(
+async fn create_ssh_session(
     host_alias: String,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<SessionDto, String> {
+    let connect_options = resolve_ssh_connect_options(&state.hosts, &host_alias);
+
     let session = state
         .terminal
-        .spawn_ssh_session(host_alias.clone())
+        .spawn_ssh_session(connect_options)
+        .await
         .map_err(|e| e.to_string())?;
 
     state
         .monitoring
-        .start_loop(session.id.clone(), host_alias, app.clone());
+        .start_loop(session.id.clone(), state.terminal.clone(), app.clone());
 
     Ok(session)
 }
@@ -149,7 +155,9 @@ fn fetch_remote_status(
 }
 
 #[tauri::command]
-fn exit_app(app: tauri::AppHandle) -> Result<(), String> {
+fn exit_app(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    state.monitoring.stop_all();
+    state.terminal.close_all_sessions();
     app.exit(0);
     Ok(())
 }
@@ -165,21 +173,16 @@ fn list_local_entries(
 }
 
 #[tauri::command]
-fn list_remote_entries(
+async fn list_remote_entries(
     session_id: String,
     path: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<core::models::FileEntryDto>, String> {
-    let session = state
+    state
         .terminal
-        .get_session(&session_id)
-        .ok_or_else(|| "session not found".to_string())?;
-
-    let alias = session
-        .ssh_alias
-        .ok_or_else(|| "remote listing is available only for SSH sessions".to_string())?;
-
-    fs_ops::list_remote_entries_ssh(&alias, &path).map_err(|e| e.to_string())
+        .list_remote_entries(&session_id, &path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -194,41 +197,31 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
 
 /// Read a text file from a remote SSH host.
 #[tauri::command]
-fn read_remote_text_file(
+async fn read_remote_text_file(
     session_id: String,
     path: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let session = state
+    state
         .terminal
-        .get_session(&session_id)
-        .ok_or_else(|| "session not found".to_string())?;
-
-    let alias = session
-        .ssh_alias
-        .ok_or_else(|| "remote file ops require an SSH session".to_string())?;
-
-    fs_ops::read_remote_text_file(&alias, &path).map_err(|e| e.to_string())
+        .read_remote_text_file(&session_id, &path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Write a text file to a remote SSH host.
 #[tauri::command]
-fn write_remote_text_file(
+async fn write_remote_text_file(
     session_id: String,
     path: String,
     content: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let session = state
+    state
         .terminal
-        .get_session(&session_id)
-        .ok_or_else(|| "session not found".to_string())?;
-
-    let alias = session
-        .ssh_alias
-        .ok_or_else(|| "remote file ops require an SSH session".to_string())?;
-
-    fs_ops::write_remote_text_file(&alias, &path, &content).map_err(|e| e.to_string())
+        .write_remote_text_file(&session_id, &path, &content)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -389,4 +382,32 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Termif");
+}
+
+fn resolve_ssh_connect_options(hosts: &HostStore, host_alias: &str) -> SshConnectOptions {
+    let managed = hosts.list_managed_hosts();
+    let imported = hosts.import_ssh_config_hosts();
+
+    let resolved = managed
+        .into_iter()
+        .chain(imported)
+        .find(|host| host.alias == host_alias);
+
+    if let Some(host) = resolved {
+        return SshConnectOptions {
+            alias: host_alias.to_string(),
+            host: host.host_name,
+            user: host.user,
+            port: host.port.unwrap_or(22),
+            identity_file: host.identity_file,
+        };
+    }
+
+    SshConnectOptions {
+        alias: host_alias.to_string(),
+        host: host_alias.to_string(),
+        user: None,
+        port: 22,
+        identity_file: None,
+    }
 }
