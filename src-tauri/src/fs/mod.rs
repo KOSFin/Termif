@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::PathBuf,
-    time::UNIX_EPOCH,
-};
+use std::{fs, path::PathBuf, time::UNIX_EPOCH};
 
 use crate::core::{errors::TermifError, models::FileEntryDto};
 
