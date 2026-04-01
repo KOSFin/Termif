@@ -35,6 +35,26 @@ const themes = [
   { id: "monokai", name: "Monokai", preview: "#272822" }
 ];
 
+const workingHotkeys: Array<{ combo: string; description: string }> = [
+  { combo: "Ctrl+Shift+P", description: "Open command palette" },
+  { combo: "Ctrl+B", description: "Toggle file sidebar" },
+  { combo: "Ctrl+T", description: "New terminal tab" },
+  { combo: "Ctrl+W", description: "Close current terminal tab" },
+  { combo: "Ctrl+,", description: "Open settings" },
+  { combo: "Ctrl+Tab", description: "Tab switcher (next)" },
+  { combo: "Ctrl+Shift+Tab", description: "Tab switcher (previous)" },
+  { combo: "Alt+1..9", description: "Jump to tab by index" },
+  { combo: "F5", description: "Refresh file manager" },
+  { combo: "Ctrl+R", description: "Refresh file manager" },
+  { combo: "Ctrl+E", description: "Toggle editor panel" },
+  { combo: "Ctrl+S", description: "Save active editor file" },
+  { combo: "Ctrl+= / Ctrl+Num+", description: "Zoom in" },
+  { combo: "Ctrl+- / Ctrl+Num-", description: "Zoom out" },
+  { combo: "Ctrl+0", description: "Reset zoom" },
+  { combo: "Ctrl+Mouse Wheel", description: "Zoom in or out" },
+  { combo: "Escape", description: "Close palette/settings/tab switcher" },
+];
+
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
   const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
@@ -222,6 +242,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           {activeSection === "hotkeys" && (
             <div className="settings-section">
+              <div className="settings-hotkeys-title">Working Hotkeys</div>
+              <div className="settings-hotkeys-list">
+                {workingHotkeys.map((item) => (
+                  <div key={item.combo} className="settings-hotkeys-item">
+                    <span className="settings-hotkey-combo">{item.combo}</span>
+                    <span className="settings-hotkey-desc">{item.description}</span>
+                  </div>
+                ))}
+              </div>
+
+              <hr className="settings-divider" />
+
+              <div className="settings-hotkeys-title">Saved Bindings (settings.json)</div>
               {draft.hotkeys.map((binding, index) => (
                 <div className="settings-row" key={binding.command_id}>
                   <label>{binding.command_id}</label>

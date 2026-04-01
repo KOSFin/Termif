@@ -34,7 +34,7 @@ export function TabStrip(props: TabStripProps) {
 
   return (
     <div className="tabstrip">
-      <div className="tabstrip-left">
+      <div className="tabstrip-scroll" role="tablist" aria-label="Terminal tabs">
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
           return (
@@ -63,28 +63,28 @@ export function TabStrip(props: TabStripProps) {
             </button>
           );
         })}
-        <div className="tabstrip-actions">
-          <button className="tab-action" onClick={props.onNewDefault} title="New tab">
-            <Plus size={15} strokeWidth={2} />
+      </div>
+      <div className="tabstrip-actions">
+        <button className="tab-action" onClick={props.onNewDefault} title="New tab">
+          <Plus size={15} strokeWidth={2} />
+        </button>
+        <div className="newtab-dropdown-wrap">
+          <button
+            className="tab-action"
+            title="New tab options"
+            onClick={() => setNewTabMenuOpen((v) => !v)}
+          >
+            <ChevronDown size={13} strokeWidth={2} />
           </button>
-          <div className="newtab-dropdown-wrap">
-            <button
-              className="tab-action"
-              title="New tab options"
-              onClick={() => setNewTabMenuOpen((v) => !v)}
-            >
-              <ChevronDown size={13} strokeWidth={2} />
-            </button>
-            {newTabMenuOpen ? (
-              <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
-                <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>Default Terminal</button>
-                <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>PowerShell</button>
-                <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>CMD</button>
-                <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>PowerShell 7</button>
-                <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>SSH Connection</button>
-              </div>
-            ) : null}
-          </div>
+          {newTabMenuOpen ? (
+            <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
+              <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>Default Terminal</button>
+              <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>PowerShell</button>
+              <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>CMD</button>
+              <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>PowerShell 7</button>
+              <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>SSH Connection</button>
+            </div>
+          ) : null}
         </div>
       </div>
 

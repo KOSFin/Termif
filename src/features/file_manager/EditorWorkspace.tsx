@@ -74,6 +74,11 @@ export function EditorWorkspace() {
   };
 
   const closeTab = (tabId: string) => {
+    const target = tabs.find((tab) => tab.id === tabId);
+    if (target?.dirty) {
+      const ok = window.confirm(`\"${target.path.split(/[\\/]/).pop()}\" has unsaved changes. Close anyway?`);
+      if (!ok) return;
+    }
     setTabs((prev) => prev.filter((tab) => tab.id !== tabId));
     if (activeTabId === tabId) {
       const rest = tabs.filter((tab) => tab.id !== tabId);
@@ -117,6 +122,17 @@ export function EditorWorkspace() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [saveActive]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (tabs.some((tab) => tab.dirty)) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [tabs]);
 
   const lineCount = activeTab ? activeTab.content.split("\n").length : 0;
 

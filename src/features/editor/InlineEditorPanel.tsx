@@ -1,10 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Save, FileCode, ChevronDown } from "lucide-react";
-import { useAppStore, type EditorFile } from "@/store/useAppStore";
+import {
+  X,
+  Save,
+  FileCode,
+  ChevronDown,
+  GripVertical,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  SquareArrowOutUpRight
+} from "lucide-react";
+import { useAppStore, type EditorDock, type EditorFile } from "@/store/useAppStore";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { allLanguages } from "./languageMap";
 
-export function InlineEditorPanel() {
+interface InlineEditorPanelProps {
+  dock: EditorDock;
+  onStartDockDrag: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenActiveInWindow: () => void;
+}
+
+export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow }: InlineEditorPanelProps) {
   const {
     editorFiles,
     activeEditorFileId,
@@ -13,6 +30,7 @@ export function InlineEditorPanel() {
     updateEditorContent,
     saveEditorFile,
     setEditorLanguage,
+    setEditorDock,
     setEditorVisible,
   } = useAppStore((s) => ({
     editorFiles: s.editorFiles,
@@ -22,6 +40,7 @@ export function InlineEditorPanel() {
     updateEditorContent: s.updateEditorContent,
     saveEditorFile: s.saveEditorFile,
     setEditorLanguage: s.setEditorLanguage,
+    setEditorDock: s.setEditorDock,
     setEditorVisible: s.setEditorVisible,
   }));
 
@@ -91,6 +110,49 @@ export function InlineEditorPanel() {
           ))}
         </div>
         <div className="editor-inline-actions">
+          <button
+            className="editor-action-btn"
+            onMouseDown={onStartDockDrag}
+            title="Drag to re-dock editor"
+          >
+            <GripVertical size={14} strokeWidth={2} />
+          </button>
+          <button
+            className={`editor-action-btn${dock === "left" ? " active" : ""}`}
+            onClick={() => setEditorDock("left")}
+            title="Dock left"
+          >
+            <PanelLeft size={14} strokeWidth={2} />
+          </button>
+          <button
+            className={`editor-action-btn${dock === "top" ? " active" : ""}`}
+            onClick={() => setEditorDock("top")}
+            title="Dock top"
+          >
+            <PanelTop size={14} strokeWidth={2} />
+          </button>
+          <button
+            className={`editor-action-btn${dock === "bottom" ? " active" : ""}`}
+            onClick={() => setEditorDock("bottom")}
+            title="Dock bottom"
+          >
+            <PanelBottom size={14} strokeWidth={2} />
+          </button>
+          <button
+            className={`editor-action-btn${dock === "right" ? " active" : ""}`}
+            onClick={() => setEditorDock("right")}
+            title="Dock right"
+          >
+            <PanelRight size={14} strokeWidth={2} />
+          </button>
+          <button
+            className="editor-action-btn"
+            onClick={onOpenActiveInWindow}
+            disabled={!activeFile}
+            title="Open active file in separate window"
+          >
+            <SquareArrowOutUpRight size={14} strokeWidth={2} />
+          </button>
           <button
             className="editor-action-btn"
             onClick={() => {

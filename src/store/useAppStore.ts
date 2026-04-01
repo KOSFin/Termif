@@ -26,6 +26,8 @@ export interface EditorFile {
   encoding: string;
 }
 
+export type EditorDock = "left" | "right" | "top" | "bottom";
+
 interface AppState {
   isInitialized: boolean;
   tabs: AppTab[];
@@ -51,6 +53,7 @@ interface AppState {
   editorFiles: EditorFile[];
   activeEditorFileId?: string;
   editorVisible: boolean;
+  editorDock: EditorDock;
   editorSplitPercent: number;
 
   // Zoom
@@ -91,6 +94,7 @@ interface AppState {
   updateEditorContent: (fileId: string, content: string) => void;
   saveEditorFile: (fileId: string) => Promise<void>;
   setEditorVisible: (visible: boolean) => void;
+  setEditorDock: (dock: EditorDock) => void;
   setEditorSplitPercent: (pct: number) => void;
   setEditorLanguage: (fileId: string, langId: string, langName: string) => void;
   hasUnsavedEditorFiles: () => boolean;
@@ -102,6 +106,10 @@ interface AppState {
 }
 
 const defaultTabColor = "#4a8fe7";
+
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
 
 function makeTabFromSession(session: SessionDto): AppTab {
   return {
@@ -157,6 +165,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   editorFiles: [],
   activeEditorFileId: undefined,
   editorVisible: false,
+  editorDock: "right",
   editorSplitPercent: 50,
 
   // Zoom
@@ -543,16 +552,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const lang = detectLanguage(filename);
 
     try {
-      const content: string = sessionId
+      const rawContent: string = sessionId
         ? await invoke<string>("read_remote_text_file", { sessionId, path })
         : await invoke<string>("read_text_file", { path });
+      const normalizedContent = normalizeLineEndings(rawContent);
 
       const file: EditorFile = {
         id,
         path,
         mode,
-        content,
-        originalContent: content,
+        content: normalizedContent,
+        originalContent: normalizedContent,
         dirty: false,
         sessionId,
         languageId: lang.id,
@@ -612,9 +622,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateEditorContent: (fileId, content) => {
+    const normalized = normalizeLineEndings(content);
     set((state) => ({
       editorFiles: state.editorFiles.map((f) =>
-        f.id === fileId ? { ...f, content, dirty: content !== f.originalContent } : f
+        f.id === fileId ? { ...f, content: normalized, dirty: normalized !== f.originalContent } : f
       ),
     }));
   },
@@ -652,7 +663,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setEditorVisible: (visible) => set({ editorVisible: visible }),
 
-  setEditorSplitPercent: (pct) => set({ editorSplitPercent: Math.max(15, Math.min(85, pct)) }),
+  setEditorDock: (dock) => set({ editorDock: dock }),
+
+  setEditorSplitPercent: (pct) => set({ editorSplitPercent: Math.max(20, Math.min(80, pct)) }),
 
   setEditorLanguage: (fileId, langId, langName) => {
     set((state) => ({

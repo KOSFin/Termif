@@ -13,10 +13,12 @@ import {
   Type,
   Pencil,
   Trash2,
-  Terminal
+  Terminal,
+  SquareArrowOutUpRight
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { FileEntryDto } from "@/types/models";
+import { openEditorWindow } from "./editorWindow";
 
 interface FileManagerPaneProps {
   activeSessionId?: string;
@@ -106,6 +108,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
       void openFile(entry.path, "preview", props.isRemote ? props.activeSessionId : undefined);
   };
 
+  const onOpenInNewWindow = (entry: FileEntryDto, mode: "preview" | "edit" = "edit") => {
+    if (entry.is_dir) return;
+    openEditorWindow(entry.path, mode, props.isRemote ? props.activeSessionId : undefined);
+  };
+
   const onDelete = async (entry: FileEntryDto) => {
     if (!window.confirm(`Delete ${entry.name}?`)) return;
     await invoke("delete_fs_entry", { path: entry.path, isDir: entry.is_dir });
@@ -159,6 +166,15 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         <button onClick={() => void onCreateEntry(true)} title="New folder">
           <FolderPlus size={14} strokeWidth={2} />
         </button>
+        <button
+          onClick={() => {
+            if (selectedFile) onOpenInNewWindow(selectedFile, "edit");
+          }}
+          title="Open selected file in separate window"
+          disabled={!selectedFile || selectedFile.is_dir}
+        >
+          <SquareArrowOutUpRight size={14} strokeWidth={2} />
+        </button>
       </div>
 
       <div className="breadcrumbs">
@@ -204,6 +220,9 @@ export function FileManagerPane(props: FileManagerPaneProps) {
           >
             <button onClick={() => { onPreviewFile(contextMenu.file); setContextMenu(undefined); }}>
               <Eye size={13} strokeWidth={2} /> Preview
+            </button>
+            <button onClick={() => { onOpenInNewWindow(contextMenu.file, "edit"); setContextMenu(undefined); }}>
+              <SquareArrowOutUpRight size={13} strokeWidth={2} /> Open in New Window
             </button>
             <button onClick={() => { void onOpenFile(contextMenu.file); setContextMenu(undefined); }}>
               <FolderOpenIcon size={13} strokeWidth={2} /> Open

@@ -7,11 +7,12 @@ import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
 import { SettingsPanel } from "@/app/settings/SettingsPanel";
 import { useHotkeys } from "@/hooks/useHotkeys";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, type EditorDock } from "@/store/useAppStore";
 import type { AppTab } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "@/features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
+import { openEditorWindow } from "@/features/file_manager/editorWindow";
 
 export function AppShell() {
   const {
@@ -43,10 +44,14 @@ export function AppShell() {
     activateTabByIndex,
     tabMruOrder,
     editorVisible,
+    editorDock,
     editorSplitPercent,
+    editorFiles,
+    activeEditorFileId,
     zoomLevel,
     openFile,
     setEditorVisible,
+    setEditorDock,
     setEditorSplitPercent,
     hasUnsavedEditorFiles,
     zoomIn,
@@ -81,10 +86,14 @@ export function AppShell() {
     activateTabByIndex: state.activateTabByIndex,
     tabMruOrder: state.tabMruOrder,
     editorVisible: state.editorVisible,
+    editorDock: state.editorDock,
     editorSplitPercent: state.editorSplitPercent,
+    editorFiles: state.editorFiles,
+    activeEditorFileId: state.activeEditorFileId,
     zoomLevel: state.zoomLevel,
     openFile: state.openFile,
     setEditorVisible: state.setEditorVisible,
+    setEditorDock: state.setEditorDock,
     setEditorSplitPercent: state.setEditorSplitPercent,
     hasUnsavedEditorFiles: state.hasUnsavedEditorFiles,
     zoomIn: state.zoomIn,
@@ -93,13 +102,31 @@ export function AppShell() {
   }));
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
+  const activeEditorFile = useMemo(
+    () => editorFiles.find((file) => file.id === activeEditorFileId),
+    [activeEditorFileId, editorFiles]
+  );
 
   // ── Window controls ─────────────────────────────────────────────────
-  const appWindow = getCurrentWindow();
+  const appWindow = useMemo(() => getCurrentWindow(), []);
+  const closingConfirmedRef = useRef(false);
+
+  const confirmCloseWithUnsaved = useCallback(() => {
+    if (!hasUnsavedEditorFiles()) return true;
+    return window.confirm("You have unsaved editor files. Close the window anyway?");
+  }, [hasUnsavedEditorFiles]);
 
   const onMinimize = () => void appWindow.minimize();
   const onMaximize = () => void appWindow.toggleMaximize();
-  const onCloseWindow = () => void appWindow.close();
+  const onCloseWindow = () => {
+    if (!confirmCloseWithUnsaved()) return;
+    closingConfirmedRef.current = true;
+    void appWindow.close();
+  };
+  const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    void appWindow.startDragging();
+  };
 
   // ── Tab switcher state (Windows Alt+Tab style) ────────────────────
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
@@ -240,23 +267,70 @@ export function AppShell() {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedEditorFiles()) {
         e.preventDefault();
+        e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasUnsavedEditorFiles]);
 
+  useEffect(() => {
+    const unlistenPromise = appWindow.onCloseRequested((event) => {
+      if (closingConfirmedRef.current) {
+        closingConfirmedRef.current = false;
+        return;
+      }
+      if (!hasUnsavedEditorFiles()) return;
+
+      event.preventDefault();
+      const ok = window.confirm("You have unsaved editor files. Close the window anyway?");
+      if (!ok) return;
+
+      closingConfirmedRef.current = true;
+      void appWindow.close();
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [appWindow, hasUnsavedEditorFiles]);
+
   // ── Editor split drag state ─────────────────────────────────────
   const splitDragging = useRef(false);
   const centerPaneRef = useRef<HTMLElement>(null);
+  const [dockDropTarget, setDockDropTarget] = useState<EditorDock | null>(null);
+
+  const pickDockTarget = useCallback((x: number, y: number): EditorDock => {
+    if (!centerPaneRef.current) return editorDock;
+    const rect = centerPaneRef.current.getBoundingClientRect();
+    const px = Math.max(0, Math.min(rect.width, x - rect.left));
+    const py = Math.max(0, Math.min(rect.height, y - rect.top));
+
+    const leftDist = px;
+    const rightDist = rect.width - px;
+    const topDist = py;
+    const bottomDist = rect.height - py;
+
+    const min = Math.min(leftDist, rightDist, topDist, bottomDist);
+    if (min === leftDist) return "left";
+    if (min === rightDist) return "right";
+    if (min === topDist) return "top";
+    return "bottom";
+  }, [editorDock]);
 
   const onSplitMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     splitDragging.current = true;
+
+    const isVertical = editorDock === "top" || editorDock === "bottom";
+    const invert = editorDock === "right" || editorDock === "bottom";
+
     const onMove = (me: MouseEvent) => {
       if (!splitDragging.current || !centerPaneRef.current) return;
       const rect = centerPaneRef.current.getBoundingClientRect();
-      const pct = ((me.clientY - rect.top) / rect.height) * 100;
+      const axisSize = isVertical ? rect.height : rect.width;
+      const axisPos = isVertical ? me.clientY - rect.top : me.clientX - rect.left;
+      const pct = invert ? ((axisSize - axisPos) / axisSize) * 100 : (axisPos / axisSize) * 100;
       setEditorSplitPercent(pct);
     };
     const onUp = () => {
@@ -266,7 +340,52 @@ export function AppShell() {
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [setEditorSplitPercent]);
+  }, [editorDock, setEditorSplitPercent]);
+
+  const onStartEditorDockDrag = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const onMove = (e: MouseEvent) => {
+      setDockDropTarget(pickDockTarget(e.clientX, e.clientY));
+    };
+
+    const onUp = (e: MouseEvent) => {
+      const nextDock = pickDockTarget(e.clientX, e.clientY);
+      setEditorDock(nextDock);
+      setDockDropTarget(null);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    setDockDropTarget(pickDockTarget(event.clientX, event.clientY));
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [pickDockTarget, setEditorDock]);
+
+  const openActiveEditorInWindow = useCallback(() => {
+    if (!activeEditorFile) return;
+    openEditorWindow(activeEditorFile.path, activeEditorFile.mode, activeEditorFile.sessionId);
+  }, [activeEditorFile]);
+
+  const terminalContent = useMemo(() => (
+    <>
+      {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
+
+      {isInitialized &&
+        tabs
+          .filter((t) => (t.kind === "local" || t.kind === "ssh") && t.sessionId)
+          .map((t) => (
+            <TerminalPane
+              key={t.sessionId}
+              sessionId={t.sessionId!}
+              isVisible={t.id === activeTabId}
+              sshAlias={t.sshAlias}
+              terminalSettings={settings?.terminal}
+            />
+          ))}
+    </>
+  ), [activeTab, activeTabId, isInitialized, settings?.terminal, tabs]);
 
   const commands: PaletteCommand[] = [
     {
@@ -435,7 +554,7 @@ export function AppShell() {
 
   return (
     <div className="app-root">
-      <header className="topbar" data-tauri-drag-region>
+      <header className="topbar">
         <button
           className="sidebar-toggle-btn"
           onClick={() => toggleSidebar()}
@@ -443,6 +562,7 @@ export function AppShell() {
         >
           {sidebarVisible ? <PanelLeftClose size={15} strokeWidth={2} /> : <PanelLeft size={15} strokeWidth={2} />}
         </button>
+        <div className="topbar-drag-zone" data-tauri-drag-region onMouseDown={onStartWindowDrag} />
         <TabStrip
           tabs={tabs}
           activeTabId={activeTabId}
@@ -459,7 +579,7 @@ export function AppShell() {
             void closeTab(tabId);
           }}
         />
-        <div className="topbar-spacer" data-tauri-drag-region />
+        <div className="topbar-spacer" data-tauri-drag-region onMouseDown={onStartWindowDrag} />
         <div className="topbar-right">
           <button className="topbar-btn" onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">
             <Command size={14} strokeWidth={2} />
@@ -486,36 +606,82 @@ export function AppShell() {
         <section className="center-pane" ref={centerPaneRef}>
           {!isInitialized ? <div className="loading-screen">Loading...</div> : null}
 
-          {isInitialized && editorVisible ? (
-            <div
-              className="editor-split-top"
-              style={{ height: `${editorSplitPercent}%` }}
-            >
-              <InlineEditorPanel />
+          {isInitialized && editorVisible && (editorDock === "left" || editorDock === "right") ? (
+            <div className="dock-layout dock-horizontal">
+              {editorDock === "left" ? (
+                <div className="editor-dock-pane" style={{ width: `${editorSplitPercent}%` }}>
+                  <InlineEditorPanel
+                    dock={editorDock}
+                    onStartDockDrag={onStartEditorDockDrag}
+                    onOpenActiveInWindow={openActiveEditorInWindow}
+                  />
+                </div>
+              ) : null}
+
+              {editorDock === "left" ? <div className="split-handle split-handle-col" onMouseDown={onSplitMouseDown} /> : null}
+
+              <div className="terminal-dock-pane" style={{ width: `${100 - editorSplitPercent}%` }}>
+                {terminalContent}
+              </div>
+
+              {editorDock === "right" ? <div className="split-handle split-handle-col" onMouseDown={onSplitMouseDown} /> : null}
+
+              {editorDock === "right" ? (
+                <div className="editor-dock-pane" style={{ width: `${editorSplitPercent}%` }}>
+                  <InlineEditorPanel
+                    dock={editorDock}
+                    onStartDockDrag={onStartEditorDockDrag}
+                    onOpenActiveInWindow={openActiveEditorInWindow}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {isInitialized && editorVisible ? (
-            <div className="split-handle" onMouseDown={onSplitMouseDown} />
+          {isInitialized && editorVisible && (editorDock === "top" || editorDock === "bottom") ? (
+            <div className="dock-layout dock-vertical">
+              {editorDock === "top" ? (
+                <div className="editor-dock-pane" style={{ height: `${editorSplitPercent}%` }}>
+                  <InlineEditorPanel
+                    dock={editorDock}
+                    onStartDockDrag={onStartEditorDockDrag}
+                    onOpenActiveInWindow={openActiveEditorInWindow}
+                  />
+                </div>
+              ) : null}
+
+              {editorDock === "top" ? <div className="split-handle split-handle-row" onMouseDown={onSplitMouseDown} /> : null}
+
+              <div className="terminal-dock-pane" style={{ height: `${100 - editorSplitPercent}%` }}>
+                {terminalContent}
+              </div>
+
+              {editorDock === "bottom" ? <div className="split-handle split-handle-row" onMouseDown={onSplitMouseDown} /> : null}
+
+              {editorDock === "bottom" ? (
+                <div className="editor-dock-pane" style={{ height: `${editorSplitPercent}%` }}>
+                  <InlineEditorPanel
+                    dock={editorDock}
+                    onStartDockDrag={onStartEditorDockDrag}
+                    onOpenActiveInWindow={openActiveEditorInWindow}
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
-          <div className={`terminal-split-bottom${editorVisible ? "" : " terminal-full"}`}
-            style={editorVisible ? { height: `${100 - editorSplitPercent}%` } : undefined}
-          >
-            {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
+          {isInitialized && !editorVisible ? (
+            <div className="terminal-dock-pane terminal-full">{terminalContent}</div>
+          ) : null}
 
-            {isInitialized &&
-              tabs
-                .filter((t) => (t.kind === "local" || t.kind === "ssh") && t.sessionId)
-                .map((t) => (
-                  <TerminalPane
-                    key={t.sessionId}
-                    sessionId={t.sessionId!}
-                    isVisible={t.id === activeTabId}
-                    sshAlias={t.sshAlias}
-                  />
-                ))}
-          </div>
+          {editorVisible && dockDropTarget ? (
+            <div className="dock-drop-overlay" aria-hidden="true">
+              <div className={`dock-drop-target dock-left${dockDropTarget === "left" ? " active" : ""}`} />
+              <div className={`dock-drop-target dock-top${dockDropTarget === "top" ? " active" : ""}`} />
+              <div className={`dock-drop-target dock-right${dockDropTarget === "right" ? " active" : ""}`} />
+              <div className={`dock-drop-target dock-bottom${dockDropTarget === "bottom" ? " active" : ""}`} />
+            </div>
+          ) : null}
         </section>
       </main>
 
