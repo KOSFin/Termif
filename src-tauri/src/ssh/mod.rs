@@ -90,7 +90,9 @@ impl HostStore {
     pub fn rename_group(&self, group_id: &str, name: String) -> Result<(), TermifError> {
         let next_name = name.trim();
         if next_name.is_empty() {
-            return Err(TermifError::Internal("group name cannot be empty".to_string()));
+            return Err(TermifError::Internal(
+                "group name cannot be empty".to_string(),
+            ));
         }
 
         let mut state = self.state.lock().expect("host state lock poisoned");
