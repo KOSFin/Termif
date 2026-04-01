@@ -72,7 +72,6 @@ enum SshControl {
     Shutdown,
 }
 
-#[derive(Clone)]
 struct SshClientRuntime {
     handle: client::Handle<SshHandler>,
     dir_cache: Arc<tokio::sync::Mutex<HashMap<String, DirCacheEntry>>>,
@@ -359,11 +358,9 @@ impl TerminalManager {
             }
             SessionRuntime::Ssh(ssh) => {
                 let _ = ssh.control_tx.send(SshControl::Shutdown);
-                let handle = ssh.client.handle.clone();
+                let client = Arc::clone(&ssh.client);
                 tauri::async_runtime::spawn(async move {
-                    let _ = handle
-                        .disconnect(Disconnect::ByApplication, "", "English")
-                        .await;
+                    client.disconnect().await;
                 });
             }
         }
@@ -387,11 +384,9 @@ impl TerminalManager {
                 }
                 SessionRuntime::Ssh(ssh) => {
                     let _ = ssh.control_tx.send(SshControl::Shutdown);
-                    let handle = ssh.client.handle.clone();
+                    let client = Arc::clone(&ssh.client);
                     tauri::async_runtime::spawn(async move {
-                        let _ = handle
-                            .disconnect(Disconnect::ByApplication, "", "English")
-                            .await;
+                        client.disconnect().await;
                     });
                 }
             }
@@ -450,6 +445,13 @@ impl TerminalManager {
 }
 
 impl SshClientRuntime {
+    async fn disconnect(&self) {
+        let _ = self
+            .handle
+            .disconnect(Disconnect::ByApplication, "", "English")
+            .await;
+    }
+
     async fn connect(options: &SshConnectOptions) -> Result<Self, TermifError> {
         let config = Arc::new(client::Config {
             inactivity_timeout: Some(Duration::from_secs(30)),
