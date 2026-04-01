@@ -3,7 +3,7 @@ name = "termif"
 version = "0.1.0"
 description = "Termif - Modern Windows Terminal"
 authors = ["Termif Contributors"]
-license = ""
+license-file = "../LICENSE"
 edition = "2021"
 rust-version = "1.78"
 

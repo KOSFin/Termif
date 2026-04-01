@@ -1,53 +1,37 @@
 # Contributing to Termif
 
-## Principles
+Termif accepts contributions that preserve product direction, architectural coherence, and operational reliability. The repository is not maintained as a generic code dump. Every accepted change is expected to strengthen one or more of the following: execution stability, UX integrity, maintainability of subsystem boundaries, or release confidence for Windows delivery.
 
-- Keep boundaries clean: UI and domain logic stay separated.
-- Prefer typed models and typed events over ad-hoc maps.
-- Keep MVP scope focused.
-- Avoid hidden global mutable state.
+## Contribution Contract
 
-## Architecture Rules
+A pull request should explain product intent first, then implementation mechanics. Reviewers need to understand what user-visible behavior changed, what assumptions were introduced, and what failure paths were considered.
 
-- Frontend components do not implement transport or persistence logic.
-- Tauri commands map to explicit backend command handlers.
-- Backend modules communicate through typed events and services.
-- New features should include state and error-flow definitions.
+The codebase is structured to keep Rust as the runtime authority and React as the interaction plane. Contributions that invert this relationship, for example by moving persistence logic into frontend components, are considered architectural regressions even when functionally correct.
 
-## Coding Guidelines
+## Design and Boundary Expectations
 
-- Use idiomatic Rust patterns (Result, enums, traits, ownership discipline).
-- Favor composition and small focused modules.
-- Add comments only where behavior is not obvious.
-- Keep function names explicit and consistent.
+Frontend changes should remain declarative and state-driven. Complex behavior belongs in store actions or backend contracts rather than ad-hoc component effects.
 
-## Testing Expectations
+Backend changes should preserve typed models, explicit error propagation, and deterministic command contracts. If a backend command can fail, the failure should remain actionable at the UI boundary instead of being collapsed into anonymous errors.
 
-- Unit tests for pure domain logic.
-- Integration tests for command handlers and persistence repositories.
-- Manual UX verification for keyboard-heavy interactions.
+When introducing a new feature, contributors are expected to define the state transition model and the error model. Silent fallback behavior must be justified, because hidden recovery paths make terminal and SSH workflows harder to debug.
 
-## Error Handling
+## Quality Gates
 
-- Return typed domain errors.
-- Map technical errors to user-friendly UI messages.
-- Log connection and filesystem failures with operation context.
+The Windows CI workflow is the primary merge gate. Formatting, linting, tests, and build validation are enforced in automation. Contributions that bypass CI assumptions or require undocumented manual patching are not acceptable.
 
-## Pull Request Checklist
+For UX-heavy changes, include keyboard-path verification notes. Termif is keyboard-centric, so changes that accidentally degrade shortcut routing, tab focus behavior, or command palette accessibility are treated as high risk.
 
-- Architecture alignment confirmed
-- New code located in correct module
-- No boundary leaks (UI logic in backend or vice versa)
-- Tests updated or risk documented
-- Docs updated when contracts/models changed
+## Documentation Discipline
 
-## Commit Style
+Documentation is part of the product surface. If you modify models, runtime behavior, command contracts, or persistence semantics, update the relevant documentation in the same pull request. Delayed documentation updates create version skew and increase onboarding cost.
 
-- Keep commits focused by feature or subsystem.
-- Avoid broad mixed refactors in feature PRs.
+## Security and Trust Expectations
 
-## Security Notes
+Never log credentials, key material, or sensitive connection payloads. Any code path handling SSH secrets should minimize retention and avoid accidental serialization in debug output.
 
-- Do not log secrets.
-- Treat credentials as sensitive and short-lived.
-- Require explicit capability grants for future plugin APIs.
+Plugin runtime is currently disabled. Do not introduce dynamic execution shortcuts that emulate plugin behavior without security review.
+
+## Pull Request Readiness
+
+A contribution is review-ready when behavior is scoped, architecture boundaries remain intact, failure handling is explicit, and docs reflect final semantics. Small focused pull requests are preferred over broad mixed refactors because they reduce regression surface and simplify release verification.

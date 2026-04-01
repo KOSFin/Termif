@@ -1,88 +1,39 @@
-# GitHub Actions Windows Build Plan
+# Windows CI and Artifact Pipeline
 
-## Objectives
+## Overview
 
-- Build Windows artifacts automatically
-- Keep pipeline reproducible and release-ready
-- Prepare for later signing and tagged releases
+Termif uses a single GitHub Actions workflow, .github/workflows/ci-windows.yml, to cover both quality gates and artifact delivery for Windows.
 
-## Workflow Set
+The workflow is triggered by pull requests, pushes to main/develop, version tags beginning with v, and manual dispatch. This keeps one authoritative pipeline for validation and release preparation.
 
-## 1) Continuous Integration
+## Job Topology
 
-File:
-- .github/workflows/ci-windows.yml
+The quality job runs on windows-latest and acts as the merge gate. It validates frontend build integrity, Rust formatting, clippy warnings as errors, Rust tests, and a no-bundle Tauri smoke build.
 
-Triggers:
-- pull_request
-- push to main and develop
+The build-artifacts job runs after quality for non-PR events. It resolves release metadata, normalizes version values for package.json, tauri.conf.json, and Cargo.toml, executes a bundled Tauri build, collects MSI/EXE/SIG outputs, and generates SHA-256 checksums.
 
-Jobs:
-- setup: checkout, toolchain, node, cache
-- frontend: install deps and build web assets
-- backend: cargo fmt check, clippy, tests
-- package-smoke: build app package in debug/release mode (configurable)
+The release job publishes a GitHub Release when pipeline metadata allows publication. Artifact packaging and release publication remain tied to workflow metadata rather than separate disconnected scripts.
 
-Outputs:
-- test logs
-- build logs
-- optional debug binary artifact
+## Versioning Strategy
 
-## 2) Artifact Build Workflow
+Tagged builds treat tag names as source-of-truth release versions with SemVer validation and legacy normalization support.
 
-File:
-- .github/workflows/build-windows-artifacts.yml
+Non-tag builds derive CI versions from base package version and run number, producing semver-compatible prerelease identifiers and deterministic CI release tags. This preserves compatibility with tooling expectations while keeping build lineage visible.
 
-Triggers:
-- workflow_dispatch
-- push tags matching v*
+MSI packaging requires a numeric four-part version, so the workflow performs explicit MSI version projection during the bundle step.
 
-Jobs:
-- build-release:
-  - install Rust stable (msvc target)
-  - install Node LTS
-  - build frontend
-  - run tauri build for Windows
-  - collect produced artifacts (exe/msi and updater package if configured)
-  - upload artifacts with clear naming
+## Artifact Contract
 
-Artifact naming convention:
-- termif-windows-x64-${{ github.ref_name }}
+Bundle artifacts are collected from src-tauri/target/release/bundle and filtered to installer and signature outputs. A checksums.txt file is generated for MSI and EXE assets using SHA-256.
 
-## 3) Release Workflow (Later)
+Artifacts are uploaded with normalized names derived from computed release tags, providing stable retrieval semantics for both CI and tagged release flows.
 
-File:
-- .github/workflows/release.yml (future)
+## Security and Reliability Posture
 
-Planned additions:
-- release notes generation
-- GitHub Release publish
-- code signing integration
-- checksum generation
+Jobs use scoped permissions and avoid unnecessary secret exposure. Build metadata mutation is explicit and temporary where required, with tauri.conf.json backup/restore behavior during MSI patching.
 
-## Reproducibility Measures
+Pipeline reproducibility depends on pinned major toolchain versions, npm lockfile installs, and Rust caching through swatinem/rust-cache.
 
-- Pin Rust toolchain (stable with optional rust-toolchain.toml)
-- Pin Node major version
-- Use lockfiles and frozen installs
-- Cache cargo registry/target and npm cache
+## Future Enhancements
 
-## Security Measures
-
-- Minimal job permissions
-- Secrets only in release workflow
-- No secret echo in logs
-
-## Minimum MVP CI Acceptance
-
-- Successful Windows build on clean runner
-- Artifacts uploaded and downloadable
-- Failing tests/format/lints block merge on protected branch
-
-## README Build Instructions Plan
-
-README should include:
-- prerequisites (Rust, Node, WebView2 runtime assumptions)
-- local build commands
-- local run command
-- how to reproduce CI build locally
+The current pipeline is release-capable for unsigned artifacts. Planned enhancements include code-signing integration, stronger provenance metadata, and richer generated release notes while preserving the single-workflow operational model.

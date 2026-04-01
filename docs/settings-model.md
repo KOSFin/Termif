@@ -1,125 +1,87 @@
 # Settings Model
 
-## Goals
+## Scope
 
-- Keep user-editable settings readable and portable.
-- Support schema evolution without breaking existing installs.
-- Allow runtime updates with predictable behavior.
+This document describes the active settings contract implemented in the Rust backend and consumed by the React frontend. It replaces older TOML-based drafts. Current settings persistence is JSON-based and stored in the Tauri app data directory.
 
-## Storage
+## Storage and Ownership
 
-Primary settings file location (Windows):
-- %APPDATA%/Termif/settings.toml
+Settings are persisted in settings.json and managed by SettingsStore in the backend. On startup, settings are loaded with default fallback semantics. On save, the backend writes the full settings object atomically through the persistence service.
 
-Hotkeys file location:
-- %APPDATA%/Termif/keybindings.toml
+There is no machine-policy overlay or multi-file layering in the current implementation. Effective settings are computed as one persisted document merged with model defaults during deserialization.
 
-Future machine policy location (optional):
-- %PROGRAMDATA%/Termif/policy.toml
+## Canonical Shape
 
-## Layering
+The AppSettings model has these top-level sections:
 
-Settings are resolved in order:
-1. Built-in defaults
-2. User settings.toml
-3. Machine policy (future)
-4. Runtime overrides (session only)
-
-Effective value = latest layer that defines a valid value.
-
-## Schema
-
-Top-level sections:
 - appearance
 - terminal
 - hotkeys
 - ssh
 - file_manager
 - experimental
+- status_bar
 
-Required metadata:
-- schema_version (integer)
+Representative JSON shape:
 
-Example skeleton:
-
-```toml
-schema_version = 1
-
-[appearance]
-ui_density = "comfortable"
-accent_color = "#4aa3ff"
-show_tab_icons = true
-
-[terminal]
-default_shell = "powershell"
-font_family = "Cascadia Code"
-font_size = 13
-cursor_style = "bar"
-scrollback_lines = 20000
-
-[ssh]
-connect_timeout_seconds = 15
-strict_host_key_checking = true
-
-[file_manager]
-show_hidden = false
-default_sort = "name"
-
-[experimental]
-input_overlay_mode = false
+```json
+{
+	"appearance": {
+		"accent_color": "#61a0ff",
+		"ui_density": "comfortable",
+		"tab_switching_mode": "mru"
+	},
+	"terminal": {
+		"default_shell": "powershell",
+		"font_family": "Cascadia Code",
+		"font_size": 13,
+		"cursor_style": "bar",
+		"scrollback_lines": 20000,
+		"syntax_highlighting": false
+	},
+	"hotkeys": [
+		{
+			"command_id": "palette.open",
+			"primary": "Ctrl+Shift+P",
+			"alternates": []
+		}
+	],
+	"ssh": {
+		"connect_timeout_seconds": 15,
+		"strict_host_key_checking": true
+	},
+	"file_manager": {
+		"show_hidden": false,
+		"default_sort": "name"
+	},
+	"experimental": {
+		"input_overlay_mode": false
+	},
+	"status_bar": {
+		"enabled": true,
+		"show_resource_monitor": true,
+		"show_server_time": true,
+		"resource_poll_interval_seconds": 8
+	}
+}
 ```
 
-## Hotkey Model
+## Runtime Behavior
 
-Hotkeys are represented as command bindings:
-- command_id
-- primary binding
-- optional secondary binding
-- context predicate
+The frontend requests settings through load_settings and submits updates through save_settings. Changes are applied as whole-object updates rather than patch deltas. This keeps synchronization straightforward at the cost of requiring callers to preserve unknown fields when future schema growth appears.
 
-Example:
+Hotkeys are modeled as user-defined bindings but remain normalized in runtime through a default catalog in frontend hotkey handling. Missing commands inherit defaults, while user-defined entries override by command_id.
 
-```toml
-schema_version = 1
+## Validation and Defaults
 
-[[bindings]]
-command_id = "palette.open"
-primary = "Ctrl+Shift+P"
+Validation currently relies on typed serde deserialization and frontend input constraints. There is no separate schema_version field yet. Backward compatibility is achieved through default values on model fields and tolerant optional fields.
 
-[[bindings]]
-command_id = "tab.new_default"
-primary = "Ctrl+T"
-```
+The status_bar section explicitly uses serde defaulting, so older settings files without status_bar remain valid and receive default status bar behavior.
 
-## Validation
+## Known Gaps
 
-Validation passes:
-1. Parse validity
-2. Schema version support
-3. Section shape and key type checks
-4. Semantic checks (ranges, enums, conflicts)
+The ssh.strict_host_key_checking flag is persisted and editable, but full runtime host key enforcement is not yet aligned with this setting. This discrepancy is tracked in roadmap hardening priorities.
 
-Invalid values:
-- Are rejected
-- Emit settings.validation_failed event
-- Show actionable UI error with key path
-- Keep previous effective value
+## Forward Compatibility Direction
 
-## Change Propagation
-
-- UI updates a setting via typed command.
-- Backend validates and writes atomically.
-- Backend emits settings.changed with changed keys.
-- Frontend applies minimal re-render based on affected section.
-
-## Migration Strategy
-
-- Migrations are versioned functions (v1->v2, v2->v3).
-- Old files are migrated on load and persisted only after successful full migration.
-- Backup old file before writing new version.
-
-## Security and Privacy
-
-- Settings never store plaintext passwords.
-- Secrets are referenced by key ids where needed.
-- Potentially sensitive paths are sanitized in logs.
+Future evolution should preserve JSON readability while adding explicit version metadata only when migration complexity justifies it. Until then, additive fields with defaults remain the preferred compatibility path.

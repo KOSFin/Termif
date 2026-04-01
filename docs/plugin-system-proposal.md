@@ -1,115 +1,45 @@
 # Plugin System Proposal
 
-## Objective
+## Current State
 
-Design for future extensibility without compromising security, stability, or performance.
+Termif currently ships without active plugin runtime. The plugins module exists as a structural placeholder only, and no third-party code loading path is enabled in the production execution path.
 
-MVP status:
-- Plugin interfaces and hook points defined
-- Runtime loading disabled
+This is deliberate. Terminal and SSH workflows demand strong trust guarantees, and plugin support will be introduced only after capability boundaries and operational safeguards reach product quality.
 
-## Runtime Choice
+## Strategic Goal
 
-Preferred design:
-- WASM plugins executed in a WASI-compatible runtime (wasmtime)
+The plugin system is intended to extend user workflows without weakening reliability or security. The architecture target is contribution-level extensibility, not unrestricted process-level embedding.
 
-Why:
-- Strong isolation from host process memory
-- Versionable ABI surface
-- Capability-gated APIs
-- Better safety than unrestricted native dynamic libraries
+## Proposed Runtime Direction
 
-Alternative for internal trusted plugins only:
-- Native Rust dynamic library mode (future optional, gated)
+The preferred direction is a capability-gated WASM runtime with a versioned host API. Compared with native dynamic libraries, this model offers stronger isolation, clearer ABI governance, and better containment for plugin faults.
 
-## Plugin Package Model
+A native trusted-plugin path may be considered later for internal distributions, but it should not be the default public extension model.
 
-Each plugin includes:
-- manifest.toml
-- wasm module
-- optional assets
+## Capability and Permission Model
 
-Manifest fields:
-- id
-- version
-- api_version
-- name
-- requested_capabilities
-- contributed_commands
-- contributed_panels
+Plugins should declare requested capabilities in manifest metadata. End users should explicitly approve high-trust capabilities before activation, and approvals should be revocable.
 
-## Capability Model
+Initial capability domains are expected to include command registration, sidebar contributions, file and tab context actions, terminal hooks, settings extensions, bounded plugin storage, and optional outbound networking under strict policy.
 
-Capabilities are explicit and user-granted.
+## Host API Surface (Proposed)
 
-Initial capability categories:
-- commands.register
-- events.subscribe
-- sidebar.panel
-- file.actions
-- tab.actions
-- terminal.hooks
-- ssh.hooks
-- settings.section
-- storage.kv
-- network.outbound (high-trust, off by default)
+The host API should be intentionally small in early phases: register commands, contribute UI entries, subscribe to selected event streams, and emit user-facing notifications. Any API that can mutate runtime state should carry clear input contracts, timeout limits, and deterministic error semantics.
 
-## API Surface (Host Functions)
+## Lifecycle Model
 
-Planned host calls:
-- register_command(command_spec)
-- register_sidebar_panel(panel_spec)
-- register_file_action(action_spec)
-- register_tab_action(action_spec)
-- subscribe_event(event_filter)
-- publish_notification(notification)
+A mature plugin lifecycle should include discovery, manifest validation, API compatibility checks, capability consent, activation, runtime health monitoring, and controlled deactivation. Repeated plugin faults should trigger automatic quarantine rather than repeated crash loops.
 
-Planned event callbacks to plugin:
-- on_command_invoked
-- on_session_event
-- on_file_context
-- on_ssh_connection_event
+## Security Constraints
 
-## Lifecycle
+Default posture should remain deny-by-default. Plugins should not get filesystem, credential, or network access unless explicitly granted. Secret material must remain inaccessible to plugin code unless a dedicated security-reviewed API exists.
 
-- Discover plugin manifests
-- Validate signature/version/capabilities
-- Resolve dependencies
-- Activate plugin
-- Deactivate/unload on errors or user request
+Future signing and trust policy work should support organizational allowlists and stricter enterprise deployment modes.
 
-Failure behavior:
-- Plugin crash isolates to plugin runtime
-- Host app remains healthy
-- Plugin auto-disabled after repeated faults
+## Product Integration Targets
 
-## Security Plan
+Plugin UX should integrate into the existing command palette, sidebar, file context menu, and tab context surfaces. Terminal-specific hooks are valuable but high risk and should be introduced after baseline plugin sandbox controls are proven.
 
-- Disabled by default in MVP
-- Permission prompt on first enable
-- No secret access APIs by default
-- Sandboxed file/network based on capabilities
-- Future plugin signing and trust policy
+## Rollout Recommendation
 
-## Versioning
-
-- Plugin API has semantic versioning
-- Compatibility matrix enforced at load time
-- Deprecation windows documented per API version
-
-## UX Integration Targets
-
-Future supported contributions:
-- command palette entries
-- sidebar tool panels
-- extra file context menu actions
-- tab context actions
-- terminal session hooks
-- custom preview handlers
-- settings blocks/pages
-
-## Operational Limits
-
-- Resource quotas per plugin (CPU time/memory budgets)
-- Timeout for command hooks
-- Circuit breaker for repeated failures
+The safest rollout path is phased: define manifest and capability schema first, ship runtime behind explicit feature gating, enable command-level extensions before deep runtime hooks, then expand capability breadth only after stability and telemetry confidence are established.

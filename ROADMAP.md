@@ -1,147 +1,51 @@
-# Termif Roadmap
+# Termif Product Roadmap
 
-## Delivery Policy
+## Direction
 
-Execution follows the required order:
-1. Architecture approval
-2. Repository scaffolding
-3. App shell
-4. Local terminal tabs
-5. Local contextual file manager
-6. SSH host browser and connection flow
-7. Remote file manager for SSH tabs
-8. File preview/edit window
-9. Persistence and restore
-10. GitHub Actions Windows artifact workflow
+Termif is evolving from a technically complete Windows-first MVP into an operationally hardened terminal workspace product. The next roadmap cycle focuses less on adding isolated features and more on improving trust, execution consistency, and release quality for users who rely on SSH and file workflows daily.
 
-## Phase 1: Architecture Approval (Current)
+## Current Product Baseline
 
-Goals:
-- Finalize architecture and constraints
-- Confirm MVP boundaries and tradeoffs
+The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows CI artifact generation.
 
-Exit criteria:
-- ARCHITECTURE.md accepted
-- Risks and assumptions accepted
+This means roadmap work now targets depth over breadth.
 
-## Phase 2: Scaffold Repository
+## Near-Term Priorities
 
-Scope:
-- Create module folders aligned with architecture
-- Add core model crates/modules
-- Add event contract stubs
-- Add docs baseline and coding conventions
+### 1) Connection Trust and SSH Hardening
 
-Exit criteria:
-- Buildable shell project
-- No business logic in ad-hoc locations
+The product must close trust gaps in SSH validation and provide explicit host-key policy behavior that matches user expectations. Settings currently expose strict_host_key_checking semantics; runtime enforcement and UX feedback should align with that contract.
 
-## Phase 3: App Shell and UX Frame
+### 2) Session Reliability and Recovery
 
-Scope:
-- Main window layout
-- Top tab strip with premium states
-- Sidebar toggle in top-left
-- Sidebar host area and file manager slot
-- Command palette shell
-- Settings shell with section navigation
+Reconnect behavior, stale session cleanup, and background wake-up handling need further stabilization under unstable networks. The objective is predictable terminal continuity without hidden reconnect loops.
 
-Exit criteria:
-- User can open app and create/close/switch basic tabs
-- Sidebar toggles cleanly
+### 3) Editor and Filesystem Maturity
 
-## Phase 4: Local Terminal Sessions
+Inline and popout editing are functional, but large-file behavior, remote latency tolerance, and conflict handling require refinement. Future work should preserve the current context-bound file model while improving resilience and user confidence around save operations.
 
-Scope:
-- ConPTY integration
-- Shell profiles (default, PowerShell, CMD)
-- xterm rendering, scrollback, selection, resize
-- Tab metadata (rename/color/icon)
+### 4) Release Confidence for Windows
 
-Exit criteria:
-- Stable local shell tabs
-- Terminal output/input reliability
+Artifact generation is active, but release lifecycle improvements are still needed around signing, checksum publication policy, and release metadata quality. This is essential for enterprise adoption where provenance and reproducibility are mandatory.
 
-## Phase 5: Contextual Local File Manager
+## Mid-Term Objectives
 
-Scope:
-- Local backend adapter
-- Breadcrumb mode and refresh/back
-- File/folder actions and context menus
-- CD Here integration with local terminal tab
+### Structured Input Evolution
 
-Exit criteria:
-- File manager responds to active local tab context
+The experimental input overlay direction remains valid, but should be implemented incrementally with strict compatibility expectations for native shell editing. Any structured input mode must remain optional and never degrade core terminal behavior.
 
-## Phase 6: SSH Host Browser and Connection Flow
+### Capability-Gated Plugin Runtime
 
-Scope:
-- Import from .ssh/config
-- Managed hosts and groups CRUD
-- SSH host-picker tab UI
-- Credential modal and connection progress UX
+Plugin architecture remains a strategic investment. Runtime enablement should occur only after capability prompts, permission boundaries, and crash isolation guarantees are implemented to product standards.
 
-Exit criteria:
-- User can choose/import host and connect into SSH terminal tab
+### Cross-Platform Readiness
 
-## Phase 7: Remote File Manager (SSH)
+Although Windows is the only declared release target today, code boundaries should continue to avoid platform lock-in where unnecessary. Packaging and QA expansion can follow once Windows trust and reliability targets are met.
 
-Scope:
-- SFTP backend adapter
-- Context switch from local to remote by active tab
-- Remote-specific actions (download)
-- CD Here for remote session
+## Delivery Principles
 
-Exit criteria:
-- Sidebar reflects active SSH tab remote filesystem
+Roadmap execution follows three rules. First, reliability work has priority over cosmetic expansion. Second, changes to terminal, SSH, and persistence contracts must be documented in the same cycle they ship. Third, every milestone should reduce operational ambiguity for users and maintainers.
 
-## Phase 8: File Preview and Edit Window
+## Exit Criteria for the Next Major Milestone
 
-Scope:
-- Secondary window for preview/edit
-- Multi-tab file viewer/editor
-- Save flow and unsaved-change guard
-
-Exit criteria:
-- Usable text preview/edit flow for local and remote files
-
-## Phase 9: Persistence and Restore
-
-Scope:
-- Settings and hotkeys persistence
-- Hosts/groups persistence
-- Tab/session restore policy
-- Command history store
-- Visual clear vs retained logs behavior
-
-Exit criteria:
-- Restarting app restores configured state and selected session metadata
-
-## Phase 10: CI and Windows Artifacts
-
-Scope:
-- GitHub Actions Windows CI workflow
-- Artifact upload for binaries/installers
-- Reproducible build notes and release-ready structure
-
-Exit criteria:
-- Downloadable Windows artifacts generated on CI
-
-## MVP Completion Definition
-
-MVP is complete when:
-- Premium tab strip UX and sidebar UX are in place
-- Local and SSH tabs both function
-- Contextual file manager (local/remote) works
-- Command palette executes core commands
-- Settings/hotkeys are editable and persisted
-- File preview/edit is usable
-- Windows artifact workflow is active
-
-## Post-MVP Priorities
-
-- Advanced editable command input overlay mode
-- Plugin runtime enablement with capability prompts
-- Improved terminal semantic blocks
-- Better remote diff/sync actions
-- Release signing and update channel
+The next milestone is considered complete when SSH trust behavior matches settings semantics, reconnect workflows are stable under real network failures, editor/file operations present deterministic error recovery, and Windows releases ship with stronger integrity guarantees.
