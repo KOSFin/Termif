@@ -976,7 +976,11 @@ fn parse_user_names(users_section: &str) -> Vec<String> {
     let mut names = Vec::new();
     let mut seen = HashSet::new();
 
-    for line in users_section.lines().map(str::trim).filter(|line| !line.is_empty()) {
+    for line in users_section
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
         let Some(first_col) = line.split_whitespace().next() else {
             continue;
         };
@@ -989,7 +993,11 @@ fn parse_user_names(users_section: &str) -> Vec<String> {
 }
 
 fn parse_server_clock(clock_section: &str) -> (Option<i64>, Option<String>) {
-    for line in clock_section.lines().map(str::trim).filter(|line| !line.is_empty()) {
+    for line in clock_section
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
         let mut cols = line.split_whitespace();
         let epoch = cols.next().and_then(|raw| raw.parse::<i64>().ok());
         if let Some(epoch) = epoch {
