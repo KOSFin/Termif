@@ -254,9 +254,15 @@ export function EditorWorkspace() {
               className={`editor-tab ${tab.id === activeTabId ? "active" : ""}`}
               onClick={() => setActiveTabId(tab.id)}
             >
-              {tab.path.split(/[\\/]/).pop()}
-              {tab.dirty ? " *" : ""}
-              {tab.sessionId ? " (remote)" : ""}
+              <span className="editor-tab-meta">
+                <span className="editor-tab-title">
+                  {tab.path.split(/[\\/]/).pop()}
+                  {tab.dirty ? " *" : ""}
+                </span>
+                <span className="editor-tab-subtitle">
+                  {tab.serverLabel ?? (tab.sessionId ? "Remote server" : "Local machine")}
+                </span>
+              </span>
               <span
                 className="editor-tab-close"
                 onClick={(event) => {
@@ -325,13 +331,9 @@ export function EditorWorkspace() {
                     tab.id === activeTab.id ? { ...tab, content: value, dirty: true } : tab
                   )
                 );
-                  <span className="editor-tab-meta">
-                    <span className="editor-tab-title">
-                      {tab.path.split(/[\\/]/).pop()}
-                      {tab.dirty ? " *" : ""}
-                    </span>
-                    <span className="editor-tab-subtitle">{tab.serverLabel ?? (tab.sessionId ? "Remote server" : "Local machine")}</span>
-                  </span>
+              }}
+            />
+          </div>
         </main>
       ) : null}
     </div>
