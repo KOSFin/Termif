@@ -171,29 +171,27 @@ impl TerminalManager {
         });
 
         let (control_tx, control_rx) = mpsc::channel::<LocalControl>();
-        thread::spawn(move || {
-            loop {
-                match control_rx.recv_timeout(Duration::from_millis(40)) {
-                    Ok(LocalControl::Input(data)) => {
-                        let _ = writer.write_all(data.as_bytes());
-                        let _ = writer.flush();
-                    }
-                    Ok(LocalControl::Resize { cols, rows }) => {
-                        let _ = master.resize(PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        });
-                    }
-                    Ok(LocalControl::Shutdown) => {
-                        let _ = writer.write_all(b"exit\r");
-                        let _ = writer.flush();
-                        break;
-                    }
-                    Err(mpsc::RecvTimeoutError::Timeout) => {}
-                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        thread::spawn(move || loop {
+            match control_rx.recv_timeout(Duration::from_millis(40)) {
+                Ok(LocalControl::Input(data)) => {
+                    let _ = writer.write_all(data.as_bytes());
+                    let _ = writer.flush();
                 }
+                Ok(LocalControl::Resize { cols, rows }) => {
+                    let _ = master.resize(PtySize {
+                        rows,
+                        cols,
+                        pixel_width: 0,
+                        pixel_height: 0,
+                    });
+                }
+                Ok(LocalControl::Shutdown) => {
+                    let _ = writer.write_all(b"exit\r");
+                    let _ = writer.flush();
+                    break;
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
             }
         });
 
@@ -258,7 +256,11 @@ impl TerminalManager {
         Ok(dto_clone)
     }
 
-    pub fn attach_channel(&self, session_id: &str, ch: FrontendChannel<String>) -> Result<(), TermifError> {
+    pub fn attach_channel(
+        &self,
+        session_id: &str,
+        ch: FrontendChannel<String>,
+    ) -> Result<(), TermifError> {
         let mut lock = self.sessions.lock().expect("sessions lock poisoned");
         let runtime = lock
             .get_mut(session_id)
@@ -372,7 +374,10 @@ impl TerminalManager {
     pub fn close_all_sessions(&self) {
         let runtimes = {
             let mut sessions = self.sessions.lock().expect("sessions lock poisoned");
-            sessions.drain().map(|(_, runtime)| runtime).collect::<Vec<_>>()
+            sessions
+                .drain()
+                .map(|(_, runtime)| runtime)
+                .collect::<Vec<_>>()
         };
 
         for runtime in runtimes {
@@ -421,7 +426,10 @@ impl TerminalManager {
         client.write_remote_text_file(path, content).await
     }
 
-    pub async fn fetch_system_stats(&self, session_id: &str) -> Result<SystemStatsDto, TermifError> {
+    pub async fn fetch_system_stats(
+        &self,
+        session_id: &str,
+    ) -> Result<SystemStatsDto, TermifError> {
         let client = self.ssh_client(session_id)?;
         client.collect_system_stats().await
     }
@@ -454,8 +462,13 @@ impl SshClientRuntime {
 
         let user = resolve_ssh_user(options);
         let key_path = resolve_ssh_key_path(options)?;
-        let key_pair = load_secret_key(&key_path, None)
-            .map_err(|e| TermifError::Internal(format!("failed to load ssh key {}: {}", key_path.display(), e)))?;
+        let key_pair = load_secret_key(&key_path, None).map_err(|e| {
+            TermifError::Internal(format!(
+                "failed to load ssh key {}: {}",
+                key_path.display(),
+                e
+            ))
+        })?;
 
         let rsa_hash = handle
             .best_supported_rsa_hash()
@@ -614,7 +627,9 @@ impl SshClientRuntime {
 
     async fn write_remote_text_file(&self, path: &str, content: &str) -> Result<(), TermifError> {
         let command = format!("cat > {}", shell_single_quote(path));
-        let output = self.exec_capture(&command, Some(content.as_bytes())).await?;
+        let output = self
+            .exec_capture(&command, Some(content.as_bytes()))
+            .await?;
         if output.exit_status.unwrap_or(1) != 0 {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             return Err(TermifError::Internal(if stderr.is_empty() {
@@ -693,10 +708,7 @@ fn push_output(
     push_channel: &Arc<Mutex<Option<FrontendChannel<String>>>>,
     bytes: &[u8],
 ) {
-    let ch = push_channel
-        .lock()
-        .expect("channel lock poisoned")
-        .clone();
+    let ch = push_channel.lock().expect("channel lock poisoned").clone();
 
     if let Some(ch) = ch {
         let text = String::from_utf8_lossy(bytes).into_owned();
@@ -762,7 +774,10 @@ fn resolve_ssh_key_path(options: &SshConnectOptions) -> Result<PathBuf, TermifEr
     }
 
     let home = user_home_dir()?;
-    let candidates = [home.join(".ssh").join("id_ed25519"), home.join(".ssh").join("id_rsa")];
+    let candidates = [
+        home.join(".ssh").join("id_ed25519"),
+        home.join(".ssh").join("id_rsa"),
+    ];
 
     for path in candidates {
         if path.exists() {
@@ -816,14 +831,15 @@ fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, Ter
         let is_dir = perms.starts_with('d');
         let size = parts[4].parse::<u64>().unwrap_or(0);
 
-        let (modified_unix, name) = if parts[5].chars().all(|c| c.is_ascii_digit()) && parts[5].len() >= 9 {
-            let ts = parts[5].parse::<u64>().ok();
-            (ts, parts[6..].join(" "))
-        } else if parts.len() >= 9 {
-            (None, parts[8..].join(" "))
-        } else {
-            continue;
-        };
+        let (modified_unix, name) =
+            if parts[5].chars().all(|c| c.is_ascii_digit()) && parts[5].len() >= 9 {
+                let ts = parts[5].parse::<u64>().ok();
+                (ts, parts[6..].join(" "))
+            } else if parts.len() >= 9 {
+                (None, parts[8..].join(" "))
+            } else {
+                continue;
+            };
 
         if name.is_empty() || name == "." || name == ".." {
             continue;
