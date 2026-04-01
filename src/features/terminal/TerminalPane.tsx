@@ -1,7 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -18,14 +18,24 @@ interface TerminalPaneProps {
   terminalSettings?: TerminalVisualSettings;
 }
 
-export function TerminalPane({ sessionId, isVisible, sshAlias, terminalSettings }: TerminalPaneProps) {
+export const TerminalPane = memo(function TerminalPane({
+  sessionId,
+  isVisible,
+  sshAlias,
+  terminalSettings
+}: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const visibleRef = useRef<boolean>(isVisible);
 
   // Show connecting overlay for SSH sessions until the first byte of output arrives.
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
+
+  useEffect(() => {
+    visibleRef.current = isVisible;
+  }, [isVisible]);
 
   // ── Mount / session-change effect ───────────────────────────────────────────
   useEffect(() => {
@@ -88,6 +98,7 @@ export function TerminalPane({ sessionId, isVisible, sshAlias, terminalSettings 
     // ── Resize observer ──────────────────────────────────────────────────────
     const resizeObserver = new ResizeObserver(() => {
       if (!xtermRef.current || !fitRef.current) return;
+      if (!visibleRef.current) return;
       safeFit(fitRef.current);
       void invoke("resize_terminal", {
         sessionId,
@@ -177,7 +188,7 @@ export function TerminalPane({ sessionId, isVisible, sshAlias, terminalSettings 
       )}
     </div>
   );
-}
+});
 
 /** Call fit() only when the container has real dimensions. */
 function safeFit(fit: FitAddon) {

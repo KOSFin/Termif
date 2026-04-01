@@ -8,7 +8,7 @@ import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalett
 import { SettingsPanel } from "@/app/settings/SettingsPanel";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useAppStore, type EditorDock } from "@/store/useAppStore";
-import type { AppTab } from "@/types/models";
+import type { AppTab, SshRemoteStatus } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "@/features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
@@ -99,7 +99,7 @@ export function AppShell() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
   // ── Window controls ─────────────────────────────────────────────────
   const appWindow = useMemo(() => getCurrentWindow(), []);
-  const closingConfirmedRef = useRef(false);
+  const closeInProgressRef = useRef(false);
 
   const confirmCloseWithUnsaved = useCallback(() => {
     if (!hasUnsavedEditorFiles()) return true;
@@ -120,15 +120,18 @@ export function AppShell() {
       toast(`Maximize failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
-  const onCloseWindow = async () => {
+  const onCloseWindow = useCallback(async () => {
+    if (closeInProgressRef.current) return;
     if (!confirmCloseWithUnsaved()) return;
-    closingConfirmedRef.current = true;
+    closeInProgressRef.current = true;
     try {
-      await appWindow.close();
+      await invoke("exit_app");
     } catch (e) {
       toast(`Close failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      closeInProgressRef.current = false;
     }
-  };
+  }, [confirmCloseWithUnsaved, toast]);
   const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     void appWindow.startDragging();
@@ -140,6 +143,75 @@ export function AppShell() {
   const tabSwitcherOpenRef = useRef(false);
   const tabSwitcherTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const tabSwitcherPendingRef = useRef(false);
+
+  const [remoteStatus, setRemoteStatus] = useState<SshRemoteStatus | null>(null);
+  const [remoteStatusFetchedAt, setRemoteStatusFetchedAt] = useState<number>(0);
+  const [remoteStatusError, setRemoteStatusError] = useState<string>();
+  const [clockTick, setClockTick] = useState(0);
+
+  const statusBarSettings = settings?.status_bar;
+  const statusBarShowResources = statusBarSettings?.show_resource_monitor ?? true;
+  const statusBarShowServerTime = statusBarSettings?.show_server_time ?? true;
+  const statusBarEnabled = statusBarSettings?.enabled ?? true;
+  const statusBarPollSec = Math.max(3, statusBarSettings?.resource_poll_interval_seconds ?? 8);
+  const shouldPollRemoteStatus =
+    statusBarEnabled &&
+    activeTab?.kind === "ssh" &&
+    !!activeTab.sessionId &&
+    (statusBarShowResources || statusBarShowServerTime);
+
+  useEffect(() => {
+    if (!shouldPollRemoteStatus || !activeTab?.sessionId) {
+      setRemoteStatus(null);
+      setRemoteStatusError(undefined);
+      return;
+    }
+
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const payload = await invoke<SshRemoteStatus>("fetch_remote_status", {
+          sessionId: activeTab.sessionId,
+          includeResources: statusBarShowResources,
+          includeTime: statusBarShowServerTime
+        });
+        if (!mounted) return;
+        setRemoteStatus(payload);
+        setRemoteStatusFetchedAt(Date.now());
+        setRemoteStatusError(undefined);
+      } catch (error) {
+        if (!mounted) return;
+        setRemoteStatusError(error instanceof Error ? error.message : String(error));
+      }
+    };
+
+    void load();
+    const timer = window.setInterval(() => {
+      void load();
+    }, statusBarPollSec * 1000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, [
+    activeTab?.sessionId,
+    shouldPollRemoteStatus,
+    statusBarPollSec,
+    statusBarShowResources,
+    statusBarShowServerTime
+  ]);
+
+  useEffect(() => {
+    if (!statusBarEnabled || !statusBarShowServerTime || !remoteStatus?.server_epoch_seconds) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setClockTick((v) => v + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [remoteStatus?.server_epoch_seconds, statusBarEnabled, statusBarShowServerTime]);
 
   useEffect(() => {
     void initialize();
@@ -170,7 +242,7 @@ export function AppShell() {
     onPrevTab: () => activatePrevTab(),
     onTabByIndex: (index: number) => activateTabByIndex(index),
     onRefreshFiles: () => {
-      void loadCurrentFiles();
+      void loadCurrentFiles({ force: true });
     },
     onZoomIn: () => zoomIn(),
     onZoomOut: () => zoomOut(),
@@ -268,38 +340,16 @@ export function AppShell() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [zoomIn, zoomOut]);
 
-  // ── Warn on close if unsaved editor files ───────────────────────
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedEditorFiles()) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [hasUnsavedEditorFiles]);
-
   useEffect(() => {
     const unlistenPromise = appWindow.onCloseRequested((event) => {
-      if (closingConfirmedRef.current) {
-        closingConfirmedRef.current = false;
-        return;
-      }
-      if (!hasUnsavedEditorFiles()) return;
-
       event.preventDefault();
-      const ok = window.confirm("You have unsaved editor files. Close the window anyway?");
-      if (!ok) return;
-
-      closingConfirmedRef.current = true;
-      void appWindow.close();
+      void onCloseWindow();
     });
 
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [appWindow, hasUnsavedEditorFiles]);
+  }, [appWindow, onCloseWindow]);
 
   // ── Editor split drag state ─────────────────────────────────────
   const splitDragging = useRef(false);
@@ -387,6 +437,28 @@ export function AppShell() {
           ))}
     </>
   ), [activeTab, activeTabId, isInitialized, settings?.terminal, tabs]);
+
+  const hasEditor = isInitialized && editorVisible;
+  const isVerticalDock = editorDock === "top" || editorDock === "bottom";
+  const editorFirst = editorDock === "left" || editorDock === "top";
+  const editorPaneStyle = isVerticalDock
+    ? { height: `${editorSplitPercent}%` }
+    : { width: `${editorSplitPercent}%` };
+  const terminalPaneStyle = hasEditor
+    ? (isVerticalDock
+        ? { height: `${100 - editorSplitPercent}%` }
+        : { width: `${100 - editorSplitPercent}%` })
+    : undefined;
+
+  const serverTimeLabel = useMemo(() => {
+    const epoch = remoteStatus?.server_epoch_seconds;
+    if (!epoch || !remoteStatusFetchedAt) return "--:--:--";
+    const deltaSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
+    return new Date((epoch + deltaSec) * 1000).toLocaleTimeString();
+  }, [clockTick, remoteStatus?.server_epoch_seconds, remoteStatusFetchedAt]);
+
+  const loadLevel = classifyLoad(remoteStatus?.load_1m ?? null);
+  const memoryLevel = classifyPercent(remoteStatus?.memory_percent ?? null);
 
   const commands: PaletteCommand[] = [
     {
@@ -476,7 +548,7 @@ export function AppShell() {
       title: "Refresh File Manager",
       category: "Files",
       action: () => {
-        void loadCurrentFiles();
+        void loadCurrentFiles({ force: true });
       }
     },
     {
@@ -488,7 +560,7 @@ export function AppShell() {
         if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
-        await loadCurrentFiles();
+        await loadCurrentFiles({ force: true });
       }
     },
     {
@@ -500,7 +572,7 @@ export function AppShell() {
         if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
-        await loadCurrentFiles();
+        await loadCurrentFiles({ force: true });
       }
     },
     {
@@ -605,12 +677,10 @@ export function AppShell() {
         <Sidebar hidden={!sidebarVisible} />
 
         <section className="center-pane" ref={centerPaneRef}>
-          {!isInitialized ? <div className="loading-screen">Loading...</div> : null}
-
-          {isInitialized && editorVisible && (editorDock === "left" || editorDock === "right") ? (
-            <div className="dock-layout dock-horizontal">
-              {editorDock === "left" ? (
-                <div className="editor-dock-pane" style={{ width: `${editorSplitPercent}%` }}>
+          {!isInitialized ? <div className="loading-screen">Loading...</div> : (
+            <div className={`dock-layout ${isVerticalDock ? "dock-vertical" : "dock-horizontal"}`}>
+              {hasEditor && editorFirst ? (
+                <div className="editor-dock-pane" style={editorPaneStyle}>
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
@@ -618,16 +688,26 @@ export function AppShell() {
                 </div>
               ) : null}
 
-              {editorDock === "left" ? <div className="split-handle split-handle-col" onMouseDown={onSplitMouseDown} /> : null}
+              {hasEditor && editorFirst ? (
+                <div
+                  className={`split-handle ${isVerticalDock ? "split-handle-row" : "split-handle-col"}`}
+                  onMouseDown={onSplitMouseDown}
+                />
+              ) : null}
 
-              <div className="terminal-dock-pane" style={{ width: `${100 - editorSplitPercent}%` }}>
+              <div className={`terminal-dock-pane${!hasEditor ? " terminal-full" : ""}`} style={terminalPaneStyle}>
                 {terminalContent}
               </div>
 
-              {editorDock === "right" ? <div className="split-handle split-handle-col" onMouseDown={onSplitMouseDown} /> : null}
+              {hasEditor && !editorFirst ? (
+                <div
+                  className={`split-handle ${isVerticalDock ? "split-handle-row" : "split-handle-col"}`}
+                  onMouseDown={onSplitMouseDown}
+                />
+              ) : null}
 
-              {editorDock === "right" ? (
-                <div className="editor-dock-pane" style={{ width: `${editorSplitPercent}%` }}>
+              {hasEditor && !editorFirst ? (
+                <div className="editor-dock-pane" style={editorPaneStyle}>
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
@@ -635,41 +715,7 @@ export function AppShell() {
                 </div>
               ) : null}
             </div>
-          ) : null}
-
-          {isInitialized && editorVisible && (editorDock === "top" || editorDock === "bottom") ? (
-            <div className="dock-layout dock-vertical">
-              {editorDock === "top" ? (
-                <div className="editor-dock-pane" style={{ height: `${editorSplitPercent}%` }}>
-                  <InlineEditorPanel
-                    dock={editorDock}
-                    onStartDockDrag={onStartEditorDockDrag}
-                  />
-                </div>
-              ) : null}
-
-              {editorDock === "top" ? <div className="split-handle split-handle-row" onMouseDown={onSplitMouseDown} /> : null}
-
-              <div className="terminal-dock-pane" style={{ height: `${100 - editorSplitPercent}%` }}>
-                {terminalContent}
-              </div>
-
-              {editorDock === "bottom" ? <div className="split-handle split-handle-row" onMouseDown={onSplitMouseDown} /> : null}
-
-              {editorDock === "bottom" ? (
-                <div className="editor-dock-pane" style={{ height: `${editorSplitPercent}%` }}>
-                  <InlineEditorPanel
-                    dock={editorDock}
-                    onStartDockDrag={onStartEditorDockDrag}
-                  />
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {isInitialized && !editorVisible ? (
-            <div className="terminal-dock-pane terminal-full">{terminalContent}</div>
-          ) : null}
+          )}
 
           {editorVisible && dockDropTarget ? (
             <div className="dock-drop-overlay" aria-hidden="true">
@@ -681,6 +727,33 @@ export function AppShell() {
           ) : null}
         </section>
       </main>
+
+      <footer className="statusbar">
+        <div className="statusbar-left">
+          <span className="status-pill">{activeTab?.kind === "ssh" ? "SSH" : "LOCAL"}</span>
+          <span className="status-label">{activeTab?.title ?? "No active tab"}</span>
+        </div>
+
+        <div className="statusbar-right">
+          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
+            <span className={`status-metric status-${loadLevel}`}>
+              Load {remoteStatus?.load_1m !== null && remoteStatus?.load_1m !== undefined ? remoteStatus.load_1m.toFixed(2) : "--"}
+            </span>
+          ) : null}
+
+          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
+            <span className={`status-metric status-${memoryLevel}`}>
+              RAM {remoteStatus?.memory_percent !== null && remoteStatus?.memory_percent !== undefined ? `${remoteStatus.memory_percent.toFixed(0)}%` : "--"}
+            </span>
+          ) : null}
+
+          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowServerTime ? (
+            <span className="status-metric">Server {serverTimeLabel}</span>
+          ) : null}
+
+          {remoteStatusError ? <span className="status-metric status-danger">{remoteStatusError}</span> : null}
+        </div>
+      </footer>
 
       {/* ── Tab switcher overlay (Windows Alt+Tab style) ─────────── */}
       {tabSwitcherOpen && (() => {
@@ -734,4 +807,18 @@ export function AppShell() {
       ) : null}
     </div>
   );
+}
+
+function classifyLoad(load: number | null): "ok" | "warn" | "danger" {
+  if (load === null || Number.isNaN(load)) return "ok";
+  if (load >= 2.5) return "danger";
+  if (load >= 1.3) return "warn";
+  return "ok";
+}
+
+function classifyPercent(value: number | null): "ok" | "warn" | "danger" {
+  if (value === null || Number.isNaN(value)) return "ok";
+  if (value >= 90) return "danger";
+  if (value >= 75) return "warn";
+  return "ok";
 }

@@ -346,9 +346,9 @@ textarea:focus {
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   gap: 0;
-  max-width: calc(100% - 210px);
+  max-width: none;
 }
 
 .tabstrip-scroll {
@@ -357,7 +357,7 @@ textarea:focus {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -578,7 +578,7 @@ textarea:focus {
 
 .file-manager {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto auto 1fr;
   height: 100%;
   min-height: 0;
 }
@@ -645,6 +645,11 @@ textarea:focus {
   background: var(--bg-hover);
 }
 
+.breadcrumbs button:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .file-list {
   position: relative;
   overflow-y: auto;
@@ -672,6 +677,11 @@ textarea:focus {
 
 .file-item:hover {
   background: var(--bg-hover);
+}
+
+.file-item:disabled {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .file-item.selected {
@@ -784,9 +794,24 @@ textarea:focus {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 12px 16px;
-  overflow: auto;
+  padding: 0;
+  overflow: hidden;
   background: var(--bg);
+}
+
+.terminal-pane .xterm,
+.terminal-pane .xterm-screen,
+.terminal-pane .xterm-helpers {
+  overflow: hidden;
+}
+
+.terminal-pane .xterm-viewport {
+  scrollbar-width: none;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* == SSH Connecting overlay ==================================== */
@@ -1389,7 +1414,7 @@ textarea:focus {
 .toast {
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  bottom: 38px;
   padding: 8px 14px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
@@ -2072,6 +2097,71 @@ textarea:focus {
   color: var(--accent);
 }
 
+/* == Bottom status bar ======================================= */
+
+.statusbar {
+  height: 22px;
+  min-height: 22px;
+  border-top: 1px solid var(--stroke);
+  background: var(--bg-elev-1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.statusbar-left,
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+
+.status-pill {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid var(--stroke);
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: var(--bg-elev-2);
+  color: var(--text-bright);
+}
+
+.status-metric {
+  border-radius: 3px;
+  padding: 1px 6px;
+  border: 1px solid var(--stroke);
+  background: var(--bg-elev-2);
+  white-space: nowrap;
+}
+
+.status-ok {
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 45%, var(--stroke));
+}
+
+.status-warn {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--stroke));
+}
+
+.status-danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--stroke));
+}
+
 /* == Tab highlight polish ===================================== */
 
 .tab:not(.active) {
@@ -2115,6 +2205,6 @@ textarea:focus {
   }
 
   .terminal-pane {
-    padding: 6px 8px;
+    padding: 0;
   }
 }

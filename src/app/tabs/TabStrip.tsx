@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { X, ChevronDown, Plus } from "lucide-react";
 import type { AppTab } from "@/types/models";
 
@@ -21,12 +21,12 @@ export function TabStrip(props: TabStripProps) {
   const [contextTabId, setContextTabId] = useState<string>();
   const [contextPosition, setContextPosition] = useState<{ x: number; y: number }>();
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
-  const [scrollViewportWidth, setScrollViewportWidth] = useState<number>();
   const [scrollLimited, setScrollLimited] = useState(false);
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+  const newTabMenuRef = useRef<HTMLDivElement>(null);
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),
@@ -49,22 +49,12 @@ export function TabStrip(props: TabStripProps) {
   }, []);
 
   const updateLayout = useCallback(() => {
-    const stripEl = stripRef.current;
     const scrollEl = scrollRef.current;
-    const actionsEl = actionsRef.current;
-    if (!stripEl || !scrollEl || !actionsEl) return;
-
-    const stripWidth = stripEl.clientWidth;
-    const actionsWidth = actionsEl.offsetWidth;
-    const maxScrollWidth = Math.max(100, stripWidth - actionsWidth - 2);
-    const contentWidth = scrollEl.scrollWidth;
-
-    const limited = contentWidth > maxScrollWidth;
-    setScrollLimited(limited);
-    setScrollViewportWidth(limited ? maxScrollWidth : contentWidth);
+    if (!scrollEl) return;
+    setScrollLimited(scrollEl.scrollWidth > scrollEl.clientWidth + 1);
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     updateLayout();
   }, [updateLayout, props.tabs]);
 
@@ -76,11 +66,25 @@ export function TabStrip(props: TabStripProps) {
     return () => observer.disconnect();
   }, [updateLayout]);
 
+  useEffect(() => {
+    if (!newTabMenuOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const wrap = newTabMenuRef.current;
+      if (!wrap) return;
+      if (!wrap.contains(event.target as Node)) {
+        setNewTabMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [newTabMenuOpen]);
+
   return (
     <div className="tabstrip" ref={stripRef}>
       <div
         className={`tabstrip-scroll${scrollLimited ? " limited" : ""}`}
-        style={scrollViewportWidth ? { width: `${scrollViewportWidth}px` } : undefined}
         ref={scrollRef}
         role="tablist"
         aria-label="Terminal tabs"
@@ -119,7 +123,7 @@ export function TabStrip(props: TabStripProps) {
         <button className="tab-action" onClick={props.onNewDefault} title="New tab">
           <Plus size={15} strokeWidth={2} />
         </button>
-        <div className="newtab-dropdown-wrap">
+        <div className="newtab-dropdown-wrap" ref={newTabMenuRef}>
           <button
             className="tab-action"
             title="New tab options"

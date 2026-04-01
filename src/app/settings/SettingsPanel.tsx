@@ -5,6 +5,7 @@ import {
   Keyboard,
   Globe,
   FolderOpen,
+  Activity,
   FlaskConical,
   X
 } from "lucide-react";
@@ -17,7 +18,7 @@ interface SettingsPanelProps {
   onSave: (settings: AppSettings) => Promise<void>;
 }
 
-type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "experimental";
+type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "status_bar" | "experimental";
 
 const sections: { key: SettingsSection; label: string; icon: typeof Palette }[] = [
   { key: "appearance", label: "Appearance", icon: Palette },
@@ -25,6 +26,7 @@ const sections: { key: SettingsSection; label: string; icon: typeof Palette }[] 
   { key: "hotkeys", label: "Hotkeys", icon: Keyboard },
   { key: "ssh", label: "SSH", icon: Globe },
   { key: "file_manager", label: "File Manager", icon: FolderOpen },
+  { key: "status_bar", label: "Status Bar", icon: Activity },
   { key: "experimental", label: "Experimental", icon: FlaskConical }
 ];
 
@@ -335,6 +337,75 @@ export function SettingsPanel(props: SettingsPanelProps) {
                     setDraft((p) =>
                       p
                         ? { ...p, experimental: { ...p.experimental, input_overlay_mode: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {activeSection === "status_bar" && (
+            <div className="settings-section">
+              <div className="settings-row-toggle">
+                <span>Enable Bottom Status Bar</span>
+                <input
+                  type="checkbox"
+                  checked={draft.status_bar.enabled}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, status_bar: { ...p.status_bar, enabled: e.target.checked } } : p
+                    )
+                  }
+                />
+              </div>
+
+              <div className="settings-row-toggle">
+                <span>Show SSH Resource Monitor</span>
+                <input
+                  type="checkbox"
+                  checked={draft.status_bar.show_resource_monitor}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, status_bar: { ...p.status_bar, show_resource_monitor: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+
+              <div className="settings-row-toggle">
+                <span>Show SSH Server Time</span>
+                <input
+                  type="checkbox"
+                  checked={draft.status_bar.show_server_time}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, status_bar: { ...p.status_bar, show_server_time: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
+
+              <div className="settings-row">
+                <label>SSH Poll Interval (seconds)</label>
+                <input
+                  type="number"
+                  min={3}
+                  value={draft.status_bar.resource_poll_interval_seconds}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? {
+                            ...p,
+                            status_bar: {
+                              ...p.status_bar,
+                              resource_poll_interval_seconds: Math.max(3, Number(e.target.value) || 8)
+                            }
+                          }
                         : p
                     )
                   }

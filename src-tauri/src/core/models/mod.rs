@@ -27,6 +27,15 @@ pub struct FileEntryDto {
     pub modified_unix: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SshRemoteStatusDto {
+    pub server_epoch_seconds: Option<u64>,
+    pub load_1m: Option<f32>,
+    pub memory_total_mb: Option<u64>,
+    pub memory_used_mb: Option<u64>,
+    pub memory_percent: Option<f32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SshHostEntry {
     pub id: String,
@@ -61,6 +70,8 @@ pub struct AppSettings {
     pub ssh: SshSettings,
     pub file_manager: FileManagerSettings,
     pub experimental: ExperimentalSettings,
+    #[serde(default)]
+    pub status_bar: StatusBarSettings,
 }
 
 impl Default for AppSettings {
@@ -99,6 +110,7 @@ impl Default for AppSettings {
             experimental: ExperimentalSettings {
                 input_overlay_mode: false,
             },
+            status_bar: StatusBarSettings::default(),
         }
     }
 }
@@ -145,6 +157,26 @@ pub struct FileManagerSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExperimentalSettings {
     pub input_overlay_mode: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StatusBarSettings {
+    pub enabled: bool,
+    pub show_resource_monitor: bool,
+    pub show_server_time: bool,
+    pub resource_poll_interval_seconds: u16,
+}
+
+impl Default for StatusBarSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            show_resource_monitor: true,
+            show_server_time: true,
+            resource_poll_interval_seconds: 8,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

@@ -67,6 +67,20 @@ export interface AppSettings {
   experimental: {
     input_overlay_mode: boolean;
   };
+  status_bar: {
+    enabled: boolean;
+    show_resource_monitor: boolean;
+    show_server_time: boolean;
+    resource_poll_interval_seconds: number;
+  };
+}
+
+export interface SshRemoteStatus {
+  server_epoch_seconds?: number | null;
+  load_1m?: number | null;
+  memory_total_mb?: number | null;
+  memory_used_mb?: number | null;
+  memory_percent?: number | null;
 }
 
 export interface PersistedTab {

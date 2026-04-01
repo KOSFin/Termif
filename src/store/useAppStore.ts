@@ -43,6 +43,9 @@ interface AppState {
   tabPaths: Record<string, string>;
   fileEntries: FileEntryDto[];
   fileLoading: boolean;
+  fileTransitioning: boolean;
+  fileDisplayTabId?: string;
+  fileDisplayPath?: string;
   fileError?: string;
   selectedFile?: FileEntryDto;
   lastToast?: string;
@@ -80,7 +83,7 @@ interface AppState {
   createHostGroup: (name: string) => Promise<void>;
   renameHostGroup: (groupId: string, name: string) => Promise<void>;
   deleteHostGroup: (groupId: string) => Promise<void>;
-  loadCurrentFiles: () => Promise<void>;
+  loadCurrentFiles: (options?: { force?: boolean }) => Promise<void>;
   loadCurrentFilesFromCache: () => void;
   navigatePath: (path: string) => Promise<void>;
   goParentPath: () => Promise<void>;
@@ -110,6 +113,17 @@ interface AppState {
 const defaultTabColor = "#4a8fe7";
 let fileLoadRequestSeq = 0;
 let fileLoadDebounceTimer: number | undefined;
+const FILE_LOAD_DEBOUNCE_MS = 180;
+const FILE_CACHE_FRESH_MS = 1500;
+const dirCacheFreshAt: Record<string, number> = {};
+
+function buildDirCacheKey(tab: AppTab, path: string): string {
+  if (tab.kind === "ssh") {
+    const hostKey = tab.sshAlias ?? tab.sessionId ?? "ssh";
+    return `ssh:${hostKey}:${path}`;
+  }
+  return `local:${path}`;
+}
 
 function normalizeLineEndings(value: string): string {
   return value.replace(/\r\n/g, "\n");
@@ -159,6 +173,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   tabPaths: {},
   fileEntries: [],
   fileLoading: false,
+  fileTransitioning: false,
+  fileDisplayTabId: undefined,
+  fileDisplayPath: undefined,
   fileError: undefined,
   selectedFile: undefined,
   lastToast: undefined,
@@ -235,6 +252,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         tabs: restoredTabs,
         activeTabId: persisted.active_tab_id ?? restoredTabs[0].id,
+        fileTransitioning: true,
+        selectedFile: undefined,
         isInitialized: true
       });
       get().loadCurrentFiles().catch(() => {});
@@ -252,6 +271,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
+      fileTransitioning: true,
+      selectedFile: undefined,
       tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     await persistUiState(get());
@@ -269,6 +290,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
+      fileTransitioning: false,
+      selectedFile: undefined,
       tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     void persistUiState(get());
@@ -290,7 +313,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
           : tab
       ),
-      activeTabId: tabId
+      activeTabId: tabId,
+      fileTransitioning: true,
+      selectedFile: undefined
     }));
     await persistUiState(get());
     get().loadCurrentFiles().catch(() => {});
@@ -307,7 +332,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const activeTabId = get().activeTabId === tabId
       ? (mru[0] ?? tabs[0]?.id)
       : get().activeTabId;
-    set({ tabs, activeTabId, tabMruOrder: mru });
+    set({
+      tabs,
+      activeTabId,
+      tabMruOrder: mru,
+      fileTransitioning: true,
+      selectedFile: undefined
+    });
 
     if (tabs.length === 0) {
       await get().createLocalTab(get().settings?.terminal.default_shell ?? "powershell");
@@ -316,6 +347,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await persistUiState(get());
     get().loadCurrentFilesFromCache();
+    get().loadCurrentFiles().catch(() => {});
   },
 
   duplicateTab: async (tabId) => {
@@ -364,8 +396,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setActiveTab: (tabId) => {
+    if (get().activeTabId === tabId) return;
+
     set((state) => ({
       activeTabId: tabId,
+      fileTransitioning: true,
+      selectedFile: undefined,
       tabMruOrder: [tabId, ...state.tabMruOrder.filter((id) => id !== tabId)]
     }));
     void persistUiState(get());
@@ -377,7 +413,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     fileLoadDebounceTimer = window.setTimeout(() => {
       get().loadCurrentFiles().catch(() => {});
       fileLoadDebounceTimer = undefined;
-    }, 120);
+    }, FILE_LOAD_DEBOUNCE_MS);
   },
 
   activateNextTab: () => {
@@ -443,7 +479,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refreshHosts();
   },
 
-  loadCurrentFiles: async () => {
+  loadCurrentFiles: async (options) => {
+    const force = options?.force ?? false;
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
     const requestTabId = activeTab.id;
@@ -454,15 +491,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     const requestSeq = ++fileLoadRequestSeq;
 
     // Show cached data instantly — only show loading spinner if no cache exists
-    const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${currentPath}`;
+    const cacheKey = buildDirCacheKey(activeTab, currentPath);
     const cached = get().dirCache[cacheKey];
+    const isFresh = Date.now() - (dirCacheFreshAt[cacheKey] ?? 0) < FILE_CACHE_FRESH_MS;
 
     if (cached) {
-      // Cache hit: show cached data immediately, fetch in background silently
-      set({ fileEntries: cached, fileLoading: false, fileError: undefined });
+      // Cache hit: show cached data immediately.
+      set({
+        fileEntries: cached,
+        fileLoading: false,
+        fileTransitioning: false,
+        fileDisplayTabId: requestTabId,
+        fileDisplayPath: currentPath,
+        fileError: undefined
+      });
+
+      if (!force && isFresh) {
+        return;
+      }
     } else {
       // No cache: show loading indicator
-      set({ fileLoading: true, fileError: undefined });
+      set({ fileLoading: true, fileTransitioning: true, fileError: undefined });
     }
 
     try {
@@ -489,9 +538,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         fileEntries: entries,
         fileLoading: false,
+        fileTransitioning: false,
+        fileDisplayTabId: requestTabId,
+        fileDisplayPath: currentPath,
+        selectedFile: undefined,
         tabPaths: { ...state.tabPaths, [activeTab.id]: currentPath },
         dirCache: { ...state.dirCache, [cacheKey]: entries }
       }));
+      dirCacheFreshAt[cacheKey] = Date.now();
     } catch (error) {
       const live = get();
       if (requestSeq !== fileLoadRequestSeq || live.activeTabId !== requestTabId) {
@@ -499,6 +553,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       set({
         fileLoading: false,
+        fileTransitioning: false,
         fileError: error instanceof Error ? error.message : String(error)
       });
     }
@@ -512,12 +567,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().tabPaths[activeTab.id] ??
       (activeTab.kind === "ssh" ? "/" : "C:/");
 
-    const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${currentPath}`;
+    const cacheKey = buildDirCacheKey(activeTab, currentPath);
     const cached = get().dirCache[cacheKey];
 
     if (cached) {
-      set({ fileEntries: cached, fileLoading: false, fileError: undefined });
+      set({
+        fileEntries: cached,
+        fileLoading: false,
+        fileTransitioning: false,
+        fileDisplayTabId: activeTab.id,
+        fileDisplayPath: currentPath,
+        fileError: undefined
+      });
+      return;
     }
+
+    set({ fileTransitioning: true });
   },
 
   navigatePath: async (path) => {
@@ -525,14 +590,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!activeTab) return;
 
     set((state) => ({
-      tabPaths: { ...state.tabPaths, [activeTab.id]: path }
+      tabPaths: { ...state.tabPaths, [activeTab.id]: path },
+      fileTransitioning: true,
+      selectedFile: undefined
     }));
 
     // Show cached immediately if available
-    const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${path}`;
+    const cacheKey = buildDirCacheKey(activeTab, path);
     const cached = get().dirCache[cacheKey];
     if (cached) {
-      set({ fileEntries: cached, fileLoading: false, fileError: undefined });
+      set({
+        fileEntries: cached,
+        fileLoading: false,
+        fileTransitioning: false,
+        fileDisplayTabId: activeTab.id,
+        fileDisplayPath: path,
+        fileError: undefined
+      });
     }
 
     await get().loadCurrentFiles();

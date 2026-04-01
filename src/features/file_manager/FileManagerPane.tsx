@@ -34,6 +34,9 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   const {
     fileEntries,
     fileLoading,
+    fileTransitioning,
+    fileDisplayTabId,
+    fileDisplayPath,
     fileError,
     selectedFile,
     setSelectedFile,
@@ -48,6 +51,9 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   } = useAppStore((state) => ({
     fileEntries: state.fileEntries,
     fileLoading: state.fileLoading,
+    fileTransitioning: state.fileTransitioning,
+    fileDisplayTabId: state.fileDisplayTabId,
+    fileDisplayPath: state.fileDisplayPath,
     fileError: state.fileError,
     selectedFile: state.selectedFile,
     setSelectedFile: state.setSelectedFile,
@@ -71,8 +77,15 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     return tabPaths[tab.id] ?? (props.isRemote ? "/" : "C:/");
   }, [activeTabId, props.isRemote, tabPaths, tabs]);
 
+  const displayTab = useMemo(
+    () => tabs.find((item) => item.id === fileDisplayTabId) ?? activeTab,
+    [activeTab, fileDisplayTabId, tabs]
+  );
+
+  const displayPath = fileDisplayPath ?? activePath;
+
   const breadcrumbs = useMemo(() => {
-    const normalized = activePath.replace(/\\/g, "/");
+    const normalized = displayPath.replace(/\\/g, "/");
     if (normalized.includes(":/")) {
       const [drive] = normalized.split("/");
       const rest = normalized.replace(`${drive}/`, "").split("/").filter(Boolean);
@@ -93,7 +106,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         return { label: part, path: current };
       })
     ];
-  }, [activePath]);
+  }, [displayPath]);
 
   const onOpenFile = async (entry: FileEntryDto) => {
     if (entry.is_dir) {
@@ -118,14 +131,16 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     };
   };
 
-  const sourceLabel = props.isRemote
-    ? `SSH: ${props.sshAlias ?? activeTab?.sshAlias ?? "unknown host"}`
+  const sourceLabel = displayTab?.kind === "ssh"
+    ? `SSH: ${displayTab.sshAlias ?? "unknown host"}`
     : "Local";
+
+  const uiBusy = fileLoading || fileTransitioning;
 
   const onDelete = async (entry: FileEntryDto) => {
     if (!window.confirm(`Delete ${entry.name}?`)) return;
     await invoke("delete_fs_entry", { path: entry.path, isDir: entry.is_dir });
-    await loadCurrentFiles();
+    await loadCurrentFiles({ force: true });
   };
 
   const onRename = async (entry: FileEntryDto) => {
@@ -133,7 +148,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     if (!nextName || nextName === entry.name) return;
     const nextPath = entry.path.replace(/[^/\\]+$/, nextName);
     await invoke("rename_fs_entry", { from: entry.path, to: nextPath });
-    await loadCurrentFiles();
+    await loadCurrentFiles({ force: true });
   };
 
   const onCreateEntry = async (isDir: boolean) => {
@@ -141,7 +156,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     if (!name) return;
     const path = activePath.endsWith("/") ? `${activePath}${name}` : `${activePath}/${name}`;
     await invoke("create_fs_entry", { path, isDir });
-    await loadCurrentFiles();
+    await loadCurrentFiles({ force: true });
   };
 
   const onCdHere = async (entry: FileEntryDto) => {
@@ -166,7 +181,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         <button onClick={() => void goParentPath()} title="Back">
           <ArrowLeft size={14} strokeWidth={2} />
         </button>
-        <button onClick={() => void loadCurrentFiles()} title="Refresh" className={fileLoading ? "spinning" : ""}>
+        <button
+          onClick={() => void loadCurrentFiles({ force: true })}
+          title="Refresh"
+          className={uiBusy ? "spinning" : ""}
+        >
           <RefreshCw size={14} strokeWidth={2} />
         </button>
         <button onClick={() => void onCreateEntry(false)} title="New file">
@@ -179,7 +198,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
       <div className="breadcrumbs">
         {breadcrumbs.map((crumb, index) => (
-          <button key={`${crumb.path}-${index}`} onClick={() => void navigatePath(crumb.path)}>
+          <button
+            key={`${crumb.path}-${index}`}
+            onClick={() => void navigatePath(crumb.path)}
+            disabled={fileTransitioning}
+          >
             {index > 0 ? "/ " : ""}{crumb.label}
           </button>
         ))}
@@ -187,7 +210,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
       <div className="file-scope-bar">
         <span className="file-scope-source">{sourceLabel}</span>
-        <span className="file-scope-path" title={activePath}>{activePath}</span>
+        <span className="file-scope-path" title={displayPath}>{displayPath}</span>
       </div>
 
       {fileError ? <div className="file-status error">{fileError}</div> : null}
@@ -199,6 +222,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             className={`file-item ${selectedFile?.path === entry.path ? "selected" : ""}`}
             onClick={() => setSelectedFile(entry)}
             onDoubleClick={() => void onOpenFile(entry)}
+            disabled={fileTransitioning}
             onContextMenu={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -212,14 +236,14 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             <span className="file-name">{entry.name}</span>
           </button>
         ))}
-        {!fileLoading && fileEntries.length === 0 && !fileError && (
+        {!uiBusy && fileEntries.length === 0 && !fileError && (
           <div className="file-status">Empty directory</div>
         )}
 
-        {fileLoading ? (
+        {uiBusy ? (
           <div className="file-loading-overlay">
             <div className="file-loading-spinner" />
-            <span>Loading files for {sourceLabel}</span>
+            <span>{fileTransitioning ? "Switching tab files..." : `Loading files for ${sourceLabel}`}</span>
           </div>
         ) : null}
       </div>

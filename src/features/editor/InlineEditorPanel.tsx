@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Save,
@@ -53,6 +53,8 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [langSelectorOpen, setLangSelectorOpen] = useState(false);
   const [dockMenuOpen, setDockMenuOpen] = useState(false);
+  const langSelectorRef = useRef<HTMLDivElement | null>(null);
+  const dockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const onCursorChange = useCallback((line: number, col: number) => {
     setCursorPos({ line, col });
@@ -75,6 +77,23 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [activeFile, saveEditorFile]);
+
+  useEffect(() => {
+    if (!langSelectorOpen && !dockMenuOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (langSelectorOpen && langSelectorRef.current && !langSelectorRef.current.contains(target)) {
+        setLangSelectorOpen(false);
+      }
+      if (dockMenuOpen && dockMenuRef.current && !dockMenuRef.current.contains(target)) {
+        setDockMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [dockMenuOpen, langSelectorOpen]);
 
   const filename = (f: EditorFile) => f.path.split(/[\\/]/).pop() ?? f.path;
 
@@ -137,7 +156,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
           >
             <GripVertical size={14} strokeWidth={2} />
           </button>
-          <div className="editor-action-menu-wrap">
+          <div className="editor-action-menu-wrap" ref={dockMenuRef}>
             <button
               className={`editor-action-btn${dockMenuOpen ? " active" : ""}`}
               onClick={() => setDockMenuOpen((v) => !v)}
@@ -213,6 +232,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
                 {langSelectorOpen ? (
                   <div
                     className="editor-selector-dropdown"
+                        ref={langSelectorRef}
                     onMouseLeave={() => setLangSelectorOpen(false)}
                   >
                     {allLanguages.map((lang) => (

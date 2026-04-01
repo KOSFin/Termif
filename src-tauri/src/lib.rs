@@ -10,7 +10,9 @@ mod ui_events;
 
 use std::sync::Arc;
 
-use core::models::{AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup};
+use core::models::{
+    AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup, SshRemoteStatusDto,
+};
 use tauri::ipc::Channel;
 use tauri::Manager;
 use tauri::State;
@@ -115,6 +117,31 @@ fn close_terminal_session(session_id: String, state: State<'_, AppState>) -> Res
         .terminal
         .close_session(&session_id)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fetch_remote_status(
+    session_id: String,
+    include_resources: bool,
+    include_time: bool,
+    state: State<'_, AppState>,
+) -> Result<SshRemoteStatusDto, String> {
+    let session = state
+        .terminal
+        .get_session(&session_id)
+        .ok_or_else(|| "session not found".to_string())?;
+
+    let alias = session
+        .ssh_alias
+        .ok_or_else(|| "status is available only for SSH sessions".to_string())?;
+
+    ssh::fetch_remote_status(&alias, include_resources, include_time).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) -> Result<(), String> {
+    app.exit(0);
+    Ok(())
 }
 
 // ── File system commands ──────────────────────────────────────────────────────
@@ -326,6 +353,8 @@ pub fn run() {
             read_terminal_output,
             resize_terminal,
             close_terminal_session,
+            fetch_remote_status,
+            exit_app,
             list_local_entries,
             list_remote_entries,
             read_text_file,
