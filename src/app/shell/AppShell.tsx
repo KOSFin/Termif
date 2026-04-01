@@ -12,7 +12,6 @@ import type { AppTab } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "@/features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
-import { openEditorWindow } from "@/features/file_manager/editorWindow";
 
 export function AppShell() {
   const {
@@ -46,8 +45,6 @@ export function AppShell() {
     editorVisible,
     editorDock,
     editorSplitPercent,
-    editorFiles,
-    activeEditorFileId,
     zoomLevel,
     openFile,
     setEditorVisible,
@@ -88,8 +85,6 @@ export function AppShell() {
     editorVisible: state.editorVisible,
     editorDock: state.editorDock,
     editorSplitPercent: state.editorSplitPercent,
-    editorFiles: state.editorFiles,
-    activeEditorFileId: state.activeEditorFileId,
     zoomLevel: state.zoomLevel,
     openFile: state.openFile,
     setEditorVisible: state.setEditorVisible,
@@ -102,11 +97,6 @@ export function AppShell() {
   }));
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
-  const activeEditorFile = useMemo(
-    () => editorFiles.find((file) => file.id === activeEditorFileId),
-    [activeEditorFileId, editorFiles]
-  );
-
   // ── Window controls ─────────────────────────────────────────────────
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const closingConfirmedRef = useRef(false);
@@ -116,12 +106,28 @@ export function AppShell() {
     return window.confirm("You have unsaved editor files. Close the window anyway?");
   }, [hasUnsavedEditorFiles]);
 
-  const onMinimize = () => void appWindow.minimize();
-  const onMaximize = () => void appWindow.toggleMaximize();
-  const onCloseWindow = () => {
+  const onMinimize = async () => {
+    try {
+      await appWindow.minimize();
+    } catch (e) {
+      toast(`Minimize failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const onMaximize = async () => {
+    try {
+      await appWindow.toggleMaximize();
+    } catch (e) {
+      toast(`Maximize failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const onCloseWindow = async () => {
     if (!confirmCloseWithUnsaved()) return;
     closingConfirmedRef.current = true;
-    void appWindow.close();
+    try {
+      await appWindow.close();
+    } catch (e) {
+      toast(`Close failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
   const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -362,11 +368,6 @@ export function AppShell() {
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [pickDockTarget, setEditorDock]);
-
-  const openActiveEditorInWindow = useCallback(() => {
-    if (!activeEditorFile) return;
-    openEditorWindow(activeEditorFile.path, activeEditorFile.mode, activeEditorFile.sessionId);
-  }, [activeEditorFile]);
 
   const terminalContent = useMemo(() => (
     <>
@@ -613,7 +614,6 @@ export function AppShell() {
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
-                    onOpenActiveInWindow={openActiveEditorInWindow}
                   />
                 </div>
               ) : null}
@@ -631,7 +631,6 @@ export function AppShell() {
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
-                    onOpenActiveInWindow={openActiveEditorInWindow}
                   />
                 </div>
               ) : null}
@@ -645,7 +644,6 @@ export function AppShell() {
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
-                    onOpenActiveInWindow={openActiveEditorInWindow}
                   />
                 </div>
               ) : null}
@@ -663,7 +661,6 @@ export function AppShell() {
                   <InlineEditorPanel
                     dock={editorDock}
                     onStartDockDrag={onStartEditorDockDrag}
-                    onOpenActiveInWindow={openActiveEditorInWindow}
                   />
                 </div>
               ) : null}
@@ -728,6 +725,13 @@ export function AppShell() {
       />
 
       {lastToast ? <div className="toast">{lastToast}</div> : null}
+
+      {!isInitialized ? (
+        <div className="app-boot-overlay">
+          <div className="app-boot-spinner" />
+          <span>Initializing workspace...</span>
+        </div>
+      ) : null}
     </div>
   );
 }

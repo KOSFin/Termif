@@ -8,20 +8,19 @@ import {
   PanelBottom,
   PanelLeft,
   PanelRight,
-  PanelTop,
-  SquareArrowOutUpRight
+  PanelTop
 } from "lucide-react";
 import { useAppStore, type EditorDock, type EditorFile } from "@/store/useAppStore";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { allLanguages } from "./languageMap";
+import { openEditorWorkspaceWindow } from "@/features/file_manager/editorWindow";
 
 interface InlineEditorPanelProps {
   dock: EditorDock;
   onStartDockDrag: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  onOpenActiveInWindow: () => void;
 }
 
-export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow }: InlineEditorPanelProps) {
+export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelProps) {
   const {
     editorFiles,
     activeEditorFileId,
@@ -32,6 +31,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow 
     setEditorLanguage,
     setEditorDock,
     setEditorVisible,
+    clearEditorWorkspace,
   } = useAppStore((s) => ({
     editorFiles: s.editorFiles,
     activeEditorFileId: s.activeEditorFileId,
@@ -42,6 +42,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow 
     setEditorLanguage: s.setEditorLanguage,
     setEditorDock: s.setEditorDock,
     setEditorVisible: s.setEditorVisible,
+    clearEditorWorkspace: s.clearEditorWorkspace,
   }));
 
   const activeFile = useMemo(
@@ -51,6 +52,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow 
 
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [langSelectorOpen, setLangSelectorOpen] = useState(false);
+  const [dockMenuOpen, setDockMenuOpen] = useState(false);
 
   const onCursorChange = useCallback((line: number, col: number) => {
     setCursorPos({ line, col });
@@ -75,6 +77,24 @@ export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow 
   }, [activeFile, saveEditorFile]);
 
   const filename = (f: EditorFile) => f.path.split(/[\\/]/).pop() ?? f.path;
+
+  const popoutEditorWorkspace = () => {
+    if (editorFiles.length === 0) return;
+    const activeIndex = Math.max(0, editorFiles.findIndex((f) => f.id === activeEditorFileId));
+    openEditorWorkspaceWindow(
+      editorFiles.map((f) => ({
+        path: f.path,
+        mode: f.mode,
+        sessionId: f.sessionId,
+        content: f.content,
+        dirty: f.dirty,
+        error: f.error,
+      })),
+      activeIndex
+    );
+    clearEditorWorkspace();
+    setDockMenuOpen(false);
+  };
 
   if (editorFiles.length === 0) return null;
 
@@ -117,42 +137,34 @@ export function InlineEditorPanel({ dock, onStartDockDrag, onOpenActiveInWindow 
           >
             <GripVertical size={14} strokeWidth={2} />
           </button>
-          <button
-            className={`editor-action-btn${dock === "left" ? " active" : ""}`}
-            onClick={() => setEditorDock("left")}
-            title="Dock left"
-          >
-            <PanelLeft size={14} strokeWidth={2} />
-          </button>
-          <button
-            className={`editor-action-btn${dock === "top" ? " active" : ""}`}
-            onClick={() => setEditorDock("top")}
-            title="Dock top"
-          >
-            <PanelTop size={14} strokeWidth={2} />
-          </button>
-          <button
-            className={`editor-action-btn${dock === "bottom" ? " active" : ""}`}
-            onClick={() => setEditorDock("bottom")}
-            title="Dock bottom"
-          >
-            <PanelBottom size={14} strokeWidth={2} />
-          </button>
-          <button
-            className={`editor-action-btn${dock === "right" ? " active" : ""}`}
-            onClick={() => setEditorDock("right")}
-            title="Dock right"
-          >
-            <PanelRight size={14} strokeWidth={2} />
-          </button>
-          <button
-            className="editor-action-btn"
-            onClick={onOpenActiveInWindow}
-            disabled={!activeFile}
-            title="Open active file in separate window"
-          >
-            <SquareArrowOutUpRight size={14} strokeWidth={2} />
-          </button>
+          <div className="editor-action-menu-wrap">
+            <button
+              className={`editor-action-btn${dockMenuOpen ? " active" : ""}`}
+              onClick={() => setDockMenuOpen((v) => !v)}
+              title={`Dock and window options (current: ${dock})`}
+            >
+              <ChevronDown size={14} strokeWidth={2} />
+            </button>
+            {dockMenuOpen ? (
+              <div className="editor-action-menu" onMouseLeave={() => setDockMenuOpen(false)}>
+                <button onClick={() => { setEditorDock("left"); setDockMenuOpen(false); }}>
+                  <PanelLeft size={13} strokeWidth={2} /> Dock Left
+                </button>
+                <button onClick={() => { setEditorDock("top"); setDockMenuOpen(false); }}>
+                  <PanelTop size={13} strokeWidth={2} /> Dock Top
+                </button>
+                <button onClick={() => { setEditorDock("right"); setDockMenuOpen(false); }}>
+                  <PanelRight size={13} strokeWidth={2} /> Dock Right
+                </button>
+                <button onClick={() => { setEditorDock("bottom"); setDockMenuOpen(false); }}>
+                  <PanelBottom size={13} strokeWidth={2} /> Dock Bottom
+                </button>
+                <button onClick={popoutEditorWorkspace}>
+                  <ChevronDown size={13} strokeWidth={2} /> Open in Separate Window
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button
             className="editor-action-btn"
             onClick={() => {

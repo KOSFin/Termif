@@ -87,6 +87,24 @@ impl HostStore {
         Ok(group)
     }
 
+    pub fn rename_group(&self, group_id: &str, name: String) -> Result<(), TermifError> {
+        let next_name = name.trim();
+        if next_name.is_empty() {
+            return Err(TermifError::Internal("group name cannot be empty".to_string()));
+        }
+
+        let mut state = self.state.lock().expect("host state lock poisoned");
+        let group = state
+            .groups
+            .iter_mut()
+            .find(|g| g.id == group_id)
+            .ok_or_else(|| TermifError::Internal("group not found".to_string()))?;
+
+        group.name = next_name.to_string();
+        self.persistence.save("hosts.json", &*state)?;
+        Ok(())
+    }
+
     pub fn delete_group(&self, group_id: &str) -> Result<(), TermifError> {
         let mut state = self.state.lock().expect("host state lock poisoned");
         state.groups.retain(|g| g.id != group_id);

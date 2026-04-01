@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Save, FolderOpen } from "lucide-react";
+import type { EditorWindowTabSeed } from "./editorWindow";
 
 interface EditorTab {
   id: string;
@@ -19,7 +20,37 @@ function parseQuery() {
   const path = params.get("path") ? decodeURIComponent(params.get("path") as string) : "";
   const mode = params.get("mode") === "preview" ? "preview" : "edit";
   const sessionId = params.get("sessionId") ?? undefined;
-  return { path, mode: mode as "preview" | "edit", sessionId };
+  const activeRaw = Number.parseInt(params.get("active") ?? "0", 10);
+  const activeIndex = Number.isFinite(activeRaw) ? activeRaw : 0;
+
+  let tabs: EditorWindowTabSeed[] = [];
+  const tabsRaw = params.get("tabs");
+  if (tabsRaw) {
+    try {
+      const parsed = JSON.parse(tabsRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        tabs = parsed
+          .map((item): EditorWindowTabSeed | null => {
+            if (!item || typeof item !== "object") return null;
+            const obj = item as Partial<EditorWindowTabSeed>;
+            if (!obj.path || typeof obj.path !== "string") return null;
+            return {
+              path: obj.path,
+              mode: obj.mode === "preview" ? "preview" : "edit",
+              sessionId: obj.sessionId,
+              content: typeof obj.content === "string" ? obj.content : undefined,
+              dirty: !!obj.dirty,
+              error: typeof obj.error === "string" ? obj.error : undefined,
+            };
+          })
+          .filter((item): item is EditorWindowTabSeed => !!item);
+      }
+    } catch {
+      // Ignore malformed payload and fallback to single-tab query mode.
+    }
+  }
+
+  return { path, mode: mode as "preview" | "edit", sessionId, tabs, activeIndex };
 }
 
 export function EditorWorkspace() {
@@ -27,19 +58,67 @@ export function EditorWorkspace() {
   const [activeTabId, setActiveTabId] = useState<string>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<EditorTab[]>([]);
+
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
+  const hydrateFromSeeds = useCallback(async (seeds: EditorWindowTabSeed[], activeIndex: number) => {
+    const seededTabs: EditorTab[] = seeds.map((seed) => ({
+      id: crypto.randomUUID(),
+      path: seed.path,
+      mode: seed.mode,
+      content: seed.content ?? "",
+      dirty: !!seed.dirty,
+      sessionId: seed.sessionId,
+      error: seed.error,
+    }));
+
+    setTabs(seededTabs);
+    const clampedActive = Math.max(0, Math.min(activeIndex, seededTabs.length - 1));
+    setActiveTabId(seededTabs[clampedActive]?.id);
+
+    for (let i = 0; i < seeds.length; i++) {
+      const seed = seeds[i];
+      if (typeof seed.content === "string" || seed.error) continue;
+
+      try {
+        const content = seed.sessionId
+          ? await invoke<string>("read_remote_text_file", { sessionId: seed.sessionId, path: seed.path })
+          : await invoke<string>("read_text_file", { path: seed.path });
+
+        const tabId = seededTabs[i]?.id;
+        if (!tabId) continue;
+        setTabs((prev) => prev.map((tab) => (tab.id === tabId ? { ...tab, content } : tab)));
+      } catch (error) {
+        const tabId = seededTabs[i]?.id;
+        if (!tabId) continue;
+        setTabs((prev) => prev.map((tab) => (
+          tab.id === tabId
+            ? { ...tab, error: error instanceof Error ? error.message : String(error) }
+            : tab
+        )));
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    const { path, mode, sessionId } = parseQuery();
+    const { path, mode, sessionId, tabs: seededTabs, activeIndex } = parseQuery();
+    if (seededTabs.length > 0) {
+      void hydrateFromSeeds(seededTabs, activeIndex);
+      return;
+    }
     if (path) {
       void openPath(path, mode, sessionId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrateFromSeeds]);
 
   const openPath = async (path: string, mode: "preview" | "edit", sessionId?: string) => {
-    const existing = tabs.find((tab) => tab.path === path && tab.sessionId === sessionId);
+    const existing = tabsRef.current.find((tab) => tab.path === path && tab.sessionId === sessionId);
     if (existing) {
       setActiveTabId(existing.id);
       return;
@@ -74,16 +153,18 @@ export function EditorWorkspace() {
   };
 
   const closeTab = (tabId: string) => {
-    const target = tabs.find((tab) => tab.id === tabId);
+    const target = tabsRef.current.find((tab) => tab.id === tabId);
     if (target?.dirty) {
       const ok = window.confirm(`\"${target.path.split(/[\\/]/).pop()}\" has unsaved changes. Close anyway?`);
       if (!ok) return;
     }
-    setTabs((prev) => prev.filter((tab) => tab.id !== tabId));
-    if (activeTabId === tabId) {
-      const rest = tabs.filter((tab) => tab.id !== tabId);
-      setActiveTabId(rest[0]?.id);
-    }
+    setTabs((prev) => {
+      const rest = prev.filter((tab) => tab.id !== tabId);
+      if (activeTabId === tabId) {
+        setActiveTabId(rest[0]?.id);
+      }
+      return rest;
+    });
   };
 
   const saveActive = useCallback(async () => {

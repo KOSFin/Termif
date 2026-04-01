@@ -316,6 +316,30 @@ textarea:focus {
   font-size: 14px;
 }
 
+.app-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.app-boot-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--stroke);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 /* == Tab strip ================================================ */
 
 .tabstrip {
@@ -323,8 +347,8 @@ textarea:focus {
   align-items: center;
   min-width: 0;
   flex: 1 1 auto;
-  gap: 2px;
-  max-width: min(980px, calc(100% - 220px));
+  gap: 0;
+  max-width: calc(100% - 210px);
 }
 
 .tabstrip-scroll {
@@ -333,10 +357,14 @@ textarea:focus {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+.tabstrip-scroll.limited {
+  border-right: 1px solid var(--stroke);
 }
 
 .tabstrip-scroll::-webkit-scrollbar {
@@ -360,11 +388,11 @@ textarea:focus {
   color: var(--text);
   position: relative;
   transition: background 0.1s, color 0.1s;
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 8%, transparent);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
 }
 
 .tab:hover {
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 13%, transparent);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 28%, transparent);
   color: var(--text);
 }
 
@@ -376,7 +404,7 @@ textarea:focus {
 }
 
 .tab.active {
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 16%, transparent);
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 34%, transparent);
   color: var(--text-bright);
 }
 
@@ -386,7 +414,7 @@ textarea:focus {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 3px;
   background: var(--tab-color, var(--accent));
 }
 
@@ -421,8 +449,13 @@ textarea:focus {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  margin-left: 1px;
+  margin-left: 0;
   padding-right: 2px;
+}
+
+.tabstrip-actions.pinned {
+  border-left: 1px solid var(--stroke);
+  padding-left: 2px;
 }
 
 .tab-action {
@@ -613,6 +646,7 @@ textarea:focus {
 }
 
 .file-list {
+  position: relative;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px;
@@ -676,6 +710,58 @@ textarea:focus {
   color: var(--danger);
 }
 
+.file-scope-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--stroke);
+  min-height: 24px;
+}
+
+.file-scope-source {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--stroke);
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.file-scope-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.file-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--stroke);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 /* == Terminal ================================================= */
 
 .terminal-pane-wrap {
@@ -696,8 +782,10 @@ textarea:focus {
 .terminal-pane {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   padding: 12px 16px;
-  overflow: hidden;
+  overflow: auto;
   background: var(--bg);
 }
 
@@ -770,6 +858,13 @@ textarea:focus {
   gap: 8px;
 }
 
+.ssh-header-actions select {
+  width: auto;
+  min-width: 150px;
+  height: 30px;
+  font-size: 12px;
+}
+
 .ssh-section-title {
   font-size: 12px;
   font-weight: 600;
@@ -794,6 +889,11 @@ textarea:focus {
   border-radius: var(--radius-md);
   background: var(--bg-elev-1);
   overflow: hidden;
+}
+
+.ssh-group-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .ssh-group-header {
@@ -880,6 +980,20 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-1);
+}
+
+.host-card[draggable="true"] {
+  cursor: grab;
+}
+
+.host-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.ssh-dropzone.drag-over {
+  outline: 1px dashed var(--accent);
+  outline-offset: 6px;
+  border-radius: var(--radius-md);
 }
 
 .host-card:hover {
@@ -1788,6 +1902,40 @@ textarea:focus {
   padding-right: 6px;
 }
 
+.editor-action-menu-wrap {
+  position: relative;
+}
+
+.editor-action-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  width: 196px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  overflow: hidden;
+  z-index: 65;
+}
+
+.editor-action-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.editor-action-menu button:hover {
+  background: var(--bg-hover);
+}
+
 .editor-action-btn.active {
   color: var(--text-bright);
   background: var(--bg-active);
@@ -1964,5 +2112,9 @@ textarea:focus {
     overflow-x: auto;
     border-right: none;
     border-bottom: 1px solid var(--stroke);
+  }
+
+  .terminal-pane {
+    padding: 6px 8px;
   }
 }

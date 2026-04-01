@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshHostEntry } from "@/types/models";
 
 interface SshHostPickerProps {
   tabId: string;
 }
+
+type HostSortMode = "alias_asc" | "alias_desc" | "host_asc";
 
 const blankHost: SshHostEntry = {
   id: "",
@@ -41,6 +43,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
     deleteManagedHost,
     refreshHosts,
     createHostGroup,
+    renameHostGroup,
     deleteHostGroup,
     toast
   } = useAppStore((state) => ({
@@ -52,6 +55,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
     deleteManagedHost: state.deleteManagedHost,
     refreshHosts: state.refreshHosts,
     createHostGroup: state.createHostGroup,
+    renameHostGroup: state.renameHostGroup,
     deleteHostGroup: state.deleteHostGroup,
     toast: state.toast
   }));
@@ -59,6 +63,19 @@ export function SshHostPicker(props: SshHostPickerProps) {
   const [draft, setDraft] = useState<SshHostEntry | null>(null);
   const [connectingAlias, setConnectingAlias] = useState<string>();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [sortMode, setSortMode] = useState<HostSortMode>("alias_asc");
+  const [draggingHostId, setDraggingHostId] = useState<string>();
+  const [dragOverGroupId, setDragOverGroupId] = useState<string>();
+
+  const sortHosts = useCallback((hosts: SshHostEntry[]) => {
+    const data = hosts.slice();
+    data.sort((a, b) => {
+      if (sortMode === "alias_desc") return b.alias.localeCompare(a.alias);
+      if (sortMode === "host_asc") return a.host_name.localeCompare(b.host_name);
+      return a.alias.localeCompare(b.alias);
+    });
+    return data;
+  }, [sortMode]);
 
   const groupedManaged = useMemo(() => {
     return sshGroups
@@ -66,11 +83,19 @@ export function SshHostPicker(props: SshHostPickerProps) {
       .sort((a, b) => a.order - b.order)
       .map((group) => ({
         group,
-        hosts: managedHosts.filter((host) => host.group_id === group.id)
+        hosts: sortHosts(managedHosts.filter((host) => host.group_id === group.id))
       }));
-  }, [managedHosts, sshGroups]);
+  }, [managedHosts, sortHosts, sshGroups]);
 
-  const ungroupedManaged = managedHosts.filter((host) => !host.group_id);
+  const ungroupedManaged = useMemo(
+    () => sortHosts(managedHosts.filter((host) => !host.group_id)),
+    [managedHosts, sortHosts]
+  );
+
+  const sortedImported = useMemo(
+    () => sortHosts(importedHosts),
+    [importedHosts, sortHosts]
+  );
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
@@ -101,6 +126,13 @@ export function SshHostPicker(props: SshHostPickerProps) {
     setDraft({ ...host });
   };
 
+  const moveHostToGroup = async (hostId: string, groupId: string | null) => {
+    const host = managedHosts.find((item) => item.id === hostId);
+    if (!host) return;
+    if ((host.group_id ?? null) === groupId) return;
+    await saveManagedHost({ ...host, group_id: groupId });
+  };
+
   const saveHost = async () => {
     if (!draft) return;
     if (!draft.alias.trim() || !draft.host_name.trim()) {
@@ -116,6 +148,15 @@ export function SshHostPicker(props: SshHostPickerProps) {
       <div className="ssh-header">
         <h2>SSH Hosts</h2>
         <div className="ssh-header-actions">
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as HostSortMode)}
+            title="Sort hosts"
+          >
+            <option value="alias_asc">Sort: Alias A-Z</option>
+            <option value="alias_desc">Sort: Alias Z-A</option>
+            <option value="host_asc">Sort: Host A-Z</option>
+          </select>
           <button onClick={() => openNewHostModal()} className="primary">New Host</button>
           <button
             onClick={() => {
@@ -135,7 +176,27 @@ export function SshHostPicker(props: SshHostPickerProps) {
           <div className="ssh-section-title">Groups</div>
           <div className="ssh-grid">
             {groupedManaged.map((bundle) => (
-              <div key={bundle.group.id} className="ssh-group-card">
+              <div
+                key={bundle.group.id}
+                className={`ssh-group-card${dragOverGroupId === bundle.group.id ? " drag-over" : ""}`}
+                onDragOver={(e) => {
+                  if (!draggingHostId) return;
+                  e.preventDefault();
+                  setDragOverGroupId(bundle.group.id);
+                }}
+                onDrop={(e) => {
+                  if (!draggingHostId) return;
+                  e.preventDefault();
+                  void moveHostToGroup(draggingHostId, bundle.group.id);
+                  setDraggingHostId(undefined);
+                  setDragOverGroupId(undefined);
+                }}
+                onDragLeave={() => {
+                  if (dragOverGroupId === bundle.group.id) {
+                    setDragOverGroupId(undefined);
+                  }
+                }}
+              >
                 <div className="ssh-group-header" onClick={() => toggleGroup(bundle.group.id)}>
                   <div className="ssh-group-icon">
                     {bundle.group.name[0]?.toUpperCase() ?? "G"}
@@ -148,6 +209,17 @@ export function SshHostPicker(props: SshHostPickerProps) {
                   </div>
                   <div className="ssh-group-actions" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => openNewHostModal(bundle.group.id)} title="Add host">+</button>
+                    <button
+                      onClick={() => {
+                        const next = window.prompt("Rename group", bundle.group.name)?.trim();
+                        if (next && next !== bundle.group.name) {
+                          void renameHostGroup(bundle.group.id, next);
+                        }
+                      }}
+                      title="Rename group"
+                    >
+                      ✎
+                    </button>
                     <button onClick={() => void deleteHostGroup(bundle.group.id)} title="Delete group">×</button>
                   </div>
                 </div>
@@ -163,6 +235,14 @@ export function SshHostPicker(props: SshHostPickerProps) {
                           connecting={connectingAlias === host.alias}
                           onConnect={connect}
                           onEdit={() => openEditHostModal(host)}
+                          draggable
+                          onDragStart={() => {
+                            setDraggingHostId(host.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingHostId(undefined);
+                            setDragOverGroupId(undefined);
+                          }}
                           onDelete={async () => {
                             await deleteManagedHost(host.id);
                           }}
@@ -181,7 +261,26 @@ export function SshHostPicker(props: SshHostPickerProps) {
       {ungroupedManaged.length > 0 && (
         <>
           <div className="ssh-section-title">Hosts</div>
-          <div className="ssh-grid">
+          <div
+            className={`ssh-grid ssh-dropzone${dragOverGroupId === "ungrouped" ? " drag-over" : ""}`}
+            onDragOver={(e) => {
+              if (!draggingHostId) return;
+              e.preventDefault();
+              setDragOverGroupId("ungrouped");
+            }}
+            onDrop={(e) => {
+              if (!draggingHostId) return;
+              e.preventDefault();
+              void moveHostToGroup(draggingHostId, null);
+              setDraggingHostId(undefined);
+              setDragOverGroupId(undefined);
+            }}
+            onDragLeave={() => {
+              if (dragOverGroupId === "ungrouped") {
+                setDragOverGroupId(undefined);
+              }
+            }}
+          >
             {ungroupedManaged.map((host) => (
               <HostCard
                 key={host.id}
@@ -189,6 +288,14 @@ export function SshHostPicker(props: SshHostPickerProps) {
                 connecting={connectingAlias === host.alias}
                 onConnect={connect}
                 onEdit={() => openEditHostModal(host)}
+                draggable
+                onDragStart={() => {
+                  setDraggingHostId(host.id);
+                }}
+                onDragEnd={() => {
+                  setDraggingHostId(undefined);
+                  setDragOverGroupId(undefined);
+                }}
                 onDelete={async () => {
                   await deleteManagedHost(host.id);
                 }}
@@ -203,7 +310,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
         <>
           <div className="ssh-section-title">Imported from ~/.ssh/config</div>
           <div className="ssh-grid">
-            {importedHosts.map((host) => (
+            {sortedImported.map((host) => (
               <HostCard
                 key={host.id}
                 host={host}
@@ -298,6 +405,9 @@ interface HostCardProps {
   onConnect: (alias: string) => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 function HostCard(props: HostCardProps) {
@@ -309,7 +419,12 @@ function HostCard(props: HostCardProps) {
   ].join("");
 
   return (
-    <div className="host-card">
+    <div
+      className="host-card"
+      draggable={props.draggable}
+      onDragStart={props.onDragStart}
+      onDragEnd={props.onDragEnd}
+    >
       <div className="host-icon" style={{ background: color }}>
         {getHostInitial(props.host.alias)}
       </div>

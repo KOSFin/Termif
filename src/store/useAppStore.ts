@@ -78,6 +78,7 @@ interface AppState {
   saveManagedHost: (host: SshHostEntry) => Promise<void>;
   deleteManagedHost: (hostId: string) => Promise<void>;
   createHostGroup: (name: string) => Promise<void>;
+  renameHostGroup: (groupId: string, name: string) => Promise<void>;
   deleteHostGroup: (groupId: string) => Promise<void>;
   loadCurrentFiles: () => Promise<void>;
   loadCurrentFilesFromCache: () => void;
@@ -97,6 +98,7 @@ interface AppState {
   setEditorDock: (dock: EditorDock) => void;
   setEditorSplitPercent: (pct: number) => void;
   setEditorLanguage: (fileId: string, langId: string, langName: string) => void;
+  clearEditorWorkspace: () => void;
   hasUnsavedEditorFiles: () => boolean;
 
   // Zoom actions
@@ -106,6 +108,8 @@ interface AppState {
 }
 
 const defaultTabColor = "#4a8fe7";
+let fileLoadRequestSeq = 0;
+let fileLoadDebounceTimer: number | undefined;
 
 function normalizeLineEndings(value: string): string {
   return value.replace(/\r\n/g, "\n");
@@ -366,7 +370,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     void persistUiState(get());
     get().loadCurrentFilesFromCache();
-    get().loadCurrentFiles().catch(() => {});
+
+    if (fileLoadDebounceTimer !== undefined) {
+      window.clearTimeout(fileLoadDebounceTimer);
+    }
+    fileLoadDebounceTimer = window.setTimeout(() => {
+      get().loadCurrentFiles().catch(() => {});
+      fileLoadDebounceTimer = undefined;
+    }, 120);
   },
 
   activateNextTab: () => {
@@ -422,6 +433,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refreshHosts();
   },
 
+  renameHostGroup: async (groupId, name) => {
+    await invoke("rename_ssh_group", { groupId, name });
+    await get().refreshHosts();
+  },
+
   deleteHostGroup: async (groupId) => {
     await invoke("delete_ssh_group", { groupId });
     await get().refreshHosts();
@@ -430,10 +446,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadCurrentFiles: async () => {
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
+    const requestTabId = activeTab.id;
 
     const currentPath =
       get().tabPaths[activeTab.id] ??
       (activeTab.kind === "ssh" ? "/" : "C:/");
+    const requestSeq = ++fileLoadRequestSeq;
 
     // Show cached data instantly — only show loading spinner if no cache exists
     const cacheKey = `${activeTab.kind === "ssh" ? "ssh:" : ""}${currentPath}`;
@@ -459,6 +477,15 @@ export const useAppStore = create<AppState>((set, get) => ({
               showHidden: get().settings?.file_manager.show_hidden ?? false
             });
 
+      const live = get();
+      const liveTab = live.tabs.find((tab) => tab.id === requestTabId);
+      const livePath = liveTab
+        ? (live.tabPaths[requestTabId] ?? (liveTab.kind === "ssh" ? "/" : "C:/"))
+        : undefined;
+      if (requestSeq !== fileLoadRequestSeq || live.activeTabId !== requestTabId || livePath !== currentPath) {
+        return;
+      }
+
       set((state) => ({
         fileEntries: entries,
         fileLoading: false,
@@ -466,6 +493,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         dirCache: { ...state.dirCache, [cacheKey]: entries }
       }));
     } catch (error) {
+      const live = get();
+      if (requestSeq !== fileLoadRequestSeq || live.activeTabId !== requestTabId) {
+        return;
+      }
       set({
         fileLoading: false,
         fileError: error instanceof Error ? error.message : String(error)
@@ -673,6 +704,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         f.id === fileId ? { ...f, languageId: langId, languageName: langName } : f
       ),
     }));
+  },
+
+  clearEditorWorkspace: () => {
+    set({
+      editorFiles: [],
+      activeEditorFileId: undefined,
+      editorVisible: false,
+    });
   },
 
   hasUnsavedEditorFiles: () => get().editorFiles.some((f) => f.dirty),

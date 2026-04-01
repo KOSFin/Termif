@@ -253,6 +253,18 @@ fn create_ssh_group(name: String, state: State<'_, AppState>) -> Result<SshHostG
 }
 
 #[tauri::command]
+fn rename_ssh_group(
+    group_id: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .hosts
+        .rename_group(&group_id, name)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn delete_ssh_group(group_id: String, state: State<'_, AppState>) -> Result<(), String> {
     state
         .hosts
@@ -328,6 +340,7 @@ pub fn run() {
             save_managed_ssh_host,
             delete_managed_ssh_host,
             create_ssh_group,
+            rename_ssh_group,
             delete_ssh_group,
             load_settings,
             save_settings,
