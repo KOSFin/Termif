@@ -1,5 +1,6 @@
 mod core;
 mod fs;
+mod monitoring;
 mod persistence;
 mod plugins;
 mod pty;
@@ -11,7 +12,7 @@ mod ui_events;
 use std::sync::Arc;
 
 use core::models::{
-    AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup, SshRemoteStatusDto,
+    AppSettings, PersistedUiState, SessionDto, SshHostEntry, SshHostGroup, SystemStatsDto,
 };
 use tauri::ipc::Channel;
 use tauri::Manager;
@@ -25,6 +26,7 @@ use crate::{
 #[derive(Clone)]
 struct AppState {
     terminal: TerminalManager,
+    monitoring: monitoring::MonitoringStore,
     hosts: Arc<HostStore>,
     settings: Arc<SettingsStore>,
     persistence: Persistence,
@@ -54,12 +56,19 @@ fn create_local_session(
 #[tauri::command]
 fn create_ssh_session(
     host_alias: String,
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<SessionDto, String> {
-    state
+    let session = state
         .terminal
-        .spawn_ssh_session(host_alias)
-        .map_err(|e| e.to_string())
+        .spawn_ssh_session(host_alias.clone())
+        .map_err(|e| e.to_string())?;
+
+    state
+        .monitoring
+        .start_loop(session.id.clone(), host_alias, app.clone());
+
+    Ok(session)
 }
 
 /// Attach a push Channel to a terminal session.
@@ -113,6 +122,7 @@ fn resize_terminal(
 
 #[tauri::command]
 fn close_terminal_session(session_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    state.monitoring.stop_loop(&session_id);
     state
         .terminal
         .close_session(&session_id)
@@ -122,20 +132,20 @@ fn close_terminal_session(session_id: String, state: State<'_, AppState>) -> Res
 #[tauri::command]
 fn fetch_remote_status(
     session_id: String,
-    include_resources: bool,
-    include_time: bool,
+    _include_resources: bool,
+    _include_time: bool,
     state: State<'_, AppState>,
-) -> Result<SshRemoteStatusDto, String> {
+) -> Result<SystemStatsDto, String> {
     let session = state
         .terminal
         .get_session(&session_id)
         .ok_or_else(|| "session not found".to_string())?;
 
-    let alias = session
-        .ssh_alias
-        .ok_or_else(|| "status is available only for SSH sessions".to_string())?;
+    if session.ssh_alias.is_none() {
+        return Err("status is available only for SSH sessions".to_string());
+    }
 
-    ssh::fetch_remote_status(&alias, include_resources, include_time).map_err(|e| e.to_string())
+    Ok(state.monitoring.get_latest(&session_id))
 }
 
 #[tauri::command]
@@ -339,6 +349,7 @@ pub fn run() {
 
             app.manage(AppState {
                 terminal: TerminalManager::default(),
+                monitoring: monitoring::MonitoringStore::default(),
                 hosts,
                 settings,
                 persistence,

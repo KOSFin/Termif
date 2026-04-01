@@ -28,12 +28,11 @@ pub struct FileEntryDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct SshRemoteStatusDto {
-    pub server_epoch_seconds: Option<u64>,
-    pub load_1m: Option<f32>,
-    pub memory_total_mb: Option<u64>,
-    pub memory_used_mb: Option<u64>,
-    pub memory_percent: Option<f32>,
+pub struct SystemStatsDto {
+    pub cpu: Option<f32>,
+    pub ram: Option<f32>,
+    pub disk: Option<f32>,
+    pub users: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -75,12 +75,11 @@ export interface AppSettings {
   };
 }
 
-export interface SshRemoteStatus {
-  server_epoch_seconds?: number | null;
-  load_1m?: number | null;
-  memory_total_mb?: number | null;
-  memory_used_mb?: number | null;
-  memory_percent?: number | null;
+export interface SystemStats {
+  cpu?: number | null;
+  ram?: number | null;
+  disk?: number | null;
+  users?: number | null;
 }
 
 export interface PersistedTab {

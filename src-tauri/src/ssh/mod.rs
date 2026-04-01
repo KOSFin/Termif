@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fs,
     path::PathBuf,
-    process::Command,
     sync::{Arc, Mutex},
 };
 
@@ -11,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     core::{
         errors::TermifError,
-        models::{SshHostEntry, SshHostGroup, SshHostSource, SshRemoteStatusDto},
+        models::{SshHostEntry, SshHostGroup, SshHostSource},
     },
     persistence::Persistence,
 };
@@ -183,72 +182,3 @@ fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
     Ok(host_map.into_values().collect())
 }
 
-pub fn fetch_remote_status(
-    alias: &str,
-    include_resources: bool,
-    include_time: bool,
-) -> Result<SshRemoteStatusDto, TermifError> {
-    if !include_resources && !include_time {
-        return Ok(SshRemoteStatusDto::default());
-    }
-
-    let mut script_parts: Vec<&str> = Vec::new();
-    if include_time {
-        script_parts.push("TS=$(date +%s 2>/dev/null); [ -n \"$TS\" ] && echo \"ts=$TS\"");
-    }
-    if include_resources {
-        script_parts.push("LOAD=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); [ -n \"$LOAD\" ] && echo \"load=$LOAD\"");
-        script_parts.push(
-            "MT=$(grep -i '^MemTotal:' /proc/meminfo 2>/dev/null | awk '{print $2}'); [ -n \"$MT\" ] && echo \"mem_total_kb=$MT\""
-        );
-        script_parts.push(
-            "MA=$(grep -i '^MemAvailable:' /proc/meminfo 2>/dev/null | awk '{print $2}'); [ -n \"$MA\" ] && echo \"mem_avail_kb=$MA\""
-        );
-    }
-
-    let script = script_parts.join("; ");
-
-    let output = Command::new("ssh")
-        .arg("-o")
-        .arg("BatchMode=yes")
-        .arg("-o")
-        .arg("ConnectTimeout=4")
-        .arg(alias)
-        .arg(script)
-        .output()?;
-
-    if !output.status.success() {
-        return Err(TermifError::Internal(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut status = SshRemoteStatusDto::default();
-    let mut mem_total_kb: Option<u64> = None;
-    let mut mem_avail_kb: Option<u64> = None;
-
-    for line in stdout.lines() {
-        if let Some((key, value)) = line.split_once('=') {
-            let v = value.trim();
-            match key.trim() {
-                "ts" => status.server_epoch_seconds = v.parse::<u64>().ok(),
-                "load" => status.load_1m = v.parse::<f32>().ok(),
-                "mem_total_kb" => mem_total_kb = v.parse::<u64>().ok(),
-                "mem_avail_kb" => mem_avail_kb = v.parse::<u64>().ok(),
-                _ => {}
-            }
-        }
-    }
-
-    if let (Some(total_kb), Some(avail_kb)) = (mem_total_kb, mem_avail_kb) {
-        if total_kb > 0 {
-            let used_kb = total_kb.saturating_sub(avail_kb);
-            status.memory_total_mb = Some(total_kb / 1024);
-            status.memory_used_mb = Some(used_kb / 1024);
-            status.memory_percent = Some((used_kb as f32 / total_kb as f32) * 100.0);
-        }
-    }
-
-    Ok(status)
-}

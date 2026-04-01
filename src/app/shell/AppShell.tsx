@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Square, X, Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
@@ -8,7 +9,7 @@ import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalett
 import { SettingsPanel } from "@/app/settings/SettingsPanel";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useAppStore, type EditorDock } from "@/store/useAppStore";
-import type { AppTab, SshRemoteStatus } from "@/types/models";
+import type { AppTab, SystemStats } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "@/features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
@@ -144,7 +145,7 @@ export function AppShell() {
   const tabSwitcherTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const tabSwitcherPendingRef = useRef(false);
 
-  const [remoteStatus, setRemoteStatus] = useState<SshRemoteStatus | null>(null);
+  const [remoteStatus, setRemoteStatus] = useState<SystemStats | null>(null);
   const [remoteStatusFetchedAt, setRemoteStatusFetchedAt] = useState<number>(0);
   const [remoteStatusError, setRemoteStatusError] = useState<string>();
   const [clockTick, setClockTick] = useState(0);
@@ -154,64 +155,83 @@ export function AppShell() {
   const statusBarShowServerTime = statusBarSettings?.show_server_time ?? true;
   const statusBarEnabled = statusBarSettings?.enabled ?? true;
   const statusBarPollSec = Math.max(3, statusBarSettings?.resource_poll_interval_seconds ?? 8);
-  const shouldPollRemoteStatus =
+  const shouldMonitorRemoteStatus =
     statusBarEnabled &&
     activeTab?.kind === "ssh" &&
     !!activeTab.sessionId &&
     (statusBarShowResources || statusBarShowServerTime);
 
   useEffect(() => {
-    if (!shouldPollRemoteStatus || !activeTab?.sessionId) {
+    if (!shouldMonitorRemoteStatus || !activeTab?.sessionId) {
       setRemoteStatus(null);
       setRemoteStatusError(undefined);
       return;
     }
 
-    let mounted = true;
+    const connectionId = activeTab.sessionId;
+    let disposed = false;
 
-    const load = async () => {
+    const pullSnapshot = async () => {
       try {
-        const payload = await invoke<SshRemoteStatus>("fetch_remote_status", {
-          sessionId: activeTab.sessionId,
+        const payload = await invoke<SystemStats>("fetch_remote_status", {
+          sessionId: connectionId,
           includeResources: statusBarShowResources,
           includeTime: statusBarShowServerTime
         });
-        if (!mounted) return;
+
+        if (disposed) return;
         setRemoteStatus(payload);
         setRemoteStatusFetchedAt(Date.now());
         setRemoteStatusError(undefined);
       } catch (error) {
-        if (!mounted) return;
+        if (disposed) return;
         setRemoteStatusError(error instanceof Error ? error.message : String(error));
       }
     };
 
-    void load();
+    const unlistenPromise = listen<SystemStats>(`monitoring-${connectionId}`, (event) => {
+      if (disposed) return;
+      setRemoteStatus(event.payload);
+      setRemoteStatusFetchedAt(Date.now());
+      setRemoteStatusError(undefined);
+    }).catch((error) => {
+      if (!disposed) {
+        setRemoteStatusError(error instanceof Error ? error.message : String(error));
+      }
+      return undefined;
+    });
+
+    void pullSnapshot();
     const timer = window.setInterval(() => {
-      void load();
+      void pullSnapshot();
     }, statusBarPollSec * 1000);
 
     return () => {
-      mounted = false;
+      disposed = true;
       window.clearInterval(timer);
+      void unlistenPromise.then((unlisten) => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
     };
   }, [
     activeTab?.sessionId,
-    shouldPollRemoteStatus,
+    shouldMonitorRemoteStatus,
     statusBarPollSec,
     statusBarShowResources,
     statusBarShowServerTime
   ]);
 
   useEffect(() => {
-    if (!statusBarEnabled || !statusBarShowServerTime || !remoteStatus?.server_epoch_seconds) {
+    if (!statusBarEnabled || !statusBarShowServerTime || !remoteStatusFetchedAt) {
       return;
     }
     const timer = window.setInterval(() => {
       setClockTick((v) => v + 1);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [remoteStatus?.server_epoch_seconds, statusBarEnabled, statusBarShowServerTime]);
+  }, [remoteStatusFetchedAt, statusBarEnabled, statusBarShowServerTime]);
 
   useEffect(() => {
     void initialize();
@@ -450,15 +470,15 @@ export function AppShell() {
         : { width: `${100 - editorSplitPercent}%` })
     : undefined;
 
-  const serverTimeLabel = useMemo(() => {
-    const epoch = remoteStatus?.server_epoch_seconds;
-    if (!epoch || !remoteStatusFetchedAt) return "--:--:--";
+  const updatedAgoLabel = useMemo(() => {
+    if (!remoteStatusFetchedAt) return "--";
     const deltaSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
-    return new Date((epoch + deltaSec) * 1000).toLocaleTimeString();
-  }, [clockTick, remoteStatus?.server_epoch_seconds, remoteStatusFetchedAt]);
+    return `${deltaSec}s ago`;
+  }, [clockTick, remoteStatusFetchedAt]);
 
-  const loadLevel = classifyLoad(remoteStatus?.load_1m ?? null);
-  const memoryLevel = classifyPercent(remoteStatus?.memory_percent ?? null);
+  const cpuLevel = classifyPercent(remoteStatus?.cpu ?? null);
+  const ramLevel = classifyPercent(remoteStatus?.ram ?? null);
+  const diskLevel = classifyPercent(remoteStatus?.disk ?? null);
 
   const commands: PaletteCommand[] = [
     {
@@ -736,19 +756,31 @@ export function AppShell() {
 
         <div className="statusbar-right">
           {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className={`status-metric status-${loadLevel}`}>
-              Load {remoteStatus?.load_1m !== null && remoteStatus?.load_1m !== undefined ? remoteStatus.load_1m.toFixed(2) : "--"}
+            <span className={`status-metric status-${cpuLevel}`}>
+              CPU {remoteStatus?.cpu !== null && remoteStatus?.cpu !== undefined ? `${remoteStatus.cpu.toFixed(0)}%` : "--"}
             </span>
           ) : null}
 
           {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className={`status-metric status-${memoryLevel}`}>
-              RAM {remoteStatus?.memory_percent !== null && remoteStatus?.memory_percent !== undefined ? `${remoteStatus.memory_percent.toFixed(0)}%` : "--"}
+            <span className={`status-metric status-${ramLevel}`}>
+              RAM {remoteStatus?.ram !== null && remoteStatus?.ram !== undefined ? `${remoteStatus.ram.toFixed(0)}%` : "--"}
+            </span>
+          ) : null}
+
+          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
+            <span className={`status-metric status-${diskLevel}`}>
+              Disk {remoteStatus?.disk !== null && remoteStatus?.disk !== undefined ? `${remoteStatus.disk.toFixed(0)}%` : "--"}
+            </span>
+          ) : null}
+
+          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
+            <span className="status-metric">
+              Users {remoteStatus?.users !== null && remoteStatus?.users !== undefined ? remoteStatus.users : "--"}
             </span>
           ) : null}
 
           {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowServerTime ? (
-            <span className="status-metric">Server {serverTimeLabel}</span>
+            <span className="status-metric">Updated {updatedAgoLabel}</span>
           ) : null}
 
           {remoteStatusError ? <span className="status-metric status-danger">{remoteStatusError}</span> : null}
@@ -807,13 +839,6 @@ export function AppShell() {
       ) : null}
     </div>
   );
-}
-
-function classifyLoad(load: number | null): "ok" | "warn" | "danger" {
-  if (load === null || Number.isNaN(load)) return "ok";
-  if (load >= 2.5) return "danger";
-  if (load >= 1.3) return "warn";
-  return "ok";
 }
 
 function classifyPercent(value: number | null): "ok" | "warn" | "danger" {
