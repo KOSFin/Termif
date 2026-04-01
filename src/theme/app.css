@@ -620,6 +620,11 @@ textarea:focus {
   animation: rotate 0.8s linear infinite;
 }
 
+.spin-icon {
+  animation: rotate 0.8s linear infinite;
+  transform-origin: center;
+}
+
 .breadcrumbs {
   display: flex;
   gap: 2px;
@@ -797,9 +802,17 @@ textarea:focus {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 0;
+  padding: 6px;
   overflow: hidden;
   background: var(--bg);
+}
+
+.terminal-pane-inner {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-pane .xterm,
@@ -856,6 +869,16 @@ textarea:focus {
   animation: spin 0.8s linear infinite;
 }
 
+.terminal-disconnected {
+  z-index: 12;
+}
+
+.terminal-disconnect-reason {
+  max-width: 72ch;
+  text-align: center;
+  font-size: 12px;
+}
+
 /* == SSH picker =============================================== */
 
 .ssh-picker {
@@ -884,6 +907,12 @@ textarea:focus {
 .ssh-header-actions {
   display: flex;
   gap: 8px;
+}
+
+.ssh-help-line {
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .ssh-header-actions select {
@@ -1080,6 +1109,154 @@ textarea:focus {
   text-align: center;
 }
 
+/* == Snippets =============================================== */
+
+.snippets-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.snippets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stroke);
+  padding: 8px;
+}
+
+.snippets-header h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+
+.snippets-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.snippets-actions button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.snippets-actions button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.snippets-list {
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.snippet-group {
+  border: 1px solid var(--stroke);
+  background: var(--bg-elev-1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.snippet-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--stroke-soft);
+  background: color-mix(in srgb, var(--bg-elev-2) 55%, transparent);
+}
+
+.snippet-group-title {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.snippet-group-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.snippet-group-actions button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.snippet-group-actions button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.snippet-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
+}
+
+.snippet-main {
+  display: grid;
+  gap: 4px;
+}
+
+.snippet-title {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.snippet-description {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.snippet-command {
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--text-bright);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
+  background: var(--bg-panel);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.snippet-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.snippet-card-actions button {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.snippet-empty,
+.snippet-empty-global {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 10px;
+}
+
 /* == SSH Modal ================================================ */
 
 .modal-overlay {
@@ -1122,6 +1299,15 @@ textarea:focus {
 .modal-body label {
   display: grid;
   gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ssh-modal-tip {
+  padding: 8px 10px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev-2) 45%, transparent);
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -1346,13 +1532,29 @@ textarea:focus {
 
 .settings-hotkeys-item {
   display: grid;
-  grid-template-columns: 170px 1fr;
+  grid-template-columns: 220px 1fr;
   gap: 8px;
-  align-items: center;
+  align-items: start;
   padding: 6px 8px;
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-elev-2) 55%, transparent);
+}
+
+.settings-hotkey-desc-wrap {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-hotkey-id {
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.settings-hotkeys-inputs {
+  display: grid;
+  gap: 6px;
 }
 
 .settings-hotkey-combo {

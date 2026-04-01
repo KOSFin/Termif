@@ -19,6 +19,10 @@ use crate::{
 pub struct HostState {
     pub groups: Vec<SshHostGroup>,
     pub managed_hosts: Vec<SshHostEntry>,
+    #[serde(default)]
+    pub imported_alias_overrides: HashMap<String, String>,
+    #[serde(default)]
+    pub imported_group_overrides: HashMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -57,6 +61,7 @@ impl HostStore {
             host.id = Uuid::new_v4().to_string();
         }
         host.source = SshHostSource::Managed;
+        host.original_alias = None;
 
         let mut state = self.state.lock().expect("host state lock poisoned");
         if let Some(existing) = state.managed_hosts.iter_mut().find(|x| x.id == host.id) {
@@ -120,15 +125,196 @@ impl HostStore {
     }
 
     pub fn import_ssh_config_hosts(&self) -> Vec<SshHostEntry> {
-        parse_ssh_config().unwrap_or_default()
+        let mut hosts = parse_ssh_config().unwrap_or_default();
+        let state = self.state.lock().expect("host state lock poisoned").clone();
+
+        for host in &mut hosts {
+            let source_alias = host
+                .original_alias
+                .as_deref()
+                .unwrap_or(host.alias.as_str())
+                .to_string();
+
+            if let Some(alias_override) = state.imported_alias_overrides.get(&source_alias) {
+                host.alias = alias_override.clone();
+            }
+
+            if let Some(group_override) = state.imported_group_overrides.get(&source_alias) {
+                host.group_id = Some(group_override.clone());
+            }
+        }
+
+        hosts
+    }
+
+    pub fn set_imported_host_overrides(
+        &self,
+        source_alias: &str,
+        local_alias: Option<String>,
+        group_id: Option<String>,
+    ) -> Result<(), TermifError> {
+        let source_alias = source_alias.trim();
+        if source_alias.is_empty() {
+            return Err(TermifError::Internal(
+                "source alias is required".to_string(),
+            ));
+        }
+
+        let mut state = self.state.lock().expect("host state lock poisoned");
+
+        if let Some(next_alias) = local_alias.map(|v| v.trim().to_string()) {
+            if next_alias.is_empty() || next_alias == source_alias {
+                state.imported_alias_overrides.remove(source_alias);
+            } else {
+                state
+                    .imported_alias_overrides
+                    .insert(source_alias.to_string(), next_alias);
+            }
+        } else {
+            state.imported_alias_overrides.remove(source_alias);
+        }
+
+        if let Some(next_group) = group_id.map(|v| v.trim().to_string()) {
+            if next_group.is_empty() {
+                state.imported_group_overrides.remove(source_alias);
+            } else {
+                state
+                    .imported_group_overrides
+                    .insert(source_alias.to_string(), next_group);
+            }
+        } else {
+            state.imported_group_overrides.remove(source_alias);
+        }
+
+        self.persistence.save("hosts.json", &*state)?;
+        Ok(())
+    }
+
+    pub fn rename_imported_host_in_config(
+        &self,
+        source_alias: &str,
+        new_alias: &str,
+    ) -> Result<(), TermifError> {
+        let source_alias = source_alias.trim();
+        let new_alias = new_alias.trim();
+        if source_alias.is_empty() || new_alias.is_empty() {
+            return Err(TermifError::Internal(
+                "both current alias and new alias are required".to_string(),
+            ));
+        }
+
+        if source_alias == new_alias {
+            return Ok(());
+        }
+
+        let path = ssh_config_path()?;
+        let content = fs::read_to_string(&path)?;
+        let mut changed = 0usize;
+
+        let lines: Vec<String> = content
+            .lines()
+            .map(|line| {
+                if is_exact_host_alias_line(line, source_alias) {
+                    changed += 1;
+                    rewrite_host_alias_line(line, new_alias)
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect();
+
+        if changed == 0 {
+            return Err(TermifError::Internal(format!(
+                "host alias '{}' not found in ~/.ssh/config",
+                source_alias
+            )));
+        }
+
+        if changed > 1 {
+            return Err(TermifError::Internal(format!(
+                "host alias '{}' is ambiguous in ~/.ssh/config",
+                source_alias
+            )));
+        }
+
+        fs::write(&path, lines.join("\n"))?;
+
+        let mut state = self.state.lock().expect("host state lock poisoned");
+        if let Some(alias_override) = state.imported_alias_overrides.remove(source_alias) {
+            if alias_override != new_alias {
+                state
+                    .imported_alias_overrides
+                    .insert(new_alias.to_string(), alias_override);
+            }
+        }
+        if let Some(group_override) = state.imported_group_overrides.remove(source_alias) {
+            state
+                .imported_group_overrides
+                .insert(new_alias.to_string(), group_override);
+        }
+        self.persistence.save("hosts.json", &*state)?;
+
+        Ok(())
+    }
+
+    pub fn export_managed_host_to_config(
+        &self,
+        host_id: &str,
+        overwrite_existing: bool,
+    ) -> Result<(), TermifError> {
+        let state = self.state.lock().expect("host state lock poisoned").clone();
+        let host = state
+            .managed_hosts
+            .iter()
+            .find(|entry| entry.id == host_id)
+            .cloned()
+            .ok_or_else(|| TermifError::Internal("managed host not found".to_string()))?;
+
+        let path = ssh_config_path()?;
+        let content = fs::read_to_string(&path).unwrap_or_default();
+        let mut lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
+
+        let mut start_idx: Option<usize> = None;
+        for (idx, line) in lines.iter().enumerate() {
+            if is_exact_host_alias_line(line, &host.alias) {
+                start_idx = Some(idx);
+                break;
+            }
+        }
+
+        let block_lines = render_host_block(&host);
+
+        if let Some(start) = start_idx {
+            if !overwrite_existing {
+                return Err(TermifError::Internal(format!(
+                    "host '{}' already exists in ~/.ssh/config",
+                    host.alias
+                )));
+            }
+
+            let mut end = lines.len();
+            for (idx, line) in lines.iter().enumerate().skip(start + 1) {
+                if is_host_header_line(line) {
+                    end = idx;
+                    break;
+                }
+            }
+
+            lines.splice(start..end, block_lines);
+        } else {
+            if !lines.is_empty() && !lines.last().is_some_and(|line| line.trim().is_empty()) {
+                lines.push(String::new());
+            }
+            lines.extend(block_lines);
+        }
+
+        fs::write(path, lines.join("\n"))?;
+        Ok(())
     }
 }
 
 fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
-    let home = std::env::var("USERPROFILE")
-        .map(PathBuf::from)
-        .map_err(|e| TermifError::Internal(e.to_string()))?;
-    let ssh_config = home.join(".ssh").join("config");
+    let ssh_config = ssh_config_path()?;
     if !ssh_config.exists() {
         return Ok(Vec::new());
     }
@@ -160,7 +346,9 @@ fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
                 user: None,
                 port: None,
                 identity_file: None,
+                password: None,
                 group_id: None,
+                original_alias: current_alias.clone(),
                 source: SshHostSource::Imported,
             });
             continue;
@@ -180,4 +368,65 @@ fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
     }
 
     Ok(host_map.into_values().collect())
+}
+
+fn ssh_config_path() -> Result<PathBuf, TermifError> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map(PathBuf::from)
+        .map_err(|e| TermifError::Internal(e.to_string()))?;
+
+    let ssh_dir = home.join(".ssh");
+    if !ssh_dir.exists() {
+        fs::create_dir_all(&ssh_dir)?;
+    }
+
+    Ok(ssh_dir.join("config"))
+}
+
+fn is_host_header_line(line: &str) -> bool {
+    line.trim_start().to_ascii_lowercase().starts_with("host ")
+}
+
+fn is_exact_host_alias_line(line: &str, alias: &str) -> bool {
+    let trimmed = line.trim_start();
+    let mut parts = trimmed.split_whitespace();
+    let key = parts.next().unwrap_or_default();
+    if !key.eq_ignore_ascii_case("host") {
+        return false;
+    }
+
+    let values: Vec<&str> = parts.collect();
+    values.len() == 1 && values[0] == alias
+}
+
+fn rewrite_host_alias_line(line: &str, next_alias: &str) -> String {
+    let indent = line
+        .chars()
+        .take_while(|ch| ch.is_whitespace())
+        .collect::<String>();
+    format!("{}Host {}", indent, next_alias)
+}
+
+fn render_host_block(host: &SshHostEntry) -> Vec<String> {
+    let mut lines = vec![format!("Host {}", host.alias)];
+    lines.push(format!("  HostName {}", host.host_name));
+
+    if let Some(user) = host.user.as_deref().filter(|v| !v.trim().is_empty()) {
+        lines.push(format!("  User {}", user.trim()));
+    }
+
+    if let Some(port) = host.port.filter(|value| *value > 0) {
+        lines.push(format!("  Port {}", port));
+    }
+
+    if let Some(identity) = host
+        .identity_file
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
+    {
+        lines.push(format!("  IdentityFile {}", identity.trim()));
+    }
+
+    lines
 }

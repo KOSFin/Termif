@@ -1,12 +1,14 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useMemo, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import type { SshHostEntry } from "@/types/models";
+import type { SshConnectOptions, SshHostEntry } from "@/types/models";
 
 interface SshHostPickerProps {
   tabId: string;
 }
 
 type HostSortMode = "alias_asc" | "alias_desc" | "host_asc";
+type DraftMode = "managed" | "imported_override";
 
 const blankHost: SshHostEntry = {
   id: "",
@@ -15,7 +17,9 @@ const blankHost: SshHostEntry = {
   user: "",
   port: 22,
   identity_file: "",
+  password: "",
   group_id: null,
+  original_alias: null,
   source: "managed"
 };
 
@@ -33,12 +37,24 @@ function getHostInitial(alias: string): string {
   return (alias[0] ?? "?").toUpperCase();
 }
 
+function defaultQuickConnect(): SshConnectOptions {
+  return {
+    alias: "",
+    host: "",
+    user: "",
+    port: 22,
+    identity_file: "",
+    password: ""
+  };
+}
+
 export function SshHostPicker(props: SshHostPickerProps) {
   const {
     importedHosts,
     managedHosts,
     sshGroups,
     connectSshTab,
+    connectSshTabWithOptions,
     saveManagedHost,
     deleteManagedHost,
     refreshHosts,
@@ -51,6 +67,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
     managedHosts: state.managedHosts,
     sshGroups: state.sshGroups,
     connectSshTab: state.connectSshTab,
+    connectSshTabWithOptions: state.connectSshTabWithOptions,
     saveManagedHost: state.saveManagedHost,
     deleteManagedHost: state.deleteManagedHost,
     refreshHosts: state.refreshHosts,
@@ -61,11 +78,18 @@ export function SshHostPicker(props: SshHostPickerProps) {
   }));
 
   const [draft, setDraft] = useState<SshHostEntry | null>(null);
+  const [draftMode, setDraftMode] = useState<DraftMode>("managed");
+  const [importedSourceAlias, setImportedSourceAlias] = useState<string>();
   const [connectingAlias, setConnectingAlias] = useState<string>();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState<HostSortMode>("alias_asc");
   const [draggingHostId, setDraggingHostId] = useState<string>();
   const [dragOverGroupId, setDragOverGroupId] = useState<string>();
+
+  const [quickConnectOpen, setQuickConnectOpen] = useState(false);
+  const [quickConnectSaveHost, setQuickConnectSaveHost] = useState(false);
+  const [quickConnectGroupId, setQuickConnectGroupId] = useState<string>("");
+  const [quickConnectDraft, setQuickConnectDraft] = useState<SshConnectOptions>(defaultQuickConnect());
 
   const sortHosts = useCallback((hosts: SshHostEntry[]) => {
     const data = hosts.slice();
@@ -118,11 +142,58 @@ export function SshHostPicker(props: SshHostPickerProps) {
     }
   };
 
+  const openQuickConnect = () => {
+    setQuickConnectDraft(defaultQuickConnect());
+    setQuickConnectSaveHost(false);
+    setQuickConnectGroupId("");
+    setQuickConnectOpen(true);
+  };
+
+  const runQuickConnect = async () => {
+    const alias = quickConnectDraft.alias?.trim() || quickConnectDraft.host.trim();
+    const host = quickConnectDraft.host.trim();
+    if (!host) {
+      toast("Host is required");
+      return;
+    }
+
+    try {
+      await connectSshTabWithOptions(
+        props.tabId,
+        {
+          ...quickConnectDraft,
+          alias,
+          host,
+          user: quickConnectDraft.user?.trim() || null,
+          identity_file: quickConnectDraft.identity_file?.trim() || null,
+          password: quickConnectDraft.password || null,
+          port: quickConnectDraft.port ?? 22,
+        },
+        quickConnectSaveHost,
+        quickConnectSaveHost ? (quickConnectGroupId || null) : null
+      );
+      setQuickConnectOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast(`Quick connect failed: ${message}`);
+    }
+  };
+
   const openNewHostModal = (groupId?: string | null) => {
+    setDraftMode("managed");
+    setImportedSourceAlias(undefined);
     setDraft({ ...blankHost, group_id: groupId ?? null });
   };
 
   const openEditHostModal = (host: SshHostEntry) => {
+    setDraftMode("managed");
+    setImportedSourceAlias(undefined);
+    setDraft({ ...host });
+  };
+
+  const openImportedOverridesModal = (host: SshHostEntry) => {
+    setDraftMode("imported_override");
+    setImportedSourceAlias(host.original_alias ?? host.alias);
     setDraft({ ...host });
   };
 
@@ -139,8 +210,82 @@ export function SshHostPicker(props: SshHostPickerProps) {
       toast("Alias and host are required");
       return;
     }
-    await saveManagedHost({ ...draft, alias: draft.alias.trim(), host_name: draft.host_name.trim(), source: "managed" });
+
+    if (draftMode === "imported_override") {
+      const sourceAlias = importedSourceAlias || draft.original_alias || draft.alias;
+      await invoke("set_imported_host_overrides", {
+        sourceAlias,
+        localAlias: draft.alias.trim(),
+        groupId: draft.group_id ?? null,
+      });
+      await refreshHosts();
+      toast("Imported host override updated");
+      setDraft(null);
+      return;
+    }
+
+    await saveManagedHost({
+      ...draft,
+      alias: draft.alias.trim(),
+      host_name: draft.host_name.trim(),
+      source: "managed"
+    });
     setDraft(null);
+  };
+
+  const saveImportedAsManaged = async () => {
+    if (!draft) return;
+    if (!draft.alias.trim() || !draft.host_name.trim()) {
+      toast("Alias and host are required");
+      return;
+    }
+
+    await saveManagedHost({
+      ...draft,
+      id: "",
+      source: "managed",
+      original_alias: null,
+    });
+    toast("Imported host saved as managed");
+  };
+
+  const renameImportedInConfig = async () => {
+    if (!draft || !importedSourceAlias) return;
+    const nextAlias = draft.alias.trim();
+    if (!nextAlias) {
+      toast("Alias is required");
+      return;
+    }
+
+    await invoke("rename_imported_host_in_config", {
+      sourceAlias: importedSourceAlias,
+      newAlias: nextAlias,
+    });
+    await refreshHosts();
+    toast("SSH config updated");
+  };
+
+  const exportManagedToConfig = async (host: SshHostEntry) => {
+    try {
+      await invoke("export_managed_host_to_config", {
+        hostId: host.id,
+        overwriteExisting: false,
+      });
+      toast("Host exported to ~/.ssh/config");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.toLowerCase().includes("already exists")) {
+        toast(message);
+        return;
+      }
+      const overwrite = window.confirm("Alias already exists in ~/.ssh/config. Overwrite block?");
+      if (!overwrite) return;
+      await invoke("export_managed_host_to_config", {
+        hostId: host.id,
+        overwriteExisting: true,
+      });
+      toast("Host block updated in ~/.ssh/config");
+    }
   };
 
   return (
@@ -157,6 +302,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
             <option value="alias_desc">Sort: Alias Z-A</option>
             <option value="host_asc">Sort: Host A-Z</option>
           </select>
+          <button onClick={openQuickConnect}>Quick Connect</button>
           <button onClick={() => openNewHostModal()} className="primary">New Host</button>
           <button
             onClick={() => {
@@ -170,7 +316,10 @@ export function SshHostPicker(props: SshHostPickerProps) {
         </div>
       </div>
 
-      {/* Groups */}
+      <div className="ssh-help-line">
+        Alias is your local friendly name for quick connect. For Identity File you can type full path or just key filename.
+      </div>
+
       {groupedManaged.length > 0 && (
         <>
           <div className="ssh-section-title">Groups</div>
@@ -235,6 +384,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
                           connecting={connectingAlias === host.alias}
                           onConnect={connect}
                           onEdit={() => openEditHostModal(host)}
+                          onExport={() => void exportManagedToConfig(host)}
                           draggable
                           onDragStart={() => {
                             setDraggingHostId(host.id);
@@ -257,7 +407,6 @@ export function SshHostPicker(props: SshHostPickerProps) {
         </>
       )}
 
-      {/* Ungrouped Hosts */}
       {ungroupedManaged.length > 0 && (
         <>
           <div className="ssh-section-title">Hosts</div>
@@ -288,6 +437,7 @@ export function SshHostPicker(props: SshHostPickerProps) {
                 connecting={connectingAlias === host.alias}
                 onConnect={connect}
                 onEdit={() => openEditHostModal(host)}
+                onExport={() => void exportManagedToConfig(host)}
                 draggable
                 onDragStart={() => {
                   setDraggingHostId(host.id);
@@ -305,7 +455,6 @@ export function SshHostPicker(props: SshHostPickerProps) {
         </>
       )}
 
-      {/* Imported */}
       {importedHosts.length > 0 && (
         <>
           <div className="ssh-section-title">Imported from ~/.ssh/config</div>
@@ -316,28 +465,120 @@ export function SshHostPicker(props: SshHostPickerProps) {
                 host={host}
                 connecting={connectingAlias === host.alias}
                 onConnect={connect}
+                onEdit={() => openImportedOverridesModal(host)}
               />
             ))}
           </div>
         </>
       )}
 
-      {/* Empty state */}
       {managedHosts.length === 0 && importedHosts.length === 0 && (
         <div className="ssh-empty">
-          No SSH hosts configured. Add a new host or import from ~/.ssh/config.
+          No SSH hosts configured. Add a new host, import from ~/.ssh/config, or use Quick Connect.
         </div>
       )}
 
-      {/* Host modal */}
+      {quickConnectOpen && (
+        <div className="modal-overlay" onClick={() => setQuickConnectOpen(false)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Quick Connect</h3>
+              <button className="ghost" onClick={() => setQuickConnectOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <label>
+                Alias
+                <input
+                  value={quickConnectDraft.alias}
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, alias: e.target.value }))}
+                  placeholder="friendly name (optional)"
+                />
+              </label>
+              <label>
+                Host
+                <input
+                  value={quickConnectDraft.host}
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, host: e.target.value }))}
+                  placeholder="server address"
+                  autoFocus
+                />
+              </label>
+              <label>
+                User
+                <input
+                  value={quickConnectDraft.user ?? ""}
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, user: e.target.value }))}
+                />
+              </label>
+              <label>
+                Port
+                <input
+                  value={quickConnectDraft.port ?? 22}
+                  type="number"
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, port: Number(e.target.value) || 22 }))}
+                />
+              </label>
+              <label>
+                Password (optional)
+                <input
+                  type="password"
+                  value={quickConnectDraft.password ?? ""}
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, password: e.target.value }))}
+                  placeholder="leave empty to use ssh key"
+                />
+              </label>
+              <label>
+                Identity File
+                <input
+                  value={quickConnectDraft.identity_file ?? ""}
+                  onChange={(e) => setQuickConnectDraft((prev) => ({ ...prev, identity_file: e.target.value }))}
+                  placeholder="id_ed25519 or full path"
+                />
+              </label>
+              <label className="settings-row-toggle">
+                <span>Save as managed host</span>
+                <input
+                  type="checkbox"
+                  checked={quickConnectSaveHost}
+                  onChange={(e) => setQuickConnectSaveHost(e.target.checked)}
+                />
+              </label>
+              {quickConnectSaveHost ? (
+                <label>
+                  Group
+                  <select
+                    value={quickConnectGroupId}
+                    onChange={(e) => setQuickConnectGroupId(e.target.value)}
+                  >
+                    <option value="">Ungrouped</option>
+                    {sshGroups.map((group) => (
+                      <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button className="ghost" onClick={() => setQuickConnectOpen(false)}>Cancel</button>
+              <button className="primary" onClick={() => void runQuickConnect()}>Connect</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {draft !== null && (
         <div className="modal-overlay" onClick={() => setDraft(null)}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{draft.id ? "Edit Host" : "New Host"}</h3>
+              <h3>{draft.id ? "Edit Host" : draftMode === "imported_override" ? "Imported Host Overrides" : "New Host"}</h3>
               <button className="ghost" onClick={() => setDraft(null)}>×</button>
             </div>
             <div className="modal-body">
+              {draftMode === "imported_override" ? (
+                <div className="ssh-modal-tip">
+                  Local override changes only Termif label/group. Global rename updates ~/.ssh/config Host alias.
+                </div>
+              ) : null}
               <label>
                 Alias
                 <input
@@ -369,10 +610,19 @@ export function SshHostPicker(props: SshHostPickerProps) {
                 />
               </label>
               <label>
+                Password (optional)
+                <input
+                  type="password"
+                  value={draft.password ?? ""}
+                  onChange={(e) => setDraft((p) => p ? { ...p, password: e.target.value } : p)}
+                />
+              </label>
+              <label>
                 Identity File
                 <input
                   value={draft.identity_file ?? ""}
                   onChange={(e) => setDraft((p) => p ? { ...p, identity_file: e.target.value } : p)}
+                  placeholder="id_ed25519 or full path"
                 />
               </label>
               <label>
@@ -389,8 +639,16 @@ export function SshHostPicker(props: SshHostPickerProps) {
               </label>
             </div>
             <div className="modal-footer">
+              {draftMode === "imported_override" ? (
+                <>
+                  <button onClick={() => void saveImportedAsManaged()}>Save as Managed</button>
+                  <button onClick={() => void renameImportedInConfig()}>Rename in Config</button>
+                </>
+              ) : null}
               <button className="ghost" onClick={() => setDraft(null)}>Cancel</button>
-              <button className="primary" onClick={() => void saveHost()}>Save</button>
+              <button className="primary" onClick={() => void saveHost()}>
+                {draftMode === "imported_override" ? "Apply Local Override" : "Save"}
+              </button>
             </div>
           </div>
         </div>
@@ -405,6 +663,7 @@ interface HostCardProps {
   onConnect: (alias: string) => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onExport?: () => void;
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -442,6 +701,9 @@ function HostCard(props: HostCardProps) {
         </button>
         {props.onEdit ? (
           <button className="ghost" onClick={props.onEdit}>Edit</button>
+        ) : null}
+        {props.onExport ? (
+          <button className="ghost" onClick={props.onExport}>To cfg</button>
         ) : null}
         {props.onDelete ? (
           <button className="danger ghost" onClick={props.onDelete}>Del</button>

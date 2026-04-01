@@ -1,5 +1,11 @@
 import { useEffect } from "react";
 
+export interface HotkeyBindingEntry {
+  command_id: string;
+  primary: string;
+  alternates?: string[] | null;
+}
+
 export interface HotkeyHandlers {
   onOpenPalette: () => void;
   onToggleSidebar: () => void;
@@ -19,108 +25,142 @@ export interface HotkeyHandlers {
   onEscape: () => void;
 }
 
+const defaultBindings: Record<string, string[]> = {
+  "palette.open": ["Ctrl+Shift+P"],
+  "sidebar.toggle": ["Ctrl+B"],
+  "tab.new_default": ["Ctrl+T"],
+  "tab.close": ["Ctrl+W"],
+  "settings.open": ["Ctrl+,"],
+  "tab.switcher.next": ["Ctrl+Tab"],
+  "tab.switcher.prev": ["Ctrl+Shift+Tab"],
+  "files.refresh": ["F5", "Ctrl+R"],
+  "zoom.in": ["Ctrl+=", "Ctrl+Num+"],
+  "zoom.out": ["Ctrl+-", "Ctrl+Num-"],
+  "zoom.reset": ["Ctrl+0"],
+  "editor.toggle": ["Ctrl+E"],
+  "ui.escape": ["Escape"],
+  "tab.index.1": ["Alt+1"],
+  "tab.index.2": ["Alt+2"],
+  "tab.index.3": ["Alt+3"],
+  "tab.index.4": ["Alt+4"],
+  "tab.index.5": ["Alt+5"],
+  "tab.index.6": ["Alt+6"],
+  "tab.index.7": ["Alt+7"],
+  "tab.index.8": ["Alt+8"],
+  "tab.index.9": ["Alt+9"],
+};
+
 /**
  * Global hotkeys using event.code (physical key position) so shortcuts
  * work correctly with ANY keyboard layout — Russian, German, etc.
  */
-export function useHotkeys(handlers: HotkeyHandlers) {
+export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: HotkeyBindingEntry[]) {
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const ctrl = e.ctrlKey || e.metaKey;
-      const shift = e.shiftKey;
-      const code = e.code;
+    const customMap = new Map<string, string[]>();
+    for (const entry of configuredBindings ?? []) {
+      const combos = [entry.primary, ...(entry.alternates ?? [])]
+        .map((item) => normalizeCombo(item))
+        .filter((item): item is string => !!item);
+      if (combos.length > 0) {
+        customMap.set(entry.command_id, combos);
+      }
+    }
 
-      // ── Ctrl+Tab / Ctrl+Shift+Tab — tab switcher ──────────────────
-      if (ctrl && code === "Tab") {
+    const getBindings = (commandId: string): string[] => {
+      return customMap.get(commandId) ?? defaultBindings[commandId] ?? [];
+    };
+
+    const matchesAny = (e: KeyboardEvent, commandId: string) => {
+      const candidates = getEventComboCandidates(e);
+      const bindings = getBindings(commandId);
+      return bindings.some((binding) => candidates.includes(binding));
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (matchesAny(e, "tab.switcher.next")) {
         e.preventDefault();
         e.stopPropagation();
-        handlers.onTabSwitcherOpen(shift ? -1 : 1);
+        handlers.onTabSwitcherOpen(1);
         return;
       }
 
-      // ── Escape — close palette / settings / tab switcher ──────────
-      if (code === "Escape") {
+      if (matchesAny(e, "tab.switcher.prev")) {
+        e.preventDefault();
+        e.stopPropagation();
+        handlers.onTabSwitcherOpen(-1);
+        return;
+      }
+
+      if (matchesAny(e, "ui.escape")) {
         e.preventDefault();
         handlers.onEscape();
         return;
       }
 
-      // ── Ctrl+Shift+P — command palette ────────────────────────────
-      if (ctrl && shift && code === "KeyP") {
+      if (matchesAny(e, "palette.open")) {
         e.preventDefault();
         handlers.onOpenPalette();
         return;
       }
 
-      // ── Ctrl+B — toggle sidebar ───────────────────────────────────
-      if (ctrl && code === "KeyB") {
+      if (matchesAny(e, "sidebar.toggle")) {
         e.preventDefault();
         handlers.onToggleSidebar();
         return;
       }
 
-      // ── Ctrl+T — new tab ──────────────────────────────────────────
-      if (ctrl && code === "KeyT") {
+      if (matchesAny(e, "tab.new_default")) {
         e.preventDefault();
         handlers.onNewTab();
         return;
       }
 
-      // ── Ctrl+W — close current tab ────────────────────────────────
-      if (ctrl && code === "KeyW") {
+      if (matchesAny(e, "tab.close")) {
         e.preventDefault();
         handlers.onCloseTab();
         return;
       }
 
-      // ── Ctrl+, — settings ─────────────────────────────────────────
-      if (ctrl && code === "Comma") {
+      if (matchesAny(e, "settings.open")) {
         e.preventDefault();
         handlers.onOpenSettings();
         return;
       }
 
-      // ── F5 / Ctrl+R — refresh file manager ────────────────────────
-      if (code === "F5" || (ctrl && code === "KeyR")) {
+      if (matchesAny(e, "files.refresh")) {
         e.preventDefault();
         handlers.onRefreshFiles();
         return;
       }
 
-      // ── Ctrl+= / Ctrl+Plus — zoom in ─────────────────────────────
-      if (ctrl && (code === "Equal" || code === "NumpadAdd")) {
+      if (matchesAny(e, "zoom.in")) {
         e.preventDefault();
         handlers.onZoomIn();
         return;
       }
 
-      // ── Ctrl+- / Ctrl+Minus — zoom out ───────────────────────────
-      if (ctrl && (code === "Minus" || code === "NumpadSubtract")) {
+      if (matchesAny(e, "zoom.out")) {
         e.preventDefault();
         handlers.onZoomOut();
         return;
       }
 
-      // ── Ctrl+0 — reset zoom ──────────────────────────────────────
-      if (ctrl && code === "Digit0") {
+      if (matchesAny(e, "zoom.reset")) {
         e.preventDefault();
         handlers.onZoomReset();
         return;
       }
 
-      // ── Ctrl+E — toggle editor panel ──────────────────────────────
-      if (ctrl && !shift && code === "KeyE") {
+      if (matchesAny(e, "editor.toggle")) {
         e.preventDefault();
         handlers.onToggleEditor();
         return;
       }
 
-      // ── Alt+1..9 — jump to tab by index ───────────────────────────
-      if (e.altKey && !ctrl) {
-        const digitMatch = code.match(/^Digit([1-9])$/);
-        if (digitMatch) {
+      for (let i = 1; i <= 9; i += 1) {
+        if (matchesAny(e, `tab.index.${i}`)) {
           e.preventDefault();
-          handlers.onTabByIndex(parseInt(digitMatch[1], 10) - 1);
+          handlers.onTabByIndex(i - 1);
           return;
         }
       }
@@ -139,5 +179,55 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", onKeyUp, true);
     };
-  }, [handlers]);
+  }, [configuredBindings, handlers]);
+}
+
+function normalizeCombo(combo?: string): string | null {
+  if (!combo) return null;
+  const raw = combo.trim();
+  if (!raw) return null;
+
+  return raw
+    .replace(/\s+/g, "")
+    .replace(/Control/gi, "Ctrl")
+    .replace(/Command/gi, "Meta")
+    .replace(/Option/gi, "Alt")
+    .replace(/Num\+/gi, "Num+")
+    .replace(/Num\-/gi, "Num-");
+}
+
+function getEventComboCandidates(e: KeyboardEvent): string[] {
+  const mods: string[] = [];
+  if (e.ctrlKey || e.metaKey) mods.push("Ctrl");
+  if (e.shiftKey) mods.push("Shift");
+  if (e.altKey) mods.push("Alt");
+
+  const key = toComboKey(e.code);
+  if (!key) return [];
+
+  const prefix = mods.length > 0 ? `${mods.join("+")}+` : "";
+  return [normalizeCombo(`${prefix}${key}`) ?? ""].filter(Boolean);
+}
+
+function toComboKey(code: string): string | null {
+  if (/^Key[A-Z]$/.test(code)) {
+    return code.slice(3);
+  }
+
+  if (/^Digit[0-9]$/.test(code)) {
+    return code.slice(5);
+  }
+
+  const mapped: Record<string, string> = {
+    Tab: "Tab",
+    Escape: "Escape",
+    Comma: ",",
+    F5: "F5",
+    Equal: "=",
+    Minus: "-",
+    NumpadAdd: "Num+",
+    NumpadSubtract: "Num-",
+  };
+
+  return mapped[code] ?? null;
 }

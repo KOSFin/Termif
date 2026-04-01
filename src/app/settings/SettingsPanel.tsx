@@ -37,25 +37,43 @@ const themes = [
   { id: "monokai", name: "Monokai", preview: "#272822" }
 ];
 
-const workingHotkeys: Array<{ combo: string; description: string }> = [
-  { combo: "Ctrl+Shift+P", description: "Open command palette" },
-  { combo: "Ctrl+B", description: "Toggle file sidebar" },
-  { combo: "Ctrl+T", description: "New terminal tab" },
-  { combo: "Ctrl+W", description: "Close current terminal tab" },
-  { combo: "Ctrl+,", description: "Open settings" },
-  { combo: "Ctrl+Tab", description: "Tab switcher (next)" },
-  { combo: "Ctrl+Shift+Tab", description: "Tab switcher (previous)" },
-  { combo: "Alt+1..9", description: "Jump to tab by index" },
-  { combo: "F5", description: "Refresh file manager" },
-  { combo: "Ctrl+R", description: "Refresh file manager" },
-  { combo: "Ctrl+E", description: "Toggle editor panel" },
-  { combo: "Ctrl+S", description: "Save active editor file" },
-  { combo: "Ctrl+= / Ctrl+Num+", description: "Zoom in" },
-  { combo: "Ctrl+- / Ctrl+Num-", description: "Zoom out" },
-  { combo: "Ctrl+0", description: "Reset zoom" },
-  { combo: "Ctrl+Mouse Wheel", description: "Zoom in or out" },
-  { combo: "Escape", description: "Close palette/settings/tab switcher" },
+const hotkeyCatalog: Array<{ id: string; description: string; defaults: string[] }> = [
+  { id: "palette.open", description: "Open command palette", defaults: ["Ctrl+Shift+P"] },
+  { id: "sidebar.toggle", description: "Toggle file sidebar", defaults: ["Ctrl+B"] },
+  { id: "tab.new_default", description: "New terminal tab", defaults: ["Ctrl+T"] },
+  { id: "tab.close", description: "Close current tab", defaults: ["Ctrl+W"] },
+  { id: "settings.open", description: "Open settings", defaults: ["Ctrl+,"] },
+  { id: "tab.switcher.next", description: "Tab switcher next", defaults: ["Ctrl+Tab"] },
+  { id: "tab.switcher.prev", description: "Tab switcher previous", defaults: ["Ctrl+Shift+Tab"] },
+  { id: "files.refresh", description: "Refresh file manager", defaults: ["F5", "Ctrl+R"] },
+  { id: "editor.toggle", description: "Toggle editor panel", defaults: ["Ctrl+E"] },
+  { id: "zoom.in", description: "Zoom in", defaults: ["Ctrl+=", "Ctrl+Num+"] },
+  { id: "zoom.out", description: "Zoom out", defaults: ["Ctrl+-", "Ctrl+Num-"] },
+  { id: "zoom.reset", description: "Reset zoom", defaults: ["Ctrl+0"] },
+  { id: "ui.escape", description: "Close overlays", defaults: ["Escape"] },
+  { id: "tab.index.1", description: "Jump to tab 1", defaults: ["Alt+1"] },
+  { id: "tab.index.2", description: "Jump to tab 2", defaults: ["Alt+2"] },
+  { id: "tab.index.3", description: "Jump to tab 3", defaults: ["Alt+3"] },
+  { id: "tab.index.4", description: "Jump to tab 4", defaults: ["Alt+4"] },
+  { id: "tab.index.5", description: "Jump to tab 5", defaults: ["Alt+5"] },
+  { id: "tab.index.6", description: "Jump to tab 6", defaults: ["Alt+6"] },
+  { id: "tab.index.7", description: "Jump to tab 7", defaults: ["Alt+7"] },
+  { id: "tab.index.8", description: "Jump to tab 8", defaults: ["Alt+8"] },
+  { id: "tab.index.9", description: "Jump to tab 9", defaults: ["Alt+9"] },
 ];
+
+function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; alternates?: string[] | null }>) {
+  const map = new Map(bindings.map((binding) => [binding.command_id, binding]));
+  return hotkeyCatalog.map((item) => {
+    const saved = map.get(item.id);
+    return {
+      command_id: item.id,
+      description: item.description,
+      primary: saved?.primary ?? item.defaults[0],
+      alternates: saved?.alternates ?? item.defaults.slice(1),
+    };
+  });
+}
 
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
@@ -70,6 +88,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
   }, [props.open]);
 
   if (!props.open || !draft) return null;
+
+  const hotkeyRows = getHotkeyRows(draft.hotkeys);
 
   const currentTheme = document.documentElement.getAttribute("data-theme") ?? "charcoal";
 
@@ -239,37 +259,60 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
+              <div className="settings-row-toggle">
+                <span>Enable Shell Syntax Highlighting</span>
+                <input
+                  type="checkbox"
+                  checked={draft.terminal.syntax_highlighting}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p
+                        ? { ...p, terminal: { ...p.terminal, syntax_highlighting: e.target.checked } }
+                        : p
+                    )
+                  }
+                />
+              </div>
             </div>
           )}
 
           {activeSection === "hotkeys" && (
             <div className="settings-section">
-              <div className="settings-hotkeys-title">Working Hotkeys</div>
+              <div className="settings-hotkeys-title">Command Bindings</div>
               <div className="settings-hotkeys-list">
-                {workingHotkeys.map((item) => (
-                  <div key={item.combo} className="settings-hotkeys-item">
-                    <span className="settings-hotkey-combo">{item.combo}</span>
-                    <span className="settings-hotkey-desc">{item.description}</span>
+                {hotkeyRows.map((row) => (
+                  <div key={row.command_id} className="settings-hotkeys-item">
+                    <div className="settings-hotkey-desc-wrap">
+                      <span className="settings-hotkey-desc">{row.description}</span>
+                      <span className="settings-hotkey-id">{row.command_id}</span>
+                    </div>
+                    <div className="settings-hotkeys-inputs">
+                      <input
+                        value={row.primary}
+                        onChange={(e) => {
+                          const next = draft.hotkeys.filter((item) => item.command_id !== row.command_id);
+                          next.push({ command_id: row.command_id, primary: e.target.value, alternates: row.alternates });
+                          setDraft((p) => (p ? { ...p, hotkeys: next } : p));
+                        }}
+                        placeholder="Primary combo"
+                      />
+                      <input
+                        value={(row.alternates ?? []).join(", ")}
+                        onChange={(e) => {
+                          const alternates = e.target.value
+                            .split(",")
+                            .map((item) => item.trim())
+                            .filter(Boolean);
+                          const next = draft.hotkeys.filter((item) => item.command_id !== row.command_id);
+                          next.push({ command_id: row.command_id, primary: row.primary, alternates });
+                          setDraft((p) => (p ? { ...p, hotkeys: next } : p));
+                        }}
+                        placeholder="Additional combos, comma separated"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
-
-              <hr className="settings-divider" />
-
-              <div className="settings-hotkeys-title">Saved Bindings (settings.json)</div>
-              {draft.hotkeys.map((binding, index) => (
-                <div className="settings-row" key={binding.command_id}>
-                  <label>{binding.command_id}</label>
-                  <input
-                    value={binding.primary}
-                    onChange={(e) => {
-                      const next = [...draft.hotkeys];
-                      next[index] = { ...next[index], primary: e.target.value };
-                      setDraft((p) => (p ? { ...p, hotkeys: next } : p));
-                    }}
-                  />
-                </div>
-              ))}
             </div>
           )}
 

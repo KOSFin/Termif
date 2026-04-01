@@ -8,6 +8,7 @@ interface TerminalVisualSettings {
   font_size: number;
   cursor_style: string;
   scrollback_lines: number;
+  syntax_highlighting?: boolean;
 }
 
 interface TerminalPaneProps {
@@ -16,13 +17,21 @@ interface TerminalPaneProps {
   /** SSH alias — when set, shows a "Connecting…" overlay until first output. */
   sshAlias?: string;
   terminalSettings?: TerminalVisualSettings;
+  disconnectedReason?: string;
+  reconnecting?: boolean;
+  onConnectionError?: (message: string) => void;
+  onReconnect?: () => void;
 }
 
 export const TerminalPane = memo(function TerminalPane({
   sessionId,
   isVisible,
   sshAlias,
-  terminalSettings
+  terminalSettings,
+  disconnectedReason,
+  reconnecting,
+  onConnectionError,
+  onReconnect,
 }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
@@ -32,6 +41,7 @@ export const TerminalPane = memo(function TerminalPane({
   // Show connecting overlay for SSH sessions until the first byte of output arrives.
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
+  const syntaxBootstrapSentRef = useRef<boolean>(false);
 
   useEffect(() => {
     visibleRef.current = isVisible;
@@ -46,6 +56,7 @@ export const TerminalPane = memo(function TerminalPane({
     const isSSH = !!sshAlias;
     connectingRef.current = isSSH;
     setConnecting(isSSH);
+    syntaxBootstrapSentRef.current = false;
 
     const xterm = new Terminal({
       cursorBlink: true,
@@ -78,7 +89,10 @@ export const TerminalPane = memo(function TerminalPane({
 
     // Forward keyboard/paste input to the PTY.
     const dataListener = xterm.onData((data) => {
-      void invoke("send_terminal_input", { sessionId, data });
+      void invoke("send_terminal_input", { sessionId, data }).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        onConnectionError?.(message);
+      });
     });
 
     // ── Push-based output via Tauri Channel ─────────────────────────────────
@@ -94,6 +108,20 @@ export const TerminalPane = memo(function TerminalPane({
 
     // attach_channel returns immediately; output flows through the channel.
     void invoke("stream_terminal_output", { sessionId, onData: channel });
+
+    if (isSSH && terminalSettings?.syntax_highlighting) {
+      window.setTimeout(() => {
+        if (syntaxBootstrapSentRef.current) {
+          return;
+        }
+        syntaxBootstrapSentRef.current = true;
+        const initScript = "export TERM=xterm-256color; export CLICOLOR=1; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G'\r";
+        void invoke("send_terminal_input", { sessionId, data: initScript }).catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          onConnectionError?.(message);
+        });
+      }, 250);
+    }
 
     // ── Resize observer ──────────────────────────────────────────────────────
     const resizeObserver = new ResizeObserver(() => {
@@ -176,7 +204,9 @@ export const TerminalPane = memo(function TerminalPane({
 
   return (
     <div className={`terminal-pane-wrap${isVisible ? " active" : ""}`}>
-      <div className="terminal-pane" ref={containerRef} />
+      <div className="terminal-pane">
+        <div className="terminal-pane-inner" ref={containerRef} />
+      </div>
 
       {connecting && (
         <div className="terminal-connecting">
@@ -186,6 +216,19 @@ export const TerminalPane = memo(function TerminalPane({
           </div>
         </div>
       )}
+
+      {disconnectedReason ? (
+        <div className="terminal-connecting terminal-disconnected">
+          <div className="terminal-connecting-inner">
+            <div className="terminal-connecting-spinner" />
+            <span>Connection lost: <strong>{sshAlias ?? "remote host"}</strong></span>
+            <span className="terminal-disconnect-reason">{disconnectedReason}</span>
+            <button className="primary" onClick={onReconnect} disabled={reconnecting}>
+              {reconnecting ? "Reconnecting..." : "Reconnect"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 });

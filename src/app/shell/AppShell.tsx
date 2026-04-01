@@ -24,6 +24,7 @@ export function AppShell() {
     paletteOpen,
     settingsOpen,
     settings,
+    tabDisconnectReasons,
     selectedFile,
     lastToast,
     createLocalTab,
@@ -37,6 +38,8 @@ export function AppShell() {
     setSettingsOpen,
     toggleSidebar,
     loadCurrentFiles,
+    reconnectSshTab,
+    markTabDisconnected,
     saveSettings,
     toast,
     activateNextTab,
@@ -64,6 +67,7 @@ export function AppShell() {
     paletteOpen: state.paletteOpen,
     settingsOpen: state.settingsOpen,
     settings: state.settings,
+    tabDisconnectReasons: state.tabDisconnectReasons,
     selectedFile: state.selectedFile,
     lastToast: state.lastToast,
     createLocalTab: state.createLocalTab,
@@ -77,6 +81,8 @@ export function AppShell() {
     setSettingsOpen: state.setSettingsOpen,
     toggleSidebar: state.toggleSidebar,
     loadCurrentFiles: state.loadCurrentFiles,
+    reconnectSshTab: state.reconnectSshTab,
+    markTabDisconnected: state.markTabDisconnected,
     saveSettings: state.saveSettings,
     toast: state.toast,
     activateNextTab: state.activateNextTab,
@@ -149,6 +155,8 @@ export function AppShell() {
   const [remoteStatusFetchedAt, setRemoteStatusFetchedAt] = useState<number>(0);
   const [remoteStatusError, setRemoteStatusError] = useState<string>();
   const [clockTick, setClockTick] = useState(0);
+  const [reconnectingTabs, setReconnectingTabs] = useState<Record<string, boolean>>({});
+  const autoReconnectAtRef = useRef<Record<string, number>>({});
 
   const statusBarSettings = settings?.status_bar;
   const statusBarShowResources = statusBarSettings?.show_resource_monitor ?? true;
@@ -185,7 +193,11 @@ export function AppShell() {
         setRemoteStatusError(undefined);
       } catch (error) {
         if (disposed) return;
-        setRemoteStatusError(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        setRemoteStatusError(message);
+        if (activeTab?.kind === "ssh" && looksLikeDisconnected(message)) {
+          markTabDisconnected(activeTab.id, message);
+        }
       }
     };
 
@@ -196,7 +208,11 @@ export function AppShell() {
       setRemoteStatusError(undefined);
     }).catch((error) => {
       if (!disposed) {
-        setRemoteStatusError(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        setRemoteStatusError(message);
+        if (activeTab?.kind === "ssh" && looksLikeDisconnected(message)) {
+          markTabDisconnected(activeTab.id, message);
+        }
       }
       return undefined;
     });
@@ -217,6 +233,9 @@ export function AppShell() {
     };
   }, [
     activeTab?.sessionId,
+    activeTab?.id,
+    activeTab?.kind,
+    markTabDisconnected,
     shouldMonitorRemoteStatus,
     statusBarPollSec,
     statusBarShowResources,
@@ -340,7 +359,7 @@ export function AppShell() {
     zoomIn, zoomOut, zoomReset, editorVisible, setEditorVisible
   ]);
 
-  useHotkeys(hotkeyHandlers());
+  useHotkeys(hotkeyHandlers(), settings?.hotkeys);
 
   // ── Zoom: apply CSS zoom level ──────────────────────────────────
   useEffect(() => {
@@ -439,6 +458,74 @@ export function AppShell() {
     document.addEventListener("mouseup", onUp);
   }, [pickDockTarget, setEditorDock]);
 
+  const reconnectTab = useCallback(async (tabId: string, auto?: boolean) => {
+    setReconnectingTabs((prev) => ({ ...prev, [tabId]: true }));
+    try {
+      await reconnectSshTab(tabId);
+      setRemoteStatusError(undefined);
+      if (!auto) {
+        toast("SSH reconnected");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      markTabDisconnected(tabId, message);
+      if (!auto) {
+        toast(`Reconnect failed: ${message}`);
+      }
+    } finally {
+      setReconnectingTabs((prev) => {
+        const next = { ...prev };
+        delete next[tabId];
+        return next;
+      });
+    }
+  }, [markTabDisconnected, reconnectSshTab, toast]);
+
+  useEffect(() => {
+    if (activeTab?.kind !== "ssh") {
+      return;
+    }
+
+    const reason = tabDisconnectReasons[activeTab.id];
+    if (!reason || reconnectingTabs[activeTab.id]) {
+      return;
+    }
+
+    const now = Date.now();
+    const last = autoReconnectAtRef.current[activeTab.id] ?? 0;
+    if (now - last < 5000) {
+      return;
+    }
+
+    autoReconnectAtRef.current[activeTab.id] = now;
+    void reconnectTab(activeTab.id, true);
+  }, [activeTab?.id, activeTab?.kind, reconnectTab, reconnectingTabs, tabDisconnectReasons]);
+
+  useEffect(() => {
+    const onWake = () => {
+      if (activeTab?.kind !== "ssh") {
+        return;
+      }
+      const reason = tabDisconnectReasons[activeTab.id];
+      if (reason && !reconnectingTabs[activeTab.id]) {
+        void reconnectTab(activeTab.id, true);
+      }
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden) {
+        onWake();
+      }
+    };
+
+    window.addEventListener("online", onWake);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [activeTab?.id, activeTab?.kind, reconnectTab, reconnectingTabs, tabDisconnectReasons]);
+
   const terminalContent = useMemo(() => (
     <>
       {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
@@ -453,10 +540,30 @@ export function AppShell() {
               isVisible={t.id === activeTabId}
               sshAlias={t.sshAlias}
               terminalSettings={settings?.terminal}
+              disconnectedReason={tabDisconnectReasons[t.id]}
+              reconnecting={!!reconnectingTabs[t.id]}
+              onConnectionError={(message) => {
+                if (looksLikeDisconnected(message)) {
+                  markTabDisconnected(t.id, message);
+                }
+              }}
+              onReconnect={() => {
+                void reconnectTab(t.id);
+              }}
             />
           ))}
     </>
-  ), [activeTab, activeTabId, isInitialized, settings?.terminal, tabs]);
+  ), [
+    activeTab,
+    activeTabId,
+    isInitialized,
+    markTabDisconnected,
+    reconnectTab,
+    reconnectingTabs,
+    settings?.terminal,
+    tabDisconnectReasons,
+    tabs,
+  ]);
 
   const hasEditor = isInitialized && editorVisible;
   const isVerticalDock = editorDock === "top" || editorDock === "bottom";
@@ -475,30 +582,37 @@ export function AppShell() {
     [remoteStatus?.user_names]
   );
 
-  const statusClock = useMemo(() => {
+  const localClock = useMemo(() => {
     if (!statusBarEnabled || !statusBarShowServerTime) {
-      return { value: "", zone: "", visible: false };
-    }
-
-    if (activeTab?.kind === "ssh") {
-      const serverEpoch = remoteStatus?.server_time_epoch;
-      if (serverEpoch === null || serverEpoch === undefined || !remoteStatusFetchedAt) {
-        return { value: "--", zone: "", visible: true };
-      }
-
-      const elapsedSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
-      const liveEpoch = serverEpoch + elapsedSec;
-      const date = new Date(liveEpoch * 1000);
-      return {
-        value: formatClock(date),
-        zone: remoteStatus?.server_tz ?? "",
-        visible: true,
-      };
+      return { value: "", visible: false };
     }
 
     return {
       value: formatClock(new Date()),
-      zone: "",
+      visible: true,
+    };
+  }, [clockTick, statusBarEnabled, statusBarShowServerTime]);
+
+  const serverClock = useMemo(() => {
+    if (!statusBarEnabled || !statusBarShowServerTime) {
+      return { value: "", zone: "", visible: false };
+    }
+
+    if (activeTab?.kind !== "ssh") {
+      return { value: "", zone: "", visible: false };
+    }
+
+    const serverEpoch = remoteStatus?.server_time_epoch;
+    if (serverEpoch === null || serverEpoch === undefined || !remoteStatusFetchedAt) {
+      return { value: "--", zone: "", visible: true };
+    }
+
+    const elapsedSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
+    const liveEpoch = serverEpoch + elapsedSec;
+    const date = new Date(liveEpoch * 1000);
+    return {
+      value: formatClock(date),
+      zone: remoteStatus?.server_tz ?? "",
       visible: true,
     };
   }, [
@@ -827,9 +941,15 @@ export function AppShell() {
             </div>
           ) : null}
 
-          {statusClock.visible ? (
+          {localClock.visible ? (
             <span className="status-metric">
-              Time {statusClock.value}{statusClock.zone ? ` ${statusClock.zone}` : ""}
+              Local {localClock.value}
+            </span>
+          ) : null}
+
+          {serverClock.visible ? (
+            <span className="status-metric">
+              Server {serverClock.value}{serverClock.zone ? ` ${serverClock.zone}` : ""}
             </span>
           ) : null}
 
@@ -905,4 +1025,16 @@ function classifyPercent(value: number | null): "ok" | "warn" | "danger" {
   if (value >= 90) return "danger";
   if (value >= 75) return "warn";
   return "ok";
+}
+
+function looksLikeDisconnected(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("channel send") ||
+    text.includes("session not found") ||
+    text.includes("channel closed") ||
+    text.includes("connection") ||
+    text.includes("broken pipe") ||
+    text.includes("timeout")
+  );
 }

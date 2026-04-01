@@ -31,6 +31,8 @@ pub struct SshConnectOptions {
     pub user: Option<String>,
     pub port: u16,
     pub identity_file: Option<String>,
+    pub password: Option<String>,
+    pub connect_timeout_seconds: u16,
 }
 
 #[derive(Clone, Default)]
@@ -454,7 +456,9 @@ impl SshClientRuntime {
 
     async fn connect(options: &SshConnectOptions) -> Result<Self, TermifError> {
         let config = Arc::new(client::Config {
-            inactivity_timeout: Some(Duration::from_secs(30)),
+            inactivity_timeout: Some(Duration::from_secs(u64::from(
+                options.connect_timeout_seconds.max(10),
+            ))),
             ..Default::default()
         });
 
@@ -463,6 +467,20 @@ impl SshClientRuntime {
             .map_err(|e| TermifError::Internal(e.to_string()))?;
 
         let user = resolve_ssh_user(options);
+        if let Some(password) = options.password.as_ref().filter(|value| !value.trim().is_empty()) {
+            let auth = handle
+                .authenticate_password(user.clone(), password.to_string())
+                .await
+                .map_err(|e| TermifError::Internal(e.to_string()))?;
+
+            if auth.success() {
+                return Ok(Self {
+                    handle,
+                    dir_cache: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+                });
+            }
+        }
+
         let key_path = resolve_ssh_key_path(options)?;
         let key_pair = load_secret_key(&key_path, None).map_err(|e| {
             TermifError::Internal(format!(
@@ -487,7 +505,7 @@ impl SshClientRuntime {
 
         if !auth.success() {
             return Err(TermifError::Internal(
-                "ssh authentication failed".to_string(),
+                "ssh authentication failed (password/key rejected)".to_string(),
             ));
         }
 
@@ -772,6 +790,18 @@ fn resolve_ssh_user(options: &SshConnectOptions) -> String {
 
 fn resolve_ssh_key_path(options: &SshConnectOptions) -> Result<PathBuf, TermifError> {
     if let Some(identity_file) = &options.identity_file {
+        let trimmed = identity_file.trim();
+        if trimmed.is_empty() {
+            return Err(TermifError::Internal(
+                "identity_file is empty".to_string(),
+            ));
+        }
+
+        if !trimmed.contains('/') && !trimmed.contains('\\') && !trimmed.contains(':') {
+            let home = user_home_dir()?;
+            return Ok(home.join(".ssh").join(trimmed));
+        }
+
         return Ok(expand_home_path(identity_file));
     }
 

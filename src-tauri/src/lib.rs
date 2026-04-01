@@ -42,6 +42,16 @@ struct SshHostsPayload {
     groups: Vec<SshHostGroup>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+struct SshConnectOptionsInput {
+    alias: String,
+    host: String,
+    user: Option<String>,
+    port: Option<u16>,
+    identity_file: Option<String>,
+    password: Option<String>,
+}
+
 // ── Terminal commands ─────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -62,7 +72,51 @@ async fn create_ssh_session(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<SessionDto, String> {
-    let connect_options = resolve_ssh_connect_options(&state.hosts, &host_alias);
+    let connect_options = resolve_ssh_connect_options(&state.hosts, state.settings.get(), &host_alias);
+
+    let session = state
+        .terminal
+        .spawn_ssh_session(connect_options)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    state
+        .monitoring
+        .start_loop(session.id.clone(), state.terminal.clone(), app.clone());
+
+    Ok(session)
+}
+
+#[tauri::command]
+async fn create_ssh_session_with_options(
+    options: SshConnectOptionsInput,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<SessionDto, String> {
+    let settings = state.settings.get();
+    let connect_options = SshConnectOptions {
+        alias: options.alias.trim().to_string(),
+        host: options.host.trim().to_string(),
+        user: options.user.map(|v| v.trim().to_string()).filter(|v| !v.is_empty()),
+        port: options.port.unwrap_or(22),
+        identity_file: options
+            .identity_file
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+        password: options
+            .password
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+        connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
+    };
+
+    if connect_options.alias.is_empty() {
+        return Err("alias is required".to_string());
+    }
+
+    if connect_options.host.is_empty() {
+        return Err("host is required".to_string());
+    }
 
     let session = state
         .terminal
@@ -302,6 +356,43 @@ fn delete_ssh_group(group_id: String, state: State<'_, AppState>) -> Result<(), 
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn set_imported_host_overrides(
+    source_alias: String,
+    local_alias: Option<String>,
+    group_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .hosts
+        .set_imported_host_overrides(&source_alias, local_alias, group_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn rename_imported_host_in_config(
+    source_alias: String,
+    new_alias: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .hosts
+        .rename_imported_host_in_config(&source_alias, &new_alias)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn export_managed_host_to_config(
+    host_id: String,
+    overwrite_existing: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .hosts
+        .export_managed_host_to_config(&host_id, overwrite_existing)
+        .map_err(|e| e.to_string())
+}
+
 // ── Settings & persistence ────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -352,6 +443,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             create_local_session,
             create_ssh_session,
+            create_ssh_session_with_options,
             stream_terminal_output,
             send_terminal_input,
             read_terminal_output,
@@ -375,6 +467,9 @@ pub fn run() {
             create_ssh_group,
             rename_ssh_group,
             delete_ssh_group,
+            set_imported_host_overrides,
+            rename_imported_host_in_config,
+            export_managed_host_to_config,
             load_settings,
             save_settings,
             load_ui_state,
@@ -384,7 +479,11 @@ pub fn run() {
         .expect("error while running Termif");
 }
 
-fn resolve_ssh_connect_options(hosts: &HostStore, host_alias: &str) -> SshConnectOptions {
+fn resolve_ssh_connect_options(
+    hosts: &HostStore,
+    settings: AppSettings,
+    host_alias: &str,
+) -> SshConnectOptions {
     let managed = hosts.list_managed_hosts();
     let imported = hosts.import_ssh_config_hosts();
 
@@ -400,6 +499,8 @@ fn resolve_ssh_connect_options(hosts: &HostStore, host_alias: &str) -> SshConnec
             user: host.user,
             port: host.port.unwrap_or(22),
             identity_file: host.identity_file,
+            password: host.password,
+            connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
         };
     }
 
@@ -409,5 +510,7 @@ fn resolve_ssh_connect_options(hosts: &HostStore, host_alias: &str) -> SshConnec
         user: None,
         port: 22,
         identity_file: None,
+        password: None,
+        connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
     }
 }

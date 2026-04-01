@@ -26,7 +26,9 @@ export interface SshHostEntry {
   user?: string | null;
   port?: number | null;
   identity_file?: string | null;
+  password?: string | null;
   group_id?: string | null;
+  original_alias?: string | null;
   source: SshHostSource;
 }
 
@@ -42,6 +44,15 @@ export interface SshHostsPayload {
   groups: SshHostGroup[];
 }
 
+export interface SshConnectOptions {
+  alias: string;
+  host: string;
+  user?: string | null;
+  port?: number | null;
+  identity_file?: string | null;
+  password?: string | null;
+}
+
 export interface AppSettings {
   appearance: {
     accent_color: string;
@@ -54,8 +65,9 @@ export interface AppSettings {
     font_size: number;
     cursor_style: string;
     scrollback_lines: number;
+    syntax_highlighting: boolean;
   };
-  hotkeys: Array<{ command_id: string; primary: string }>;
+  hotkeys: Array<{ command_id: string; primary: string; alternates?: string[] | null }>;
   ssh: {
     connect_timeout_seconds: number;
     strict_host_key_checking: boolean;

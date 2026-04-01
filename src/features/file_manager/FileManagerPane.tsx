@@ -162,10 +162,14 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   const onCdHere = async (entry: FileEntryDto) => {
     if (!props.activeSessionId) return;
     const target = entry.is_dir ? entry.path : entry.path.replace(/[/\\][^/\\]+$/, "");
-    const escaped = target.replace(/"/g, '"');
+    const escapedLocal = target.replace(/"/g, '""');
+    const escapedRemote = `'${target.replace(/'/g, `'\\''`)}'`;
+    const command = props.isRemote
+      ? `cd -- ${escapedRemote}\r`
+      : `cd "${escapedLocal}"\r`;
     await invoke("send_terminal_input", {
       sessionId: props.activeSessionId,
-      data: `cd "${escaped}"\n`
+      data: command
     });
     toast(`cd ${target}`);
   };
@@ -184,9 +188,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         <button
           onClick={() => void loadCurrentFiles({ force: true })}
           title="Refresh"
-          className={uiBusy ? "spinning" : ""}
         >
-          <RefreshCw size={14} strokeWidth={2} />
+          <RefreshCw size={14} strokeWidth={2} className={uiBusy ? "spin-icon" : ""} />
         </button>
         <button onClick={() => void onCreateEntry(false)} title="New file">
           <FilePlus size={14} strokeWidth={2} />

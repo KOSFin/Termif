@@ -46,7 +46,11 @@ pub struct SshHostEntry {
     pub user: Option<String>,
     pub port: Option<u16>,
     pub identity_file: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
     pub group_id: Option<String>,
+    #[serde(default)]
+    pub original_alias: Option<String>,
     pub source: SshHostSource,
 }
 
@@ -90,15 +94,18 @@ impl Default for AppSettings {
                 font_size: 13,
                 cursor_style: "bar".to_string(),
                 scrollback_lines: 20_000,
+                syntax_highlighting: false,
             },
             hotkeys: vec![
                 HotkeyBinding {
                     command_id: "palette.open".to_string(),
                     primary: "Ctrl+Shift+P".to_string(),
+                    alternates: Vec::new(),
                 },
                 HotkeyBinding {
                     command_id: "tab.new_default".to_string(),
                     primary: "Ctrl+T".to_string(),
+                    alternates: Vec::new(),
                 },
             ],
             ssh: SshSettings {
@@ -136,12 +143,16 @@ pub struct TerminalSettings {
     pub font_size: u16,
     pub cursor_style: String,
     pub scrollback_lines: usize,
+    #[serde(default)]
+    pub syntax_highlighting: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HotkeyBinding {
     pub command_id: String,
     pub primary: String,
+    #[serde(default)]
+    pub alternates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -6,6 +6,7 @@ import type {
   FileEntryDto,
   PersistedUiState,
   SessionDto,
+  SshConnectOptions,
   SshHostEntry,
   SshHostGroup,
   SshHostsPayload
@@ -35,11 +36,12 @@ interface AppState {
   sidebarVisible: boolean;
   paletteOpen: boolean;
   settingsOpen: boolean;
-  selectedSidebarTool: "files";
+  selectedSidebarTool: "files" | "snippets";
   settings: AppSettings | null;
   sshGroups: SshHostGroup[];
   importedHosts: SshHostEntry[];
   managedHosts: SshHostEntry[];
+  tabDisconnectReasons: Record<string, string>;
   tabPaths: Record<string, string>;
   fileEntries: FileEntryDto[];
   fileLoading: boolean;
@@ -77,7 +79,17 @@ interface AppState {
   toggleSidebar: () => void;
   setPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
+  setSelectedSidebarTool: (tool: "files" | "snippets") => void;
   refreshHosts: () => Promise<void>;
+  connectSshTabWithOptions: (
+    tabId: string,
+    options: SshConnectOptions,
+    saveAsManaged: boolean,
+    groupId?: string | null
+  ) => Promise<void>;
+  reconnectSshTab: (tabId: string) => Promise<void>;
+  markTabDisconnected: (tabId: string, reason: string) => void;
+  clearTabDisconnected: (tabId: string) => void;
   saveManagedHost: (host: SshHostEntry) => Promise<void>;
   deleteManagedHost: (hostId: string) => Promise<void>;
   createHostGroup: (name: string) => Promise<void>;
@@ -129,6 +141,18 @@ function normalizeLineEndings(value: string): string {
   return value.replace(/\r\n/g, "\n");
 }
 
+function isConnectionError(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("channel send") ||
+    text.includes("channel closed") ||
+    text.includes("session not found") ||
+    text.includes("connection") ||
+    text.includes("broken pipe") ||
+    text.includes("timeout")
+  );
+}
+
 function makeTabFromSession(session: SessionDto): AppTab {
   return {
     id: crypto.randomUUID(),
@@ -170,6 +194,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sshGroups: [],
   importedHosts: [],
   managedHosts: [],
+  tabDisconnectReasons: {},
   tabPaths: {},
   fileEntries: [],
   fileLoading: false,
@@ -273,6 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId: tab.id,
       fileTransitioning: true,
       selectedFile: undefined,
+      selectedSidebarTool: "files",
       tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     await persistUiState(get());
@@ -292,6 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId: tab.id,
       fileTransitioning: false,
       selectedFile: undefined,
+      selectedSidebarTool: "files",
       tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     void persistUiState(get());
@@ -315,10 +342,116 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
       activeTabId: tabId,
       fileTransitioning: true,
-      selectedFile: undefined
+      selectedFile: undefined,
+      selectedSidebarTool: "files",
+      tabDisconnectReasons: {
+        ...state.tabDisconnectReasons,
+        [tabId]: ""
+      }
     }));
+    get().clearTabDisconnected(tabId);
     await persistUiState(get());
     get().loadCurrentFiles().catch(() => {});
+  },
+
+  connectSshTabWithOptions: async (tabId, options, saveAsManaged, groupId) => {
+    const safeAlias = options.alias.trim() || options.host.trim();
+    const session = await invoke<SessionDto>("create_ssh_session_with_options", {
+      options: {
+        alias: safeAlias,
+        host: options.host.trim(),
+        user: options.user?.trim() || null,
+        port: options.port ?? 22,
+        identity_file: options.identity_file?.trim() || null,
+        password: options.password ?? null,
+      }
+    });
+
+    if (saveAsManaged) {
+      const managedHost: SshHostEntry = {
+        id: "",
+        alias: safeAlias,
+        host_name: options.host.trim(),
+        user: options.user?.trim() || null,
+        port: options.port ?? 22,
+        identity_file: options.identity_file?.trim() || null,
+        password: options.password ?? null,
+        group_id: groupId ?? null,
+        original_alias: null,
+        source: "managed",
+      };
+      await invoke("save_managed_ssh_host", { host: managedHost }).catch(() => undefined);
+      await get().refreshHosts();
+    }
+
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              title: `SSH: ${safeAlias}`,
+              kind: "ssh",
+              sessionId: session.id,
+              sshAlias: safeAlias,
+              icon: "globe",
+              color: "#3dba84"
+            }
+          : tab
+      ),
+      activeTabId: tabId,
+      fileTransitioning: true,
+      selectedFile: undefined,
+      selectedSidebarTool: "files"
+    }));
+    get().clearTabDisconnected(tabId);
+    await persistUiState(get());
+    get().loadCurrentFiles().catch(() => {});
+  },
+
+  reconnectSshTab: async (tabId) => {
+    const tab = get().tabs.find((item) => item.id === tabId);
+    if (!tab || tab.kind !== "ssh" || !tab.sshAlias) return;
+
+    const staleSession = tab.sessionId;
+    if (staleSession) {
+      await invoke("close_terminal_session", { sessionId: staleSession }).catch(() => undefined);
+    }
+
+    const session = await invoke<SessionDto>("create_ssh_session", { hostAlias: tab.sshAlias });
+    set((state) => ({
+      tabs: state.tabs.map((item) =>
+        item.id === tabId
+          ? { ...item, kind: "ssh", sessionId: session.id }
+          : item
+      ),
+      fileTransitioning: true,
+      selectedFile: undefined,
+      selectedSidebarTool: "files"
+    }));
+    get().clearTabDisconnected(tabId);
+    await persistUiState(get());
+    get().loadCurrentFiles({ force: true }).catch(() => {});
+  },
+
+  markTabDisconnected: (tabId, reason) => {
+    const safeReason = reason.trim() || "Connection lost";
+    set((state) => ({
+      tabDisconnectReasons: {
+        ...state.tabDisconnectReasons,
+        [tabId]: safeReason,
+      }
+    }));
+  },
+
+  clearTabDisconnected: (tabId) => {
+    set((state) => {
+      if (!state.tabDisconnectReasons[tabId]) {
+        return {};
+      }
+      const next = { ...state.tabDisconnectReasons };
+      delete next[tabId];
+      return { tabDisconnectReasons: next };
+    });
   },
 
   closeTab: async (tabId) => {
@@ -337,7 +470,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId,
       tabMruOrder: mru,
       fileTransitioning: true,
-      selectedFile: undefined
+      selectedFile: undefined,
+      tabDisconnectReasons: Object.fromEntries(
+        Object.entries(get().tabDisconnectReasons).filter(([id]) => id !== tabId)
+      )
     });
 
     if (tabs.length === 0) {
@@ -402,6 +538,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId: tabId,
       fileTransitioning: true,
       selectedFile: undefined,
+      selectedSidebarTool: "files",
       tabMruOrder: [tabId, ...state.tabMruOrder.filter((id) => id !== tabId)]
     }));
     void persistUiState(get());
@@ -444,6 +581,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPaletteOpen: (open) => set({ paletteOpen: open }),
 
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+
+  setSelectedSidebarTool: (tool) => set({ selectedSidebarTool: tool }),
 
   refreshHosts: async () => {
     const payload = await invoke<SshHostsPayload>("load_ssh_hosts");
@@ -556,6 +695,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         fileTransitioning: false,
         fileError: error instanceof Error ? error.message : String(error)
       });
+
+      if (activeTab.kind === "ssh") {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isConnectionError(message)) {
+          get().markTabDisconnected(activeTab.id, message);
+        }
+      }
     }
   },
 
