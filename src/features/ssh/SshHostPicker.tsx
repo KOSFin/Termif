@@ -111,6 +111,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalName, setGroupModalName] = useState("");
   const [renameGroupId, setRenameGroupId] = useState<string>();
+  const [alreadyConnectedModal, setAlreadyConnectedModal] = useState<string | null>(null);
 
   useEffect(() => {
     const onFocus = () => setOsCache(loadOsCache());
@@ -149,11 +150,29 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     return next;
   });
 
+  const { setActiveTab } = useAppStore();
+
   const connect = async (alias: string) => {
+    if (connectedHostAliases.has(alias)) {
+      setAlreadyConnectedModal(alias);
+      return;
+    }
+    await onConfirmConnect(alias);
+  };
+
+  const onConfirmConnect = async (alias: string) => {
     setConnectingAlias(alias);
     try { await connectSshTab(tabId, alias); }
     catch (e) { toast(`Connection failed: ${e instanceof Error ? e.message : String(e)}`); }
-    finally { setConnectingAlias(undefined); }
+    finally { setConnectingAlias(undefined); setAlreadyConnectedModal(null); }
+  };
+
+  const handleGoToTab = (alias: string) => {
+    const existingTab = tabs.find(t => t.sshAlias === alias);
+    if (existingTab) {
+      setActiveTab(existingTab.id);
+    }
+    setAlreadyConnectedModal(null);
   };
 
   const openSettings = (host: SshHostEntry, tab: SettingsTab = "connection") => {
@@ -283,9 +302,35 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               >
                 <Server size={14} strokeWidth={2}/> NEW HOST
               </button>
-              <button onClick={() => setQuickConnectOpen(true)}>
+              <button onClick={() => setQcPopoverOpen(!qcPopoverOpen)}>
                 <ChevronDown size={14} strokeWidth={2}/>
               </button>
+              
+              {qcPopoverOpen && (
+                <div className="quick-connect-popover" style={{ padding: "8px", width: "200px" }}>
+                  <button
+                    className="ghost"
+                    style={{ width: "100%", justifyContent: "flex-start", marginBottom: "4px" }}
+                    onClick={() => {
+                      setQuickConnectOpen(true);
+                      setQcPopoverOpen(false);
+                    }}
+                  >
+                    ⚡ Quick Connect
+                  </button>
+                  <button
+                    className="ghost"
+                    style={{ width: "100%", justifyItems: "flex-start", justifyContent: "flex-start" }}
+                    onClick={() => {
+                      setSettingsDraft({ ...blankHost });
+                      setSettingsTab("connection");
+                      setQcPopoverOpen(false);
+                    }}
+                  >
+                    ➕ Add to list
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -548,6 +593,28 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
             <div className="modal-footer">
               <button className="ghost" onClick={() => setQuickConnectOpen(false)}>Cancel</button>
               <button className="primary" onClick={() => void runQuickConnect()}>Connect</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Already Connected Modal ── */}
+      {alreadyConnectedModal && (
+        <div className="modal-overlay" onClick={() => setAlreadyConnectedModal(null)}>
+          <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Host already connected</h3>
+              <button className="ghost" onClick={() => setAlreadyConnectedModal(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-tip">
+                This host is already open in another tab. Do you want to open a new connection or switch to the existing tab?
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end', gap: '8px', display: 'flex' }}>
+              <button className="ghost" onClick={() => setAlreadyConnectedModal(null)}>Cancel</button>
+              <button className="ghost" onClick={() => handleGoToTab(alreadyConnectedModal)}>Go to Tab</button>
+              <button className="primary" onClick={() => onConfirmConnect(alreadyConnectedModal)}>Open New Connection</button>
             </div>
           </div>
         </div>

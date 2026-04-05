@@ -727,7 +727,7 @@ export function AppShell() {
       action: async () => {
         const name = window.prompt("File name")?.trim();
         if (!name || !activeTab) return;
-        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
+        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
         await loadCurrentFiles({ force: true });
       }
@@ -739,7 +739,7 @@ export function AppShell() {
       action: async () => {
         const name = window.prompt("Folder name")?.trim();
         if (!name || !activeTab) return;
-        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? "C:/").replace(/\/$/, "");
+        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
         await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
         await loadCurrentFiles({ force: true });
       }

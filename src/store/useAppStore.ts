@@ -340,6 +340,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
           : tab
       ),
+      tabPaths: { ...state.tabPaths, [tabId]: "/" },
       activeTabId: tabId,
       fileTransitioning: true,
       selectedFile: undefined,
@@ -398,6 +399,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
           : tab
       ),
+      tabPaths: { ...state.tabPaths, [tabId]: "/" },
       activeTabId: tabId,
       fileTransitioning: true,
       selectedFile: undefined,
