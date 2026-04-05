@@ -1,4 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
+import fs from 'fs';
+
+const newSshPicker = `import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderPlus, Download, RefreshCw, ArrowRight, Paperclip, Server, Search, ChevronUp, Database } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
@@ -152,7 +154,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const connect = async (alias: string) => {
     setConnectingAlias(alias);
     try { await connectSshTab(tabId, alias); }
-    catch (e) { toast(`Connection failed: ${e instanceof Error ? e.message : String(e)}`); }
+    catch (e) { toast(\`Connection failed: \${e instanceof Error ? e.message : String(e)}\`); }
     finally { setConnectingAlias(undefined); }
   };
 
@@ -172,7 +174,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   };
 
   const deleteHost = async () => {
-    if (!settingsDraft?.id || !window.confirm(`Delete "${settingsDraft.alias}"?`)) return;
+    if (!settingsDraft?.id || !window.confirm(\`Delete "\${settingsDraft.alias}"?\`)) return;
     await deleteManagedHost(settingsDraft.id);
     setSettingsDraft(null);
     toast("Host deleted");
@@ -217,7 +219,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       await saveManagedHost({ ...host, id: "", source: "managed", original_alias: host.alias });
     }
     setImportModalOpen(false);
-    toast(`Imported ${toImport.length} host(s)`);
+    toast(\`Imported \${toImport.length} host(s)\`);
     await refreshHosts();
   };
 
@@ -229,7 +231,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       await connectSshTabWithOptions(tabId, { ...qcDraft, alias, host, user: qcDraft.user?.trim() || null, port: qcDraft.port ?? 22 }, qcSave, null);
       setQuickConnectOpen(false);
       setQcPopoverOpen(false);
-    } catch (e) { toast(`Failed: ${e instanceof Error ? e.message : String(e)}`); }
+    } catch (e) { toast(\`Failed: \${e instanceof Error ? e.message : String(e)}\`); }
   };
 
   const openGroupModal = (groupId?: string) => {
@@ -281,12 +283,30 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               <button 
                 onClick={() => { setSettingsDraft({ ...blankHost }); setSettingsTab("connection"); }}
               >
-                <Server size={14} strokeWidth={2}/> NEW HOST
+                <Database size={14} strokeWidth={2}/> NEW HOST
               </button>
-              <button onClick={() => setQuickConnectOpen(true)}>
+              <button onClick={() => setQcPopoverOpen(!qcPopoverOpen)}>
                 <ChevronDown size={14} strokeWidth={2}/>
               </button>
             </div>
+            
+            {qcPopoverOpen && (
+              <div className="quick-connect-popover">
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{fontSize: "0.8rem", fontWeight: 600, color: "#ccc", textTransform: "uppercase"}}>Quick Connect</div>
+                  <input autoFocus placeholder="user@host" onChange={(e) => {
+                    const parts = e.target.value.split("@");
+                    if (parts.length === 2) {
+                      setQcDraft(p => ({...p, user: parts[0], host: parts[1]}));
+                    } else {
+                      setQcDraft(p => ({...p, host: e.target.value}));
+                    }
+                  }} />
+                  <input type="password" placeholder="Password (Optional)" onChange={(e) => setQcDraft(p => ({...p, password: e.target.value}))} />
+                  <button className="primary" style={{marginTop: "4px"}} onClick={runQuickConnect}>Connect Now</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -294,10 +314,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       {/* Tabs / Filter Bar */}
       <div className="ssh-filter-bar">
         <div className="ssh-filter-tabs">
-          <button className={`ssh-filter-tab ${activeGroupTab === "ALL" ? "active" : ""}`} onClick={() => setActiveGroupTab("ALL")}>ALL</button>
+          <button className={\`ssh-filter-tab \${activeGroupTab === "ALL" ? "active" : ""}\`} onClick={() => setActiveGroupTab("ALL")}>ALL</button>
           <div className="ssh-filter-divider"></div>
           {sshGroups.map(g => (
-            <button key={g.id} className={`ssh-filter-tab ${activeGroupTab === g.id ? "active" : ""}`} onClick={() => setActiveGroupTab(g.id)}>
+            <button key={g.id} className={\`ssh-filter-tab \${activeGroupTab === g.id ? "active" : ""}\`} onClick={() => setActiveGroupTab(g.id)}>
               {g.name}
             </button>
           ))}
@@ -314,7 +334,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
         {/* Ungrouped hosts -> display if ALL or if specifically looking at ungrouped (virtually) - Let's just show it in ALL */}
         {(activeGroupTab === "ALL") && hasAnyHosts && ungroupedManaged.length > 0 && (
           <section
-            className={`ssh-section${dragOverTarget === "ungrouped" ? " drag-over-section" : ""}`}
+            className={\`ssh-section\${dragOverTarget === "ungrouped" ? " drag-over-section" : ""}\`}
             {...dropZoneProps("ungrouped", null)}
           >
             <div 
@@ -351,7 +371,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
           return (
             <section
               key={group.id}
-              className={`ssh-section ssh-group-wrap ${isDropTarget ? "drag-over-section" : ""}`}
+              className={\`ssh-section ssh-group-wrap \${isDropTarget ? "drag-over-section" : ""}\`}
               {...dropZoneProps(group.id, group.id)}
             >
               <div 
@@ -387,202 +407,316 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
       </div>
 
-      {/* Modals */}
-      {/* ── Host Settings Modal ── */}
-      {settingsDraft !== null && (
-        <div className="modal-overlay" onClick={() => setSettingsDraft(null)}>
-          <div className="modal-panel modal-panel-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{settingsDraft.id ? `Edit: ${settingsDraft.alias}` : "New Host"}</h3>
-              <button className="ghost" onClick={() => setSettingsDraft(null)}>×</button>
-            </div>
-            <div className="modal-tabs">
-              {(["connection", "appearance", ...(settingsDraft.id ? ["danger"] : [])] as SettingsTab[]).map((tab) => (
-                <button key={tab} className={`modal-tab${settingsTab === tab ? " active" : ""}`} onClick={() => setSettingsTab(tab)}>
-                  {tab === "connection" ? "Connection" : tab === "appearance" ? "Appearance" : "Actions"}
-                </button>
-              ))}
-            </div>
-            <div className="modal-body">
-              {settingsTab === "connection" && <>
-                <label>Alias (display name)
-                  <input value={settingsDraft.alias} onChange={(e) => setSettingsDraft((p) => p ? { ...p, alias: e.target.value } : p)} autoFocus placeholder="my-server" />
-                </label>
-                <label>Hostname / IP
-                  <input value={settingsDraft.host_name} onChange={(e) => setSettingsDraft((p) => p ? { ...p, host_name: e.target.value } : p)} placeholder="192.168.1.1" />
-                </label>
-                <div className="modal-row-2">
-                  <label>User
-                    <input value={settingsDraft.user ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, user: e.target.value } : p)} placeholder="root" />
-                  </label>
-                  <label>Port
-                    <input type="number" value={settingsDraft.port ?? 22} onChange={(e) => setSettingsDraft((p) => p ? { ...p, port: Number(e.target.value) || 22 } : p)} />
-                  </label>
-                </div>
-                <label>Identity File
-                  <input value={settingsDraft.identity_file ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, identity_file: e.target.value } : p)} placeholder="~/.ssh/id_ed25519" />
-                </label>
-                <label>Password (optional)
-                  <input type="password" value={settingsDraft.password ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, password: e.target.value } : p)} placeholder="leave empty to use key" />
-                </label>
-                <label>Group
-                  <select value={settingsDraft.group_id ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, group_id: e.target.value || null } : p)}>
-                    <option value="">Ungrouped</option>
-                    {sshGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                </label>
-              </>}
-              {settingsTab === "appearance" && <>
-                <div className="modal-tip">Icon color is derived from the alias name. OS is detected automatically after the first connection.</div>
-                <div className="host-color-preview">
-                  <div className="host-card-icon-lg" style={{ background: getHostColor(settingsDraft.alias || "?") }}>
-                    {getInitial(settingsDraft.alias || "?")}
-                  </div>
-                  <span>Auto-colored from alias</span>
-                </div>
-              </>}
-              {settingsTab === "danger" && settingsDraft.id && <>
-                <div className="modal-tip">These actions are permanent.</div>
-                <div className="modal-danger-actions">
-                  <button onClick={() => void exportToConfig()}>Export to ~/.ssh/config</button>
-                  <button className="danger" onClick={() => void deleteHost()}>
-                    <Trash2 size={13} strokeWidth={2} /> Delete Host
-                  </button>
-                </div>
-              </>}
-            </div>
-            <div className="modal-footer">
-              <button className="ghost" onClick={() => setSettingsDraft(null)}>Cancel</button>
-              <button className="primary" onClick={() => void saveSettings()}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals... */}
+      <SshModals 
+        // Delegating all the modal rendering downwards so we don't spam 200 lines, 
+        // but strictly within this file actually to preserve all state
+      />
+      {settingsDraft !== null && ( ... same as original 
+`; 
 
-      {/* ── Import SSH Config Modal ── */}
-      {importModalOpen && (
-        <div className="modal-overlay" onClick={() => setImportModalOpen(false)}>
-          <div className="modal-panel modal-panel-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Import from ~/.ssh/config</h3>
-              <button className="ghost" onClick={() => setImportModalOpen(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {importedHosts.length === 0 ? (
-                <div className="modal-tip">No hosts found in ~/.ssh/config</div>
-              ) : <>
-                <div className="modal-tip">
-                  Select hosts to import. Already-imported ones are disabled.
-                </div>
-                <div className="import-grid">
-                  {importedHosts.map((host) => {
-                    const done = importedAliasSet.has(host.alias);
-                    const checked = done || importSelected.has(host.alias);
-                    const sub = [host.user ? `${host.user}@` : "", host.host_name, host.port && host.port !== 22 ? `:${host.port}` : ""].join("");
-                    return (
-                      <label key={host.alias} className={`import-card${done ? " done" : ""}${checked && !done ? " selected" : ""}`}>
-                        <input type="checkbox" checked={checked} disabled={done}
-                          onChange={(e) => setImportSelected((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(host.alias); else next.delete(host.alias);
-                            return next;
-                          })}
-                        />
-                        <div className="import-card-icon" style={{ background: getHostColor(host.alias) }}>
-                          {getInitial(host.alias)}
-                        </div>
-                        <div className="import-card-info">
-                          <div className="import-card-alias">{host.alias}</div>
-                          <div className="import-card-sub">{sub || host.host_name}</div>
-                        </div>
-                        {done && <span className="import-done-badge">✓</span>}
-                      </label>
-                    );
-                  })}
-                </div>
-              </>}
-            </div>
-            <div className="modal-footer">
-              <button className="ghost" onClick={() => setImportModalOpen(false)}>Cancel</button>
-              <button className="primary" disabled={importSelected.size === 0} onClick={() => void importHosts()}>
-                Import {importSelected.size > 0 ? `(${importSelected.size})` : ""}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+const originalCode = fs.readFileSync('src/features/ssh/SshHostPicker.tsx', 'utf8');
+const modalsPart = originalCode.substring(originalCode.indexOf("{/* ── Host Settings Modal"));
 
-      {/* ── Quick Connect Modal ── */}
-      {quickConnectOpen && (
-        <div className="modal-overlay" onClick={() => setQuickConnectOpen(false)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Quick Connect</h3>
-              <button className="ghost" onClick={() => setQuickConnectOpen(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <label>Host / IP
-                <input value={qcDraft.host} onChange={(e) => setQcDraft((p) => ({ ...p, host: e.target.value }))}
-                  placeholder="192.168.1.1 or hostname" autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") void runQuickConnect(); }} />
-              </label>
-              <div className="modal-row-2">
-                <label>User
-                  <input value={qcDraft.user ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, user: e.target.value }))} placeholder="root" />
-                </label>
-                <label>Port
-                  <input type="number" value={qcDraft.port ?? 22} onChange={(e) => setQcDraft((p) => ({ ...p, port: Number(e.target.value) || 22 }))} />
-                </label>
-              </div>
-              <label>Identity File (optional)
-                <input value={qcDraft.identity_file ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, identity_file: e.target.value }))} placeholder="~/.ssh/id_ed25519" />
-              </label>
-              <label>Password (optional)
-                <input type="password" value={qcDraft.password ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, password: e.target.value }))} placeholder="leave empty to use key" />
-              </label>
-              <label className="modal-checkbox-row">
-                <input type="checkbox" checked={qcSave} onChange={(e) => setQcSave(e.target.checked)} />
-                <span>Save as managed host</span>
-              </label>
-            </div>
-            <div className="modal-footer">
-              <button className="ghost" onClick={() => setQuickConnectOpen(false)}>Cancel</button>
-              <button className="primary" onClick={() => void runQuickConnect()}>Connect</button>
-            </div>
-          </div>
-        </div>
-      )}
+const combined = newSshPicker + modalsPart.replace("return (", "").trim();
 
-      {/* ── Group Modal ── */}
-      {groupModalOpen && (
-        <div className="modal-overlay" onClick={() => setGroupModalOpen(false)}>
-          <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{renameGroupId ? "Rename Group" : "New Group"}</h3>
-              <button className="ghost" onClick={() => setGroupModalOpen(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <label>Name
-                <input value={groupModalName} onChange={(e) => setGroupModalName(e.target.value)} autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") void saveGroupModal(); }} placeholder="My Servers" />
-              </label>
-            </div>
-            <div className="modal-footer">
-              <button className="ghost" onClick={() => setGroupModalOpen(false)}>Cancel</button>
-              <button className="primary" onClick={() => void saveGroupModal()}>
-                {renameGroupId ? "Rename" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+fs.writeFileSync('src/features/ssh/SshHostPicker.tsx', combined);
+
+const appCssAdd = `
+
+/* SSH HOSTS PAGE REDESIGN REDUX */
+.new-ssh-design.ssh-picker {
+  padding: 24px 32px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  background: var(--bg) !important;
+  height: 100%;
 }
 
-// ─── HostCard ────────────────────────────────────────────────────────────────
+.new-ssh-design .ssh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
+.new-ssh-design .ssh-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+  color: #eeeeee;
+}
 
+.new-ssh-design .ssh-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.new-ssh-design .import-btn {
+  background: #3a3a3a !important;
+  color: #eeeeee !important;
+  border-radius: 6px !important;
+  padding: 6px 14px !important;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8rem;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+.new-ssh-design .import-btn:hover { opacity: 0.8; }
+
+.new-ssh-design .new-host-group {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.new-ssh-design .new-host-group > button {
+  background: #4a4a4a !important;
+  color: #ffffff !important;
+  border: none;
+  cursor: pointer;
+}
+.new-ssh-design .new-host-group > button:first-child {
+  padding: 6px 12px 6px 14px !important;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8rem;
+  border-right: 1px solid rgba(0,0,0,0.2);
+}
+.new-ssh-design .new-host-group > button:last-child {
+  padding: 6px 8px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.new-ssh-design .new-host-group > button:hover {
+  filter: brightness(1.1);
+}
+
+.quick-connect-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 16px;
+  width: 260px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.05);
+  z-index: 100;
+}
+.quick-connect-popover input {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.new-ssh-design .ssh-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  align-items: center;
+}
+
+.new-ssh-design .ssh-filter-tabs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.new-ssh-design .ssh-filter-tab {
+  background: transparent;
+  color: #aaaaaa;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 4px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+.new-ssh-design .ssh-filter-tab.active {
+  background: #3e3e3e;
+  color: #ffffff;
+}
+
+.new-ssh-design .ssh-filter-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255,255,255,0.2);
+}
+
+.new-ssh-design .ssh-filter-actions {
+  display: flex;
+  gap: 8px;
+  padding-right: 4px;
+}
+.new-ssh-design .ssh-filter-actions button {
+  background: #3e3e3e;
+  border-radius: 4px;
+  padding: 4px;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-ssh-design .ssh-group-heading {
+  color: #eeeeee;
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 16px 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.new-ssh-design .drag-over-section {
+  border: 1px dashed rgba(255,255,255,0.3);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+/* Host Card REDESIGN */
+.new-ssh-design .ssh-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.host-card-new {
+  background: #2a2a2a;
+  border-radius: 12px;
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  height: 70px;
+  transition: transform 0.1s, box-shadow 0.1s;
+  overflow: hidden;
+}
+.host-card-new:hover {
+  background: #303030;
+}
+
+.host-card-new-settings {
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.host-card-new-settings:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.05);
+}
+
+.host-card-new-core {
+  display: flex;
+  flex: 1;
+  padding: 0 14px;
+  gap: 14px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.host-card-new-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.host-card-new-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  justify-content: center;
+}
+
+.host-card-new-alias {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ffffff;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.host-card-new-sub {
+  font-size: 0.75rem;
+  color: #aaaaaa;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.host-card-new-os {
+  font-size: 0.65rem;
+  color: #777777;
+  margin-top: 2px;
+}
+
+.host-card-new-chevron {
+  width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+}
+
+.connection-dot-new {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #4caf50;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #4caf50;
+}
+.connecting-overlay-new {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+`;
+
+fs.appendFileSync('src/theme/app.css', appCssAdd);
+
+const newCardCode = `
 
 // ──― HostCard  ──―
 
@@ -600,7 +734,7 @@ interface HostCardProps {
 
 function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings, draggable, onDragStart, onDragEnd }: HostCardProps) {
   const osMeta = osInfo?.os ? OS_META[osInfo.os] : null;
-  const subtitle = [host.user ? `${host.user}@` : "", host.host_name, host.port && host.port !== 22 ? `:${host.port}` : ""].join("");
+  const subtitle = [host.user ? \`\${host.user}@\` : "", host.host_name, host.port && host.port !== 22 ? \`:\${host.port}\` : ""].join("");
   const color = getHostColor(host.alias);
 
   return (
@@ -639,7 +773,7 @@ function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings
         <div className="host-card-new-details">
           <div className="host-card-new-alias">{host.alias}</div>
           <div className="host-card-new-sub">{subtitle || "No host configured"}</div>
-          <div className="host-card-new-os">{osMeta ? `${osMeta.name} ${osInfo?.version || ""}` : "Linux/Unknown"}</div>
+          <div className="host-card-new-os">{osMeta ? \`\${osMeta.name} \${osInfo?.version || ""}\` : "Linux/Unknown"}</div>
         </div>
       </div>
 
@@ -649,3 +783,23 @@ function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings
     </div>
   );
 }
+`;
+
+// Now let's carefully replace HostCard in the file!
+let finalCode = fs.readFileSync('src/features/ssh/SshHostPicker.tsx', 'utf8');
+
+// Slice off the old HostCard, up to the comment:
+const oldCardIndex = finalCode.indexOf("// ──― HostCard");
+if (oldCardIndex !== -1) {
+   finalCode = finalCode.slice(0, oldCardIndex) + newCardCode;
+   fs.writeFileSync('src/features/ssh/SshHostPicker.tsx', finalCode);
+} else {
+  // Try another index
+  const alternativeIndex = finalCode.indexOf("interface HostCardProps");
+  if (alternativeIndex !== -1) {
+     finalCode = finalCode.slice(0, alternativeIndex) + newCardCode;
+     fs.writeFileSync('src/features/ssh/SshHostPicker.tsx', finalCode);
+  }
+}
+
+console.log("Done");
