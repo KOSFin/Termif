@@ -133,52 +133,36 @@ export const TerminalPane = memo(function TerminalPane({
     });
 
     // ── Custom key handler for copy/paste ────────────────────────────────────
+    // NOTE: Do NOT intercept Ctrl+V here — xterm handles paste natively via
+    // its onData callback, which already sends the clipboard content to the PTY.
+    // Intercepting it here would cause double-paste.
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       // Ctrl+Shift+C → copy selected text
       if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyC") {
         const selection = xterm.getSelection();
-        if (selection) {
-          void navigator.clipboard.writeText(selection).catch(() => {});
-        }
-        return false; // prevent propagation
+        if (selection) void navigator.clipboard.writeText(selection).catch(() => {});
+        return false;
       }
 
-      // Ctrl+Shift+V → paste from clipboard
+      // Ctrl+Shift+V → explicit paste (alternative shortcut)
       if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) {
-            void invoke("send_terminal_input", { sessionId, data: text }).catch((error) => {
-              const message = error instanceof Error ? error.message : String(error);
-              onConnectionError?.(message);
-            });
-          }
+          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
+            onConnectionError?.(err instanceof Error ? err.message : String(err));
+          });
         }).catch(() => {});
         return false;
       }
 
-      // Ctrl+C when text is selected → copy (don't send interrupt)
+      // Ctrl+C with selection → copy, clear selection, don't send ^C interrupt
       if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyC") {
         const selection = xterm.getSelection();
         if (selection) {
           void navigator.clipboard.writeText(selection).catch(() => {});
           xterm.clearSelection();
-          return false; // prevent sending ^C to PTY
+          return false;
         }
-        // No selection: let ^C pass through as interrupt
-        return true;
-      }
-
-      // Ctrl+V → paste from clipboard
-      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) {
-            void invoke("send_terminal_input", { sessionId, data: text }).catch((error) => {
-              const message = error instanceof Error ? error.message : String(error);
-              onConnectionError?.(message);
-            });
-          }
-        }).catch(() => {});
-        return false;
+        return true; // no selection → let ^C through as interrupt
       }
 
       return true;
