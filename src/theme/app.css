@@ -168,7 +168,7 @@ textarea:focus {
 }
 
 .topbar-spacer {
-  flex: 0 0 clamp(56px, 8vw, 112px);
+  flex: 1 1 auto;
   min-width: 56px;
   height: 100%;
   -webkit-app-region: drag;
@@ -346,7 +346,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   gap: 0;
   max-width: none;
 }

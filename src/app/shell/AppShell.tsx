@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Square, X, Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Minus, Square, Copy, X, Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
@@ -106,7 +106,28 @@ export function AppShell() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
   // ── Window controls ─────────────────────────────────────────────────
   const appWindow = useMemo(() => getCurrentWindow(), []);
+  const [isMax, setIsMax] = useState(false);
   const closeInProgressRef = useRef(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    appWindow.onResized(async () => {
+      try {
+        const maximized = await appWindow.isMaximized();
+        setIsMax(maximized);
+      } catch (e) {
+        console.error(e);
+      }
+    }).then(_unlisten => {
+      unlisten = _unlisten;
+    }).catch(console.error);
+
+    appWindow.isMaximized().then(setIsMax).catch(console.error);
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [appWindow]);
 
   const confirmCloseWithUnsaved = useCallback(() => {
     if (!hasUnsavedEditorFiles()) return true;
@@ -833,8 +854,8 @@ export function AppShell() {
           <button className="window-btn" onClick={onMinimize} title="Minimize">
             <Minus size={14} strokeWidth={2} />
           </button>
-          <button className="window-btn" onClick={onMaximize} title="Maximize">
-            <Square size={11} strokeWidth={2} />
+          <button className="window-btn" onClick={onMaximize} title={isMax ? "Restore Down" : "Maximize"}>
+            {isMax ? <Copy size={11} strokeWidth={2} /> : <Square size={11} strokeWidth={2} />}
           </button>
           <button className="window-btn window-btn-close" onClick={onCloseWindow} title="Close">
             <X size={14} strokeWidth={2} />
