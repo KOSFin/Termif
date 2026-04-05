@@ -884,9 +884,9 @@ textarea:focus {
 .ssh-picker {
   width: 100%;
   height: 100%;
-  padding: 24px;
+  padding: 24px 28px;
   overflow: auto;
-  max-width: 960px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -894,7 +894,8 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  gap: 12px;
 }
 
 .ssh-header h2 {
@@ -902,179 +903,346 @@ textarea:focus {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-bright);
+  flex-shrink: 0;
 }
 
 .ssh-header-actions {
   display: flex;
-  gap: 8px;
-}
-
-.ssh-help-line {
-  margin-bottom: 16px;
-  font-size: 12px;
-  color: var(--text-muted);
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .ssh-header-actions select {
   width: auto;
-  min-width: 150px;
+  min-width: 110px;
   height: 30px;
   font-size: 12px;
+  padding: 0 8px;
 }
 
-.ssh-section-title {
+.ssh-header-actions button {
+  height: 30px;
+  padding: 0 10px;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin: 20px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.ssh-section-title:first-of-type {
-  margin-top: 0;
-}
+/* ── Groups ────────────────────────────────────────────────── */
 
-.ssh-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 10px;
-}
-
-.ssh-group-card {
+.ssh-group-section {
+  margin-bottom: 4px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-1);
   overflow: hidden;
+  transition: border-color 0.15s;
 }
 
-.ssh-group-card.drag-over {
+.ssh-group-section.drag-over {
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.ssh-group-header {
+.ssh-group-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 9px 12px;
   cursor: pointer;
+  user-select: none;
 }
 
-.ssh-group-header:hover {
+.ssh-group-row:hover {
   background: var(--bg-hover);
 }
 
-.ssh-group-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-dim);
-  color: var(--accent);
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  font-weight: 600;
+.ssh-group-chevron {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
-.ssh-group-info {
+.ssh-group-name-text {
   flex: 1;
-  min-width: 0;
-}
-
-.ssh-group-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ssh-group-count {
+.ssh-group-count-badge {
   font-size: 11px;
   color: var(--text-muted);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 10px;
+  padding: 1px 7px;
+  flex-shrink: 0;
 }
 
-.ssh-group-actions {
+.ssh-group-row-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
-.ssh-group-actions button {
-  width: 28px;
-  height: 28px;
-  padding: 0;
+.ssh-group-hosts-list {
+  border-top: 1px solid var(--stroke);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ssh-group-empty {
+  padding: 10px 16px;
   font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Hosts list (ungrouped) ────────────────────────────────── */
+
+.ssh-hosts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 4px;
+}
+
+.ssh-hosts-list.drag-over,
+.ssh-group-section.drag-over .ssh-group-hosts-list {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Host Row ──────────────────────────────────────────────── */
+
+.host-row {
+  display: flex;
+  align-items: center;
+  height: 58px;
+  background: var(--bg-elev-1);
+  border-bottom: 1px solid var(--stroke-soft);
+  transition: background 0.1s;
+}
+
+.host-row:last-child {
+  border-bottom: none;
+}
+
+.host-row:hover {
+  background: var(--bg-hover);
+}
+
+/* standalone rows (not inside a group) */
+.ssh-hosts-list > .host-row {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+}
+
+.ssh-hosts-list > .host-row:last-child {
+  margin-bottom: 0;
+}
+
+.host-row-settings {
+  width: 44px;
+  height: 100%;
   border: none;
   background: transparent;
   color: var(--text-muted);
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+  border-radius: 0;
+  transition: background 0.1s, color 0.1s;
 }
 
-.ssh-group-actions button:hover {
-  background: var(--bg-hover);
+.host-row-settings:hover {
+  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
   color: var(--text);
 }
 
-.ssh-group-hosts {
-  border-top: 1px solid var(--stroke);
-  padding: 6px;
-  display: grid;
-  gap: 4px;
+.host-row-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--stroke);
+  flex-shrink: 0;
 }
 
-.ssh-group-empty {
-  padding: 8px 12px;
+.host-row-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  min-width: 0;
+  cursor: grab;
+}
+
+.host-row-center:active {
+  cursor: grabbing;
+}
+
+.host-row-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: #fff;
+  letter-spacing: 0;
+}
+
+.host-row-icon.os-icon {
+  border-radius: 50%;
+  font-size: 13px;
+}
+
+.host-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.host-row-alias {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-row-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.host-row-os {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+  margin-top: 1px;
+}
+
+.host-row-connect {
+  width: 48px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.host-row-connect:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.host-row-connect.connecting {
+  opacity: 0.5;
+}
+
+.ssh-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 40px 20px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ── Host color preview (appearance tab) ───────────────────── */
+
+.host-color-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.host-card {
+/* ── Import modal ──────────────────────────────────────────── */
+
+.import-host-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.import-host-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--stroke);
+  padding: 9px 12px;
+  border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-md);
-  background: var(--bg-elev-1);
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
-.host-card[draggable="true"] {
-  cursor: grab;
+.import-host-row:hover:not(.imported) {
+  background: var(--bg-hover);
 }
 
-.host-card[draggable="true"]:active {
-  cursor: grabbing;
+.import-host-row.imported {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.ssh-dropzone.drag-over {
-  outline: 1px dashed var(--accent);
-  outline-offset: 6px;
-  border-radius: var(--radius-md);
+.import-host-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
 }
 
-.host-card:hover {
-  border-color: var(--accent-dim);
+.import-host-row.imported input[type="checkbox"] {
+  cursor: default;
 }
 
-.host-icon {
-  width: 36px;
-  height: 36px;
+.import-host-icon {
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
   color: #fff;
 }
 
-.host-info {
+.import-host-info {
   flex: 1;
   min-width: 0;
 }
 
-.host-title {
+.import-host-alias {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
@@ -1083,7 +1251,7 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.host-subtitle {
+.import-host-sub {
   font-size: 11px;
   color: var(--text-muted);
   overflow: hidden;
@@ -1091,22 +1259,14 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.host-actions {
-  display: flex;
-  gap: 4px;
+.import-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  white-space: nowrap;
   flex-shrink: 0;
-}
-
-.host-actions button {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-.ssh-empty {
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 20px;
-  text-align: center;
 }
 
 /* == Snippets =============================================== */
@@ -1123,146 +1283,232 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--stroke);
-  padding: 8px;
+  padding: 8px 10px;
 }
 
 .snippets-header h3 {
   margin: 0;
   font-size: 13px;
+  font-weight: 600;
   color: var(--text-bright);
 }
 
 .snippets-actions {
   display: flex;
-  gap: 4px;
-}
-
-.snippets-actions button {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  display: grid;
-  place-items: center;
-}
-
-.snippets-actions button:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+  gap: 2px;
 }
 
 .snippets-list {
   overflow: auto;
-  padding: 8px;
-  display: grid;
-  gap: 10px;
-  align-content: start;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+
+/* ── Snippet group ──────────────────────────────────────────── */
 
 .snippet-group {
   border: 1px solid var(--stroke);
   background: var(--bg-elev-1);
   border-radius: var(--radius-md);
   overflow: hidden;
+  transition: border-color 0.12s;
+}
+
+.snippet-group.drag-over {
+  border-color: var(--accent);
 }
 
 .snippet-group-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--stroke-soft);
-  background: color-mix(in srgb, var(--bg-elev-2) 55%, transparent);
+  gap: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+}
+
+.snippet-group-head:hover {
+  background: var(--bg-hover);
+}
+
+.snippet-group-chevron {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .snippet-group-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-group-count {
   font-size: 11px;
-  letter-spacing: 0.5px;
   color: var(--text-muted);
-  text-transform: uppercase;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 10px;
+  padding: 0 6px;
+  flex-shrink: 0;
 }
 
 .snippet-group-actions {
   display: flex;
   gap: 2px;
+  flex-shrink: 0;
 }
 
-.snippet-group-actions button {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  display: grid;
-  place-items: center;
+.snippet-group-body {
+  border-top: 1px solid var(--stroke-soft);
 }
 
-.snippet-group-actions button:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+.snippet-ungrouped {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: outline 0.12s;
 }
+
+.snippet-ungrouped.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── Snippet card ───────────────────────────────────────────── */
 
 .snippet-card {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-1);
+  margin-bottom: 3px;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.snippet-card:last-child {
+  margin-bottom: 0;
+}
+
+.snippet-group-body .snippet-card {
+  border: none;
+  border-bottom: 1px solid var(--stroke-soft);
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.snippet-group-body .snippet-card:last-child {
+  border-bottom: none;
+}
+
+.snippet-card.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-dim) 60%, transparent);
+}
+
+.snippet-drag-handle {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.snippet-card:hover .snippet-drag-handle {
+  opacity: 0.7;
+}
+
+.snippet-drag-handle:active {
+  cursor: grabbing;
 }
 
 .snippet-main {
+  flex: 1;
+  min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .snippet-title {
-  font-size: 13px;
-  color: var(--text);
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .snippet-description {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .snippet-command {
   font-family: "Cascadia Code", "JetBrains Mono", monospace;
-  font-size: 12px;
-  color: var(--text-bright);
-  border: 1px solid var(--stroke-soft);
-  border-radius: var(--radius-sm);
-  padding: 5px 7px;
-  background: var(--bg-panel);
-  white-space: pre-wrap;
-  word-break: break-word;
+  font-size: 11px;
+  color: var(--accent-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .snippet-card-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  flex-shrink: 0;
+  align-items: flex-start;
 }
 
 .snippet-card-actions button {
-  min-height: 26px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.snippet-card-actions button.primary {
+  width: 26px;
+  height: 26px;
 }
 
 .snippet-empty,
 .snippet-empty-global {
   font-size: 12px;
   color: var(--text-muted);
-  padding: 10px;
+  padding: 10px 12px;
+  font-style: italic;
 }
 
-/* == SSH Modal ================================================ */
+.snippet-empty-global {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+/* == Modals ================================================= */
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   display: grid;
   place-items: center;
   z-index: 100;
@@ -1274,6 +1520,17 @@ textarea:focus {
   border-radius: var(--radius-lg);
   background: var(--bg-elev-1);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+}
+
+.modal-panel-lg {
+  width: min(560px, calc(100vw - 40px));
+}
+
+.modal-panel-sm {
+  width: min(340px, calc(100vw - 40px));
 }
 
 .modal-header {
@@ -1282,18 +1539,63 @@ textarea:focus {
   align-items: center;
   padding: 14px 16px;
   border-bottom: 1px solid var(--stroke);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  color: var(--text-bright);
+}
+
+.modal-header button.ghost {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+}
+
+/* Tabs inside modal */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+.modal-tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.modal-tab:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.modal-tab.hidden {
+  display: none;
 }
 
 .modal-body {
   padding: 16px;
   display: grid;
   gap: 12px;
+  overflow-y: auto;
 }
 
 .modal-body label {
@@ -1303,13 +1605,67 @@ textarea:focus {
   color: var(--text-muted);
 }
 
-.ssh-modal-tip {
-  padding: 8px 10px;
+.modal-body textarea {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--stroke);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 12px;
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.modal-body textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 10px;
+}
+
+.modal-tip {
+  padding: 9px 12px;
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-elev-2) 45%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-2) 50%, transparent);
   font-size: 12px;
   color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.modal-danger-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-danger-actions button {
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+}
+
+.modal-checkbox-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.modal-checkbox-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .modal-footer {
@@ -1318,6 +1674,31 @@ textarea:focus {
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+/* == Shared icon button ====================================== */
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
 }
 
 /* == Palette ================================================== */

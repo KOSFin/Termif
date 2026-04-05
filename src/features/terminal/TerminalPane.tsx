@@ -2,6 +2,8 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { memo, useEffect, useRef, useState } from "react";
+import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
+import type { OsInfo } from "@/features/ssh/SshHostPicker";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -23,6 +25,47 @@ interface TerminalPaneProps {
   onReconnect?: () => void;
 }
 
+// OS detection patterns
+const OS_PATTERNS: Array<{ pattern: RegExp; os: string; versionPattern?: RegExp }> = [
+  { pattern: /ubuntu/i,    os: "ubuntu",  versionPattern: /ubuntu[^\d]*(\d+\.\d+)/i },
+  { pattern: /debian/i,    os: "debian",  versionPattern: /debian[^\d]*(\d+)/i },
+  { pattern: /centos/i,    os: "centos",  versionPattern: /centos[^\d]*(\d+)/i },
+  { pattern: /fedora/i,    os: "fedora",  versionPattern: /fedora[^\d]*(\d+)/i },
+  { pattern: /arch linux/i,os: "arch" },
+  { pattern: /alpine/i,    os: "alpine",  versionPattern: /alpine[^\d]*(\d+\.\d+)/i },
+  { pattern: /red hat/i,   os: "rhel",    versionPattern: /release[^\d]*(\d+)/i },
+  { pattern: /rocky/i,     os: "rocky",   versionPattern: /rocky[^\d]*(\d+)/i },
+  { pattern: /freebsd/i,   os: "freebsd", versionPattern: /freebsd[^\d]*(\d+\.\d+)/i },
+  { pattern: /microsoft/i, os: "windows" },
+  { pattern: /windows/i,   os: "windows" },
+];
+
+function detectOsFromOutput(text: string): OsInfo | null {
+  for (const { pattern, os, versionPattern } of OS_PATTERNS) {
+    if (pattern.test(text)) {
+      let version: string | undefined;
+      if (versionPattern) {
+        const match = text.match(versionPattern);
+        if (match) version = match[1];
+      }
+      return { os, version };
+    }
+  }
+  return null;
+}
+
+function saveOsToCache(alias: string, info: OsInfo) {
+  try {
+    const raw = localStorage.getItem(OS_CACHE_KEY);
+    const cache: Record<string, OsInfo> = raw ? (JSON.parse(raw) as Record<string, OsInfo>) : {};
+    if (cache[alias]?.os === info.os) return; // already cached
+    cache[alias] = info;
+    localStorage.setItem(OS_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // ignore
+  }
+}
+
 export const TerminalPane = memo(function TerminalPane({
   sessionId,
   isVisible,
@@ -38,10 +81,11 @@ export const TerminalPane = memo(function TerminalPane({
   const fitRef = useRef<FitAddon | null>(null);
   const visibleRef = useRef<boolean>(isVisible);
 
-  // Show connecting overlay for SSH sessions until the first byte of output arrives.
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
   const syntaxBootstrapSentRef = useRef<boolean>(false);
+  const osDetectedRef = useRef<boolean>(false);
+  const outputBufferRef = useRef<string>("");
 
   useEffect(() => {
     visibleRef.current = isVisible;
@@ -52,11 +96,12 @@ export const TerminalPane = memo(function TerminalPane({
     const el = containerRef.current;
     if (!el) return;
 
-    // Reset connecting state when a new SSH session starts.
     const isSSH = !!sshAlias;
     connectingRef.current = isSSH;
     setConnecting(isSSH);
     syntaxBootstrapSentRef.current = false;
+    osDetectedRef.current = false;
+    outputBufferRef.current = "";
 
     const xterm = new Terminal({
       cursorBlink: true,
@@ -87,6 +132,58 @@ export const TerminalPane = memo(function TerminalPane({
       });
     });
 
+    // ── Custom key handler for copy/paste ────────────────────────────────────
+    xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // Ctrl+Shift+C → copy selected text
+      if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyC") {
+        const selection = xterm.getSelection();
+        if (selection) {
+          void navigator.clipboard.writeText(selection).catch(() => {});
+        }
+        return false; // prevent propagation
+      }
+
+      // Ctrl+Shift+V → paste from clipboard
+      if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            void invoke("send_terminal_input", { sessionId, data: text }).catch((error) => {
+              const message = error instanceof Error ? error.message : String(error);
+              onConnectionError?.(message);
+            });
+          }
+        }).catch(() => {});
+        return false;
+      }
+
+      // Ctrl+C when text is selected → copy (don't send interrupt)
+      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyC") {
+        const selection = xterm.getSelection();
+        if (selection) {
+          void navigator.clipboard.writeText(selection).catch(() => {});
+          xterm.clearSelection();
+          return false; // prevent sending ^C to PTY
+        }
+        // No selection: let ^C pass through as interrupt
+        return true;
+      }
+
+      // Ctrl+V → paste from clipboard
+      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            void invoke("send_terminal_input", { sessionId, data: text }).catch((error) => {
+              const message = error instanceof Error ? error.message : String(error);
+              onConnectionError?.(message);
+            });
+          }
+        }).catch(() => {});
+        return false;
+      }
+
+      return true;
+    });
+
     // Forward keyboard/paste input to the PTY.
     const dataListener = xterm.onData((data) => {
       void invoke("send_terminal_input", { sessionId, data }).catch((error) => {
@@ -98,29 +195,48 @@ export const TerminalPane = memo(function TerminalPane({
     // ── Push-based output via Tauri Channel ─────────────────────────────────
     const channel = new Channel<string>();
     channel.onmessage = (chunk) => {
-      // Hide the "connecting" overlay on first received byte.
       if (connectingRef.current) {
         connectingRef.current = false;
         setConnecting(false);
       }
+
       xtermRef.current?.write(chunk);
+
+      // Buffer first 4000 chars for OS detection
+      if (isSSH && sshAlias && !osDetectedRef.current) {
+        outputBufferRef.current += chunk;
+        if (outputBufferRef.current.length > 4000) {
+          outputBufferRef.current = outputBufferRef.current.slice(0, 4000);
+        }
+      }
     };
 
-    // attach_channel returns immediately; output flows through the channel.
     void invoke("stream_terminal_output", { sessionId, onData: channel });
 
-    if (isSSH && terminalSettings?.syntax_highlighting) {
+    // ── SSH syntax highlighting bootstrap (always for SSH sessions) ──────────
+    if (isSSH) {
       window.setTimeout(() => {
-        if (syntaxBootstrapSentRef.current) {
-          return;
-        }
+        if (syntaxBootstrapSentRef.current) return;
         syntaxBootstrapSentRef.current = true;
-        const initScript = "export TERM=xterm-256color; export CLICOLOR=1; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G'\r";
+        const initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G' 2>/dev/null; true\r";
         void invoke("send_terminal_input", { sessionId, data: initScript }).catch((error) => {
           const message = error instanceof Error ? error.message : String(error);
           onConnectionError?.(message);
         });
-      }, 250);
+      }, 300);
+
+      // OS detection — scan buffered output after initial shell loads
+      if (sshAlias) {
+        window.setTimeout(() => {
+          if (!osDetectedRef.current && outputBufferRef.current) {
+            const info = detectOsFromOutput(outputBufferRef.current);
+            if (info) {
+              osDetectedRef.current = true;
+              saveOsToCache(sshAlias, info);
+            }
+          }
+        }, 3000);
+      }
     }
 
     // ── Resize observer ──────────────────────────────────────────────────────
@@ -182,10 +298,8 @@ export const TerminalPane = memo(function TerminalPane({
   }, []);
 
   // ── Visibility-change effect ─────────────────────────────────────────────
-  // When this pane is switched to, re-fit (window may have resized while hidden).
   useEffect(() => {
     if (!isVisible) return;
-    // Two-frame defer: first frame removes the hidden class, second frame has real dimensions.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const fit = fitRef.current;
@@ -233,7 +347,6 @@ export const TerminalPane = memo(function TerminalPane({
   );
 });
 
-/** Call fit() only when the container has real dimensions. */
 function safeFit(fit: FitAddon) {
   try {
     const dims = fit.proposeDimensions();
@@ -241,7 +354,7 @@ function safeFit(fit: FitAddon) {
       fit.fit();
     }
   } catch {
-    // Ignore — element may be mid-transition.
+    // Ignore
   }
 }
 
@@ -256,16 +369,16 @@ function asCursorStyle(value?: string): "bar" | "block" | "underline" {
 }
 
 function buildXtermTheme() {
-  const bg = readCssVar("--bg", "#0a0e14");
-  const bgElev = readCssVar("--bg-elev-1", "#111620");
-  const bgHover = readCssVar("--bg-hover", "#1c2230");
-  const text = readCssVar("--text", "#d4dae6");
-  const textBright = readCssVar("--text-bright", "#eef1f8");
-  const textMuted = readCssVar("--text-muted", "#6b7a8d");
-  const accent = readCssVar("--accent", "#4a8fe7");
-  const accent2 = readCssVar("--accent-2", "#3dba84");
-  const danger = readCssVar("--danger", "#e05468");
-  const warning = readCssVar("--warning", "#e0a84a");
+  const bg = readCssVar("--bg", "#1a1d23");
+  const bgElev = readCssVar("--bg-elev-1", "#21252b");
+  const bgHover = readCssVar("--bg-hover", "#2c313a");
+  const text = readCssVar("--text", "#abb2bf");
+  const textBright = readCssVar("--text-bright", "#e6e8ee");
+  const textMuted = readCssVar("--text-muted", "#636d83");
+  const accent = readCssVar("--accent", "#61afef");
+  const accent2 = readCssVar("--accent-2", "#98c379");
+  const danger = readCssVar("--danger", "#e06c75");
+  const warning = readCssVar("--warning", "#e5c07b");
 
   return {
     background: bg,
@@ -278,14 +391,14 @@ function buildXtermTheme() {
     red: danger,
     brightRed: "#ff7a8c",
     green: accent2,
-    brightGreen: "#5ed4a0",
+    brightGreen: "#b5e890",
     yellow: warning,
     brightYellow: "#f5c06a",
     blue: accent,
-    brightBlue: "#6aaeff",
-    magenta: "#9a7ce5",
-    brightMagenta: "#b89cf5",
-    cyan: "#5fb4d4",
+    brightBlue: "#7ec8ff",
+    magenta: "#c678dd",
+    brightMagenta: "#d896f0",
+    cyan: "#56b6c2",
     brightCyan: "#82ccdf",
     white: text,
     brightWhite: textBright,
