@@ -62,11 +62,11 @@ export interface CustomTheme {
 
 export interface AppSettings {
   appearance: {
-    theme: string;
+    theme?: string;
     accent_color: string;
     ui_density: string;
     tab_switching_mode: string;
-    custom_themes: CustomTheme[];
+    custom_themes?: CustomTheme[];
   };
   terminal: {
     default_shell: string;

@@ -1021,7 +1021,12 @@ export function AppShell() {
         onSave={saveSettings}
       />
 
-      {lastToast ? <div className="toast">{lastToast}</div> : null}
+      {lastToast ? (
+        <Toast
+          message={lastToast}
+          onDismiss={() => useAppStore.setState({ lastToast: undefined })}
+        />
+      ) : null}
 
       {!isInitialized ? (
         <div className="app-boot-overlay">
@@ -1029,6 +1034,44 @@ export function AppShell() {
           <span>Initializing workspace...</span>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const [paused, setPaused] = useState(false);
+  const timerRef = useRef<number>();
+  const remainingRef = useRef<number>(Math.min(6000, Math.max(2000, 2000 + message.length * 30)));
+
+  useEffect(() => {
+    const startTimer = () => {
+      timerRef.current = window.setTimeout(onDismiss, remainingRef.current);
+    };
+    startTimer();
+    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
+  }, [message]);
+
+  useEffect(() => {
+    if (paused) {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    } else {
+      // Reset full duration on mouse leave
+      remainingRef.current = Math.min(6000, Math.max(2000, 2000 + message.length * 30));
+      timerRef.current = window.setTimeout(onDismiss, remainingRef.current);
+    }
+    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
+  }, [paused]);
+
+  return (
+    <div
+      className="toast"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <span className="toast-message">{message}</span>
+      <button className="toast-close" onClick={onDismiss}>
+        <X size={12} strokeWidth={2} />
+      </button>
     </div>
   );
 }

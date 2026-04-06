@@ -311,7 +311,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
           </button>
           <div className="new-host-wrapper" style={{position: "relative"}}>
             <div className="new-host-group" style={{ display: "flex" }}>
-              <button 
+              <button
                 onClick={() => { setSettingsDraft({ ...blankHost }); setSettingsTab("connection"); }}
               >
                 <Server size={14} strokeWidth={2}/> NEW HOST
@@ -319,34 +319,33 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               <button onClick={() => setQcPopoverOpen(!qcPopoverOpen)}>
                 <ChevronDown size={14} strokeWidth={2}/>
               </button>
-              
-              {qcPopoverOpen && (
-                <>
-                  <div className="dropdown-backdrop" onClick={() => setQcPopoverOpen(false)} />
-                  <div className="new-host-dropdown">
-                    <button
-                      className="new-host-dropdown-item"
-                      onClick={() => {
-                        setQuickConnectOpen(true);
-                        setQcPopoverOpen(false);
-                      }}
-                    >
-                      <Zap size={14} strokeWidth={2} /> Quick Connect
-                    </button>
-                    <button
-                      className="new-host-dropdown-item"
-                      onClick={() => {
-                        setSettingsDraft({ ...blankHost });
-                        setSettingsTab("connection");
-                        setQcPopoverOpen(false);
-                      }}
-                    >
-                      <Plus size={14} strokeWidth={2} /> Add to list
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
+            {qcPopoverOpen && (
+              <>
+                <div className="dropdown-backdrop" onClick={() => setQcPopoverOpen(false)} />
+                <div className="new-host-dropdown">
+                  <button
+                    className="new-host-dropdown-item"
+                    onClick={() => {
+                      setQuickConnectOpen(true);
+                      setQcPopoverOpen(false);
+                    }}
+                  >
+                    <Zap size={14} strokeWidth={2} /> Quick Connect
+                  </button>
+                  <button
+                    className="new-host-dropdown-item"
+                    onClick={() => {
+                      setSettingsDraft({ ...blankHost });
+                      setSettingsTab("connection");
+                      setQcPopoverOpen(false);
+                    }}
+                  >
+                    <Plus size={14} strokeWidth={2} /> Add to list
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

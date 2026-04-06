@@ -83,25 +83,30 @@ function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; al
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
   const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
+  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
 
   useEffect(() => {
     Promise.resolve().then(() => setDraft(props.settings));
   }, [props.settings]);
 
   useEffect(() => {
-    if (props.open) setActiveSection("appearance");
+    if (props.open) {
+      setActiveSection("appearance");
+      setThemeEditorOpen(false);
+      setEditingTheme(null);
+    }
   }, [props.open]);
 
   if (!props.open || !draft) return null;
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
 
-  const currentTheme = draft.appearance.theme ?? "charcoal";
-  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
-  const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
+  const currentTheme = draft.appearance?.theme ?? "charcoal";
+  const customThemes = draft.appearance?.custom_themes ?? [];
 
   const handleApplyTheme = (themeId: string) => {
-    applyThemeEngine(themeId, draft.appearance.custom_themes ?? []);
+    applyThemeEngine(themeId, customThemes);
     setDraft((p) =>
       p ? { ...p, appearance: { ...p.appearance, theme: themeId } } : p
     );
@@ -117,7 +122,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
         : [...existing, theme];
       return { ...p, appearance: { ...p.appearance, theme: theme.id, custom_themes: next } };
     });
-    applyThemeEngine(theme.id, [...(draft.appearance.custom_themes ?? []).filter(t => t.id !== theme.id), theme]);
+    applyThemeEngine(theme.id, [...customThemes.filter(t => t.id !== theme.id), theme]);
     setThemeEditorOpen(false);
     setEditingTheme(null);
   };
@@ -129,7 +134,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       const newActiveTheme = p.appearance.theme === themeId ? "charcoal" : p.appearance.theme;
       return { ...p, appearance: { ...p.appearance, theme: newActiveTheme, custom_themes: next } };
     });
-    if (draft.appearance.theme === themeId) {
+    if (currentTheme === themeId) {
       applyThemeEngine("charcoal", []);
     }
     setThemeEditorOpen(false);

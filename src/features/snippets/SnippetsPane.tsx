@@ -192,7 +192,9 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
 
-  const onDragStart = (snippetId: string) => {
+  const onDragStart = (snippetId: string, e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", snippetId);
     setDraggingId(snippetId);
   };
 
@@ -289,7 +291,7 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
                       onRun={() => void runSnippet(snippet)}
                       onEdit={() => openEditSnippet(snippet.id)}
                       onDelete={() => deleteSnippet(snippet.id)}
-                      onDragStart={() => onDragStart(snippet.id)}
+                      onDragStart={(e) => onDragStart(snippet.id, e)}
                       onDragEnd={onDragEnd}
                       onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
                       onDrop={() => onDropOnSnippet(snippet.id)}
@@ -316,7 +318,7 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
               onRun={() => void runSnippet(snippet)}
               onEdit={() => openEditSnippet(snippet.id)}
               onDelete={() => deleteSnippet(snippet.id)}
-              onDragStart={() => onDragStart(snippet.id)}
+              onDragStart={(e) => onDragStart(snippet.id, e)}
               onDragEnd={onDragEnd}
               onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
               onDrop={() => onDropOnSnippet(snippet.id)}
@@ -417,7 +419,7 @@ interface SnippetCardProps {
   onRun: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onDragStart: () => void;
+  onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
@@ -428,10 +430,10 @@ function SnippetCard({ snippet, isDragOver, onRun, onEdit, onDelete, onDragStart
     <article
       className={`snippet-card${isDragOver ? " drag-over" : ""}`}
       draggable
-      onDragStart={onDragStart}
+      onDragStart={(e) => { onDragStart(e); }}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
-      onDrop={onDrop}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
     >
       <div className="snippet-drag-handle" title="Drag to reorder">
         <GripVertical size={12} strokeWidth={2} />

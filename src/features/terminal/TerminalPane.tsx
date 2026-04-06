@@ -197,7 +197,7 @@ export const TerminalPane = memo(function TerminalPane({
 
     void invoke("stream_terminal_output", { sessionId, onData: channel });
 
-    // ── SSH syntax highlighting bootstrap (always for SSH sessions) ──────────
+    // ── Terminal color bootstrap ──────────────────────────────────────────────
     if (isSSH) {
       window.setTimeout(() => {
         if (syntaxBootstrapSentRef.current) return;
@@ -208,7 +208,6 @@ export const TerminalPane = memo(function TerminalPane({
           onConnectionError?.(message);
         });
       }, 300);
-
       // OS detection — scan buffered output after initial shell loads
       if (sshAlias) {
         window.setTimeout(() => {
@@ -221,6 +220,18 @@ export const TerminalPane = memo(function TerminalPane({
           }
         }, 3000);
       }
+    } else {
+      // Local terminal: bootstrap color support for PowerShell / CMD
+      window.setTimeout(() => {
+        if (syntaxBootstrapSentRef.current) return;
+        syntaxBootstrapSentRef.current = true;
+        const initScript = [
+          "$env:TERM='xterm-256color'",
+          "if ($PSVersionTable) { Set-PSReadLineOption -Colors @{ Command = \"`e[93m\"; Parameter = \"`e[97m\"; Operator = \"`e[36m\"; Variable = \"`e[92m\"; String = \"`e[33m\"; Number = \"`e[35m\"; Comment = \"`e[90m\"; Keyword = \"`e[95m\"; Type = \"`e[34m\"; Default = \"`e[37m\" } 2>$null }",
+          "clear",
+        ].join("; ");
+        void invoke("send_terminal_input", { sessionId, data: initScript + "\r" }).catch(() => {});
+      }, 400);
     }
 
     // ── Resize observer ──────────────────────────────────────────────────────

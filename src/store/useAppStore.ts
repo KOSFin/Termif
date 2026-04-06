@@ -52,6 +52,7 @@ interface AppState {
   fileError?: string;
   selectedFile?: FileEntryDto;
   lastToast?: string;
+  toastId: number;
   dirCache: Record<string, FileEntryDto[]>;
   tabMruOrder: string[];
 
@@ -205,6 +206,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fileError: undefined,
   selectedFile: undefined,
   lastToast: undefined,
+  toastId: 0,
   dirCache: {},
   tabMruOrder: [],
 
@@ -321,7 +323,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
+      fileEntries: [],
+      fileLoading: false,
       fileTransitioning: false,
+      fileDisplayTabId: tab.id,
+      fileDisplayPath: undefined,
+      fileError: undefined,
       selectedFile: undefined,
       selectedSidebarTool: "files",
       tabMruOrder: [tab.id, ...state.tabMruOrder]
@@ -805,12 +812,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   toast: (message) => {
-    set({ lastToast: message });
+    const id = get().toastId + 1;
+    set({ lastToast: message, toastId: id });
+    // Smart duration: base 2s + 30ms per character, min 2s max 6s
+    const duration = Math.min(6000, Math.max(2000, 2000 + message.length * 30));
     window.setTimeout(() => {
-      if (get().lastToast === message) {
+      if (get().toastId === id) {
         set({ lastToast: undefined });
       }
-    }, 1800);
+    }, duration);
   },
 
   // ── Editor actions ─────────────────────────────────────────────────

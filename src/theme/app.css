@@ -1442,7 +1442,6 @@ textarea:focus {
   flex-direction: column;
   gap: 0;
   border-radius: var(--radius-md);
-  overflow: hidden;
   transition: outline 0.12s;
 }
 
@@ -1456,18 +1455,18 @@ textarea:focus {
 .snippet-card {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-1);
   margin-bottom: 3px;
-  transition: border-color 0.12s, background 0.12s, transform 0.12s, box-shadow 0.12s;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+  cursor: default;
 }
 .snippet-card:hover {
-  transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  border-color: var(--stroke);
+  border-color: var(--accent);
   background: var(--bg-hover);
 }
 
@@ -1480,6 +1479,13 @@ textarea:focus {
   border-bottom: 1px solid var(--stroke-soft);
   border-radius: 0;
   margin-bottom: 0;
+  box-shadow: none;
+}
+
+.snippet-group-body .snippet-card:hover {
+  box-shadow: none;
+  border-color: transparent;
+  border-bottom-color: var(--stroke-soft);
 }
 
 .snippet-group-body .snippet-card:last-child {
@@ -1607,6 +1613,7 @@ textarea:focus {
 
 .modal-panel-lg {
   width: min(560px, calc(100vw - 40px));
+  min-height: 360px;
 }
 
 .modal-panel-sm {
@@ -1676,6 +1683,8 @@ textarea:focus {
   display: grid;
   gap: 14px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .modal-body label {
@@ -2257,7 +2266,7 @@ textarea:focus {
   position: fixed;
   right: 16px;
   bottom: 38px;
-  padding: 8px 14px;
+  padding: 8px 12px 8px 14px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
@@ -2265,6 +2274,35 @@ textarea:focus {
   font-size: 13px;
   color: var(--text);
   animation: toast-in 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  backdrop-filter: blur(8px);
+}
+.toast-message {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+.toast-close {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.1s, background 0.1s;
+}
+.toast-close:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
 }
 
 /* == Editor =================================================== */
