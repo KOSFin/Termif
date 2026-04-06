@@ -115,6 +115,15 @@ export function SettingsPanel(props: SettingsPanelProps) {
     }
   }, [props.open]);
 
+  useEffect(() => {
+    if (draft && draft !== props.settings) {
+      const timer = setTimeout(() => {
+        void props.onSave(draft);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [draft, props.settings, props.onSave]);
+
   if (!props.open || !draft) return null;
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
@@ -182,10 +191,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <div className="settings-content-header">
             <h2>{sections.find((s) => s.key === activeSection)?.label}</h2>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => void props.onSave(draft)} className="primary">Save</button>
-              <button onClick={props.onClose} className="ghost">
-                <X size={14} strokeWidth={2} />
-              </button>
+
             </div>
           </div>
 

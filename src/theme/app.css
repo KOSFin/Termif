@@ -1600,6 +1600,7 @@ textarea:focus {
 
 .modal-panel {
   width: min(480px, calc(100vw - 40px));
+  min-height: 420px;
   border: 1px solid var(--stroke);
   border-radius: var(--ui-radius, var(--radius-lg));
   background: var(--bg-elev-1);
