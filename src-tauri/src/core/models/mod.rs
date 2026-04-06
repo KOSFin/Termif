@@ -84,9 +84,11 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             appearance: AppearanceSettings {
+                theme: "charcoal".to_string(),
                 accent_color: "#61a0ff".to_string(),
                 ui_density: "comfortable".to_string(),
                 tab_switching_mode: "mru".to_string(),
+                custom_themes: Vec::new(),
             },
             terminal: TerminalSettings {
                 default_shell: "powershell".to_string(),
@@ -126,14 +128,30 @@ impl Default for AppSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppearanceSettings {
+    #[serde(default = "default_theme")]
+    pub theme: String,
     pub accent_color: String,
     pub ui_density: String,
     #[serde(default = "default_tab_switching_mode")]
     pub tab_switching_mode: String,
+    #[serde(default)]
+    pub custom_themes: Vec<CustomTheme>,
+}
+
+fn default_theme() -> String {
+    "charcoal".to_string()
 }
 
 fn default_tab_switching_mode() -> String {
     "mru".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomTheme {
+    pub id: String,
+    pub name: String,
+    pub base_theme: String,
+    pub variables: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

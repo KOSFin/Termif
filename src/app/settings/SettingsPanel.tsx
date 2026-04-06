@@ -7,9 +7,14 @@ import {
   FolderOpen,
   Activity,
   FlaskConical,
-  X
+  X,
+  Plus,
+  Pencil,
+  Trash2
 } from "lucide-react";
-import type { AppSettings } from "@/types/models";
+import type { AppSettings, CustomTheme } from "@/types/models";
+import { ThemeEditor } from "./ThemeEditor";
+import { applyTheme as applyThemeEngine } from "@/theme/themeEngine";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -91,13 +96,44 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
 
-  const currentTheme = document.documentElement.getAttribute("data-theme") ?? "charcoal";
+  const currentTheme = draft.appearance.theme ?? "charcoal";
+  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
 
-  const applyTheme = (themeId: string) => {
-    document.documentElement.setAttribute("data-theme", themeId);
+  const handleApplyTheme = (themeId: string) => {
+    applyThemeEngine(themeId, draft.appearance.custom_themes ?? []);
     setDraft((p) =>
       p ? { ...p, appearance: { ...p.appearance, theme: themeId } } : p
     );
+  };
+
+  const handleSaveCustomTheme = (theme: CustomTheme) => {
+    setDraft((p) => {
+      if (!p) return p;
+      const existing = p.appearance.custom_themes ?? [];
+      const idx = existing.findIndex((t) => t.id === theme.id);
+      const next = idx >= 0
+        ? existing.map((t) => t.id === theme.id ? theme : t)
+        : [...existing, theme];
+      return { ...p, appearance: { ...p.appearance, theme: theme.id, custom_themes: next } };
+    });
+    applyThemeEngine(theme.id, [...(draft.appearance.custom_themes ?? []).filter(t => t.id !== theme.id), theme]);
+    setThemeEditorOpen(false);
+    setEditingTheme(null);
+  };
+
+  const handleDeleteCustomTheme = (themeId: string) => {
+    setDraft((p) => {
+      if (!p) return p;
+      const next = (p.appearance.custom_themes ?? []).filter((t) => t.id !== themeId);
+      const newActiveTheme = p.appearance.theme === themeId ? "charcoal" : p.appearance.theme;
+      return { ...p, appearance: { ...p.appearance, theme: newActiveTheme, custom_themes: next } };
+    });
+    if (draft.appearance.theme === themeId) {
+      applyThemeEngine("charcoal", []);
+    }
+    setThemeEditorOpen(false);
+    setEditingTheme(null);
   };
 
   return (
@@ -140,7 +176,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                     <button
                       key={theme.id}
                       className={`theme-card ${currentTheme === theme.id ? "active" : ""}`}
-                      onClick={() => applyTheme(theme.id)}
+                      onClick={() => handleApplyTheme(theme.id)}
                     >
                       <div className="theme-preview" style={{ background: theme.preview }} />
                       <span>{theme.name}</span>
@@ -148,6 +184,36 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Custom Themes */}
+              <div className="custom-themes-section">
+                <div className="custom-themes-section-title">Custom Themes</div>
+                <div className="theme-grid">
+                  {(draft.appearance.custom_themes ?? []).map((ct) => (
+                    <button
+                      key={ct.id}
+                      className={`custom-theme-card ${currentTheme === ct.id ? "active" : ""}`}
+                      onClick={() => handleApplyTheme(ct.id)}
+                    >
+                      <div className="theme-preview" style={{ background: ct.variables["--bg"] ?? "#333" }} />
+                      <span>{ct.name}</span>
+                      <div className="custom-theme-card-actions">
+                        <button onClick={(e) => { e.stopPropagation(); setEditingTheme(ct); setThemeEditorOpen(true); }} title="Edit">
+                          <Pencil size={10} strokeWidth={2} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomTheme(ct.id); }} title="Delete">
+                          <Trash2 size={10} strokeWidth={2} />
+                        </button>
+                      </div>
+                    </button>
+                  ))}
+                  <button className="create-theme-btn" onClick={() => { setEditingTheme(null); setThemeEditorOpen(true); }}>
+                    <Plus size={18} strokeWidth={1.5} />
+                    <span>Create Theme</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="settings-row">
                 <label>Accent Color</label>
                 <input
@@ -188,6 +254,17 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </select>
               </div>
             </div>
+          )}
+
+          {themeEditorOpen && (
+            <ThemeEditor
+              existingTheme={editingTheme}
+              customThemes={draft.appearance.custom_themes ?? []}
+              currentThemeId={currentTheme}
+              onSave={handleSaveCustomTheme}
+              onDelete={handleDeleteCustomTheme}
+              onClose={() => { setThemeEditorOpen(false); setEditingTheme(null); }}
+            />
           )}
 
           {activeSection === "terminal" && (

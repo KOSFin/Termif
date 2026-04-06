@@ -631,9 +631,10 @@ export function AppShell() {
     const elapsedSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
     const liveEpoch = serverEpoch + elapsedSec;
     const date = new Date(liveEpoch * 1000);
+    const tz = remoteStatus?.server_tz ?? undefined;
     return {
-      value: formatClock(date),
-      zone: remoteStatus?.server_tz ?? "",
+      value: formatClock(date, tz),
+      zone: tz ?? "",
       visible: true,
     };
   }, [
@@ -1032,13 +1033,24 @@ export function AppShell() {
   );
 }
 
-function formatClock(date: Date): string {
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+function formatClock(date: Date, timeZone?: string): string {
+  try {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      ...(timeZone ? { timeZone } : {}),
+    });
+  } catch {
+    // Fallback if timezone string is not a valid IANA name
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  }
 }
 
 function classifyPercent(value: number | null): "ok" | "warn" | "danger" {

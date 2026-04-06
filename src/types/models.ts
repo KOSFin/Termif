@@ -53,11 +53,20 @@ export interface SshConnectOptions {
   password?: string | null;
 }
 
+export interface CustomTheme {
+  id: string;
+  name: string;
+  base_theme: string;
+  variables: Record<string, string>;
+}
+
 export interface AppSettings {
   appearance: {
+    theme: string;
     accent_color: string;
     ui_density: string;
     tab_switching_mode: string;
+    custom_themes: CustomTheme[];
   };
   terminal: {
     default_shell: string;

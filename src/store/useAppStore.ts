@@ -12,6 +12,7 @@ import type {
   SshHostsPayload
 } from "@/types/models";
 import { detectLanguage } from "@/features/editor/languageMap";
+import { applyTheme } from "@/theme/themeEngine";
 
 export interface EditorFile {
   id: string;
@@ -232,6 +233,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       managedHosts: hosts.managed,
       sshGroups: hosts.groups
     });
+
+    // Apply persisted theme on startup
+    const themeId = settings?.appearance?.theme ?? "charcoal";
+    applyTheme(themeId, settings?.appearance?.custom_themes ?? []);
 
     const restoredTabs: AppTab[] = [];
     for (const savedTab of persisted.tabs) {
@@ -624,6 +629,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     const force = options?.force ?? false;
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
+
+    if (activeTab.kind === "ssh_picker") {
+      set({
+        fileEntries: [], fileLoading: false, fileTransitioning: false,
+        fileError: undefined, selectedFile: undefined,
+        fileDisplayTabId: activeTab.id, fileDisplayPath: undefined
+      });
+      return;
+    }
+
     const requestTabId = activeTab.id;
 
     const currentPath =
@@ -710,6 +725,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadCurrentFilesFromCache: () => {
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
+
+    if (activeTab.kind === "ssh_picker") {
+      set({
+        fileEntries: [], fileLoading: false, fileTransitioning: false,
+        fileError: undefined, selectedFile: undefined,
+        fileDisplayTabId: activeTab.id, fileDisplayPath: undefined
+      });
+      return;
+    }
 
     const currentPath =
       get().tabPaths[activeTab.id] ??

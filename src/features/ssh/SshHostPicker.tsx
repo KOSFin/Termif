@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderPlus, Download, RefreshCw, ArrowRight, Paperclip, Server, Search, ChevronUp, Database } from "lucide-react";
+import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderPlus, Download, RefreshCw, ArrowRight, Paperclip, Server, Search, ChevronUp, Database, Zap, X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshConnectOptions, SshHostEntry } from "@/types/models";
 
@@ -107,6 +107,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
   const [qcPopoverOpen, setQcPopoverOpen] = useState(false);
 
+  // Search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Group modal
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalName, setGroupModalName] = useState("");
@@ -133,15 +137,25 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     });
   }, [sortMode]);
 
+  const filteredManaged = useMemo(() => {
+    if (!searchQuery.trim()) return managedHosts;
+    const q = searchQuery.toLowerCase();
+    return managedHosts.filter(h =>
+      h.alias.toLowerCase().includes(q) ||
+      h.host_name.toLowerCase().includes(q) ||
+      (h.user ?? "").toLowerCase().includes(q)
+    );
+  }, [managedHosts, searchQuery]);
+
   const groupedManaged = useMemo(() =>
-    sshGroups.slice().sort((a, b) => a.order - b.order).map((group) => ({       
+    sshGroups.slice().sort((a, b) => a.order - b.order).map((group) => ({
       group,
-      hosts: sortHosts(managedHosts.filter((h) => h.group_id === group.id))     
-    })), [managedHosts, sortHosts, sshGroups]);
+      hosts: sortHosts(filteredManaged.filter((h) => h.group_id === group.id))
+    })), [filteredManaged, sortHosts, sshGroups]);
 
   const ungroupedManaged = useMemo(
-    () => sortHosts(managedHosts.filter((h) => !h.group_id)),
-    [managedHosts, sortHosts]
+    () => sortHosts(filteredManaged.filter((h) => !h.group_id)),
+    [filteredManaged, sortHosts]
   );
 
   const toggleGroup = (id: string) => setExpandedGroups((prev) => {
@@ -307,29 +321,30 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               </button>
               
               {qcPopoverOpen && (
-                <div className="quick-connect-popover" style={{ padding: "8px", width: "200px" }}>
-                  <button
-                    className="ghost"
-                    style={{ width: "100%", justifyContent: "flex-start", marginBottom: "4px" }}
-                    onClick={() => {
-                      setQuickConnectOpen(true);
-                      setQcPopoverOpen(false);
-                    }}
-                  >
-                    ⚡ Quick Connect
-                  </button>
-                  <button
-                    className="ghost"
-                    style={{ width: "100%", justifyItems: "flex-start", justifyContent: "flex-start" }}
-                    onClick={() => {
-                      setSettingsDraft({ ...blankHost });
-                      setSettingsTab("connection");
-                      setQcPopoverOpen(false);
-                    }}
-                  >
-                    ➕ Add to list
-                  </button>
-                </div>
+                <>
+                  <div className="dropdown-backdrop" onClick={() => setQcPopoverOpen(false)} />
+                  <div className="new-host-dropdown">
+                    <button
+                      className="new-host-dropdown-item"
+                      onClick={() => {
+                        setQuickConnectOpen(true);
+                        setQcPopoverOpen(false);
+                      }}
+                    >
+                      <Zap size={14} strokeWidth={2} /> Quick Connect
+                    </button>
+                    <button
+                      className="new-host-dropdown-item"
+                      onClick={() => {
+                        setSettingsDraft({ ...blankHost });
+                        setSettingsTab("connection");
+                        setQcPopoverOpen(false);
+                      }}
+                    >
+                      <Plus size={14} strokeWidth={2} /> Add to list
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -349,9 +364,23 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
         </div>
         <div className="ssh-filter-actions">
           <button onClick={() => openGroupModal()} title="New Group"><Plus size={16}/></button>
-          <button title="Search..."><Search size={16}/></button>
+          <button onClick={() => { setSearchOpen(v => !v); if (searchOpen) setSearchQuery(""); }} title="Search..." className={searchOpen ? "active" : ""}>
+            {searchOpen ? <X size={16}/> : <Search size={16}/>}
+          </button>
         </div>
       </div>
+
+      {searchOpen && (
+        <div className="ssh-search-bar">
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search hosts by alias, hostname, or user..."
+            onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); } }}
+          />
+        </div>
+      )}
 
       {/* Lists Content */}
       <div className="ssh-lists-content" style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
