@@ -141,8 +141,8 @@ textarea:focus {
 }
 
 .topbar-drag-zone {
-  width: 24px;
-  min-width: 24px;
+  width: 4px;
+  min-width: 4px;
   height: 100%;
   flex-shrink: 0;
   -webkit-app-region: drag;
@@ -419,6 +419,24 @@ textarea:focus {
   right: 0;
   height: 3px;
   background: var(--tab-color, var(--accent));
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.tab.active .tab-icon {
+  color: var(--text);
+}
+
+.tab-icon-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .tab-close {
@@ -1273,18 +1291,18 @@ textarea:focus {
 }
 
 .import-card.done {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: default;
+  background: color-mix(in srgb, var(--accent-2) 8%, var(--bg-elev-2));
+  border-color: color-mix(in srgb, var(--accent-2) 30%, var(--stroke));
 }
 
 .import-card input[type="checkbox"] {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   accent-color: var(--accent);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .import-card.done input[type="checkbox"] {
@@ -1301,7 +1319,6 @@ textarea:focus {
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
-  margin-left: 18px;
 }
 
 .import-card-info {
@@ -1327,10 +1344,14 @@ textarea:focus {
 }
 
 .import-done-badge {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--accent-2);
   flex-shrink: 0;
-  font-weight: 700;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent-2) 15%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.3px;
 }
 
 /* == Snippets =============================================== */
@@ -1583,6 +1604,108 @@ textarea:focus {
 .snippet-empty-global {
   text-align: center;
   padding: 32px 16px;
+}
+
+/* == Clipboard History ======================================= */
+
+.clipboard-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.clipboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stroke);
+  padding: 8px 12px;
+}
+
+.clipboard-header h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clipboard-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.clipboard-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.clipboard-empty {
+  text-align: center;
+  padding: 32px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.clipboard-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+
+.clipboard-entry:hover {
+  background: var(--bg-hover);
+}
+
+.clipboard-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.clipboard-entry-text {
+  font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+
+.clipboard-entry-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.clipboard-entry-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.clipboard-entry:hover .clipboard-entry-actions {
+  opacity: 1;
+}
+
+.clipboard-entry-actions button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  font-size: 0;
 }
 
 /* == Modals ================================================= */
@@ -1945,6 +2068,11 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-elev-1);
+  padding: 20px 0 12px 0;
 }
 
 .settings-content-header h2 {

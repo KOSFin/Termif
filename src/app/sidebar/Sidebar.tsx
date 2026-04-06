@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { FolderOpen, Braces } from "lucide-react";
+import { FolderOpen, Braces, ClipboardList } from "lucide-react";
 import { FileManagerPane } from "@/features/file_manager/FileManagerPane";
 import { SnippetsPane } from "@/features/snippets/SnippetsPane";
+import { ClipboardPane } from "@/features/clipboard/ClipboardPane";
 import { useAppStore } from "@/store/useAppStore";
 
 interface SidebarProps {
@@ -35,6 +36,13 @@ export function Sidebar({ hidden }: SidebarProps) {
         >
           <Braces size={15} strokeWidth={2} />
         </button>
+        <button
+          className={selectedSidebarTool === "clipboard" ? "active" : ""}
+          title="Clipboard History"
+          onClick={() => setSelectedSidebarTool("clipboard")}
+        >
+          <ClipboardList size={15} strokeWidth={2} />
+        </button>
       </div>
       <div className="sidebar-content">
         {selectedSidebarTool === "files" ? (
@@ -43,8 +51,10 @@ export function Sidebar({ hidden }: SidebarProps) {
             isRemote={activeTab?.kind === "ssh"}
             sshAlias={activeTab?.sshAlias}
           />
-        ) : (
+        ) : selectedSidebarTool === "snippets" ? (
           <SnippetsPane activeSessionId={activeTab?.sessionId} />
+        ) : (
+          <ClipboardPane activeSessionId={activeTab?.sessionId} />
         )}
       </div>
     </aside>

@@ -586,6 +586,7 @@ export function AppShell() {
               sessionId={t.sessionId!}
               isVisible={t.id === activeTabId}
               sshAlias={t.sshAlias}
+              shellProfile={t.shellProfile}
               terminalSettings={settings?.terminal}
               disconnectedReason={tabDisconnectReasons[t.id]}
               reconnecting={!!reconnectingTabs[t.id]}

@@ -21,6 +21,8 @@ interface TerminalPaneProps {
   isVisible: boolean;
   /** SSH alias — when set, shows a "Connecting…" overlay until first output. */
   sshAlias?: string;
+  /** Shell profile for local tabs (e.g. "powershell", "cmd", "pwsh"). */
+  shellProfile?: string;
   terminalSettings?: TerminalVisualSettings;
   disconnectedReason?: string;
   reconnecting?: boolean;
@@ -73,6 +75,7 @@ export const TerminalPane = memo(function TerminalPane({
   sessionId,
   isVisible,
   sshAlias,
+  shellProfile,
   terminalSettings,
   disconnectedReason,
   reconnecting,
@@ -135,10 +138,11 @@ export const TerminalPane = memo(function TerminalPane({
       });
     });
 
+    // ── Block native paste so xterm.onData doesn't double-fire ────────────
+    const onNativePaste = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    el.addEventListener("paste", onNativePaste, true);
+
     // ── Custom key handler for copy/paste ────────────────────────────────────
-    // NOTE: Do NOT intercept Ctrl+V here — xterm handles paste natively via
-    // its onData callback, which already sends the clipboard content to the PTY.
-    // Intercepting it here would cause double-paste.
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       // Ctrl+Shift+C → copy selected text
       if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyC") {
@@ -147,7 +151,17 @@ export const TerminalPane = memo(function TerminalPane({
         return false;
       }
 
-      // Ctrl+Shift+V → explicit paste (alternative shortcut)
+      // Ctrl+V → paste from clipboard
+      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
+            onConnectionError?.(err instanceof Error ? err.message : String(err));
+          });
+        }).catch(() => {});
+        return false;
+      }
+
+      // Ctrl+Shift+V → paste from clipboard (alternative shortcut)
       if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
           if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
@@ -228,16 +242,23 @@ export const TerminalPane = memo(function TerminalPane({
         }, 3000);
       }
     } else if (syntaxHighlightingEnabled) {
-      // Local terminal: bootstrap color support for PowerShell / CMD
+      // Local terminal: bootstrap color support by shell type
       window.setTimeout(() => {
         if (syntaxBootstrapSentRef.current) return;
         syntaxBootstrapSentRef.current = true;
-        const initScript = [
-          "$env:TERM='xterm-256color'",
-          "if ($PSVersionTable) { Set-PSReadLineOption -Colors @{ Command = \"`e[93m\"; Parameter = \"`e[97m\"; Operator = \"`e[36m\"; Variable = \"`e[92m\"; String = \"`e[33m\"; Number = \"`e[35m\"; Comment = \"`e[90m\"; Keyword = \"`e[95m\"; Type = \"`e[34m\"; Default = \"`e[37m\" } 2>$null }",
-          "clear",
-        ].join("; ");
-        void invoke("send_terminal_input", { sessionId, data: initScript + "\r" }).catch(() => {});
+
+        let initScript: string;
+        if (shellProfile === "cmd") {
+          initScript = "set TERM=xterm-256color\r";
+        } else {
+          // PowerShell / pwsh
+          initScript = [
+            "$env:TERM='xterm-256color'",
+            "if ($PSVersionTable) { Set-PSReadLineOption -Colors @{ Command = \"`e[93m\"; Parameter = \"`e[97m\"; Operator = \"`e[36m\"; Variable = \"`e[92m\"; String = \"`e[33m\"; Number = \"`e[35m\"; Comment = \"`e[90m\"; Keyword = \"`e[95m\"; Type = \"`e[34m\"; Default = \"`e[37m\" } 2>$null }",
+            "clear",
+          ].join("; ") + "\r";
+        }
+        void invoke("send_terminal_input", { sessionId, data: initScript }).catch(() => {});
       }, 400);
     }
 
@@ -255,6 +276,7 @@ export const TerminalPane = memo(function TerminalPane({
     resizeObserver.observe(el);
 
     return () => {
+      el.removeEventListener("paste", onNativePaste, true);
       dataListener.dispose();
       resizeObserver.disconnect();
       xterm.dispose();

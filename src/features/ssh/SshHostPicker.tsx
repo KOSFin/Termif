@@ -648,7 +648,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
                           <div className="import-card-alias">{host.alias}</div>
                           <div className="import-card-sub">{sub || host.host_name}</div>
                         </div>
-                        {done && <span className="import-done-badge">✓</span>}
+                        {done && <span className="import-done-badge">Imported</span>}
                       </label>
                     );
                   })}

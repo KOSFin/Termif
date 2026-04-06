@@ -1,6 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { X, ChevronDown, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { X, ChevronDown, Plus, Terminal, Globe, Monitor } from "lucide-react";
 import type { AppTab } from "@/types/models";
+import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/SshHostPicker";
+
+const OS_ICON_COLORS: Record<string, string> = {
+  ubuntu: "#E95420", debian: "#A80030", centos: "#932279",
+  fedora: "#294172", arch: "#1793D1", alpine: "#0D597F",
+  rhel: "#EE0000", rocky: "#10B981", freebsd: "#AB2B28",
+  windows: "#0078D4", macos: "#A2AAAD",
+};
+
+function resolveTabIcon(tab: AppTab): ReactNode {
+  if (tab.kind === "ssh" || tab.kind === "ssh_picker") {
+    if (tab.sshAlias) {
+      try {
+        const raw = localStorage.getItem(OS_CACHE_KEY);
+        if (raw) {
+          const cache = JSON.parse(raw) as Record<string, OsInfo>;
+          const osInfo = cache[tab.sshAlias];
+          if (osInfo?.os) {
+            const color = OS_ICON_COLORS[osInfo.os];
+            if (color) return <span className="tab-icon-dot" style={{ background: color }} />;
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    return <Globe size={12} strokeWidth={2} />;
+  }
+  if (tab.shellProfile === "cmd") return <Monitor size={12} strokeWidth={2} />;
+  return <Terminal size={12} strokeWidth={2} />;
+}
 
 interface TabStripProps {
   tabs: AppTab[];
@@ -88,6 +117,13 @@ export function TabStrip(props: TabStripProps) {
         ref={scrollRef}
         role="tablist"
         aria-label="Terminal tabs"
+        onWheel={(e) => {
+          const el = scrollRef.current;
+          if (el && e.deltaY !== 0) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }}
       >
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
@@ -104,6 +140,7 @@ export function TabStrip(props: TabStripProps) {
                 setContextPosition(pos);
               }}
             >
+              <span className="tab-icon">{resolveTabIcon(tab)}</span>
               <span className="tab-title">{tab.title}</span>
               <span
                 className="tab-close"

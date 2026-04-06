@@ -37,7 +37,7 @@ interface AppState {
   sidebarVisible: boolean;
   paletteOpen: boolean;
   settingsOpen: boolean;
-  selectedSidebarTool: "files" | "snippets";
+  selectedSidebarTool: "files" | "snippets" | "clipboard";
   settings: AppSettings | null;
   sshGroups: SshHostGroup[];
   importedHosts: SshHostEntry[];
@@ -81,7 +81,7 @@ interface AppState {
   toggleSidebar: () => void;
   setPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
-  setSelectedSidebarTool: (tool: "files" | "snippets") => void;
+  setSelectedSidebarTool: (tool: "files" | "snippets" | "clipboard") => void;
   refreshHosts: () => Promise<void>;
   connectSshTabWithOptions: (
     tabId: string,
@@ -345,7 +345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         tab.id === tabId
           ? {
               ...tab,
-              title: `SSH: ${alias}`,
+              title: alias,
               kind: "ssh",
               sessionId: session.id,
               sshAlias: alias,
@@ -404,7 +404,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         tab.id === tabId
           ? {
               ...tab,
-              title: `SSH: ${safeAlias}`,
+              title: safeAlias,
               kind: "ssh",
               sessionId: session.id,
               sshAlias: safeAlias,
@@ -518,7 +518,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...state.tabs,
           {
             id: newTabId,
-            title: `SSH: ${source.sshAlias}`,
+            title: source.sshAlias ?? "SSH",
             color: source.color,
             icon: source.icon,
             kind: "ssh_picker"
