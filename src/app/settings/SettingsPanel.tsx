@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Palette,
   TerminalSquare,
@@ -10,20 +10,26 @@ import {
   X,
   Plus,
   Pencil,
-  Trash2
+  Trash2,
+  Search,
+  Check
 } from "lucide-react";
 import type { AppSettings, CustomTheme } from "@/types/models";
 import { ThemeEditor } from "./ThemeEditor";
 import { applyTheme as applyThemeEngine } from "@/theme/themeEngine";
+import { HotkeyRecorder } from "./HotkeyRecorder";
+import { TerminalPreview, TERMINAL_COLOR_SCHEMES, type TerminalColorScheme } from "./TerminalPreview";
 
 interface SettingsPanelProps {
   open: boolean;
   settings: AppSettings | null;
   onClose: () => void;
   onSave: (settings: AppSettings) => Promise<void>;
+  initialSection?: SettingsSection;
+  highlightSetting?: string;
 }
 
-type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "status_bar" | "experimental";
+export type SettingsSection = "appearance" | "terminal" | "hotkeys" | "ssh" | "file_manager" | "status_bar" | "experimental";
 
 const sections: { key: SettingsSection; label: string; icon: typeof Palette }[] = [
   { key: "appearance", label: "Appearance", icon: Palette },
@@ -42,29 +48,40 @@ const themes = [
   { id: "monokai", name: "Monokai", preview: "#272822" }
 ];
 
-const hotkeyCatalog: Array<{ id: string; description: string; defaults: string[] }> = [
-  { id: "palette.open", description: "Open command palette", defaults: ["Ctrl+Shift+P"] },
-  { id: "sidebar.toggle", description: "Toggle file sidebar", defaults: ["Ctrl+B"] },
-  { id: "tab.new_default", description: "New terminal tab", defaults: ["Ctrl+T"] },
-  { id: "tab.close", description: "Close current tab", defaults: ["Ctrl+W"] },
-  { id: "settings.open", description: "Open settings", defaults: ["Ctrl+,"] },
-  { id: "tab.switcher.next", description: "Tab switcher next", defaults: ["Ctrl+Tab"] },
-  { id: "tab.switcher.prev", description: "Tab switcher previous", defaults: ["Ctrl+Shift+Tab"] },
-  { id: "files.refresh", description: "Refresh file manager", defaults: ["F5", "Ctrl+R"] },
-  { id: "editor.toggle", description: "Toggle editor panel", defaults: ["Ctrl+E"] },
-  { id: "zoom.in", description: "Zoom in", defaults: ["Ctrl+=", "Ctrl+Num+"] },
-  { id: "zoom.out", description: "Zoom out", defaults: ["Ctrl+-", "Ctrl+Num-"] },
-  { id: "zoom.reset", description: "Reset zoom", defaults: ["Ctrl+0"] },
-  { id: "ui.escape", description: "Close overlays", defaults: ["Escape"] },
-  { id: "tab.index.1", description: "Jump to tab 1", defaults: ["Alt+1"] },
-  { id: "tab.index.2", description: "Jump to tab 2", defaults: ["Alt+2"] },
-  { id: "tab.index.3", description: "Jump to tab 3", defaults: ["Alt+3"] },
-  { id: "tab.index.4", description: "Jump to tab 4", defaults: ["Alt+4"] },
-  { id: "tab.index.5", description: "Jump to tab 5", defaults: ["Alt+5"] },
-  { id: "tab.index.6", description: "Jump to tab 6", defaults: ["Alt+6"] },
-  { id: "tab.index.7", description: "Jump to tab 7", defaults: ["Alt+7"] },
-  { id: "tab.index.8", description: "Jump to tab 8", defaults: ["Alt+8"] },
-  { id: "tab.index.9", description: "Jump to tab 9", defaults: ["Alt+9"] },
+export const hotkeyCatalog: Array<{ id: string; description: string; defaults: string[]; section?: string }> = [
+  { id: "palette.open", description: "Open command palette", defaults: ["Ctrl+Shift+P"], section: "General" },
+  { id: "sidebar.toggle", description: "Toggle file sidebar", defaults: ["Ctrl+B"], section: "General" },
+  { id: "tab.new_default", description: "New terminal tab", defaults: ["Ctrl+T"], section: "Tabs" },
+  { id: "tab.close", description: "Close current tab", defaults: ["Ctrl+W"], section: "Tabs" },
+  { id: "tab.duplicate", description: "Duplicate current tab", defaults: [], section: "Tabs" },
+  { id: "tab.rename", description: "Rename current tab", defaults: [], section: "Tabs" },
+  { id: "settings.open", description: "Open settings", defaults: ["Ctrl+,"], section: "General" },
+  { id: "tab.switcher.next", description: "Tab switcher next", defaults: ["Ctrl+Tab"], section: "Tabs" },
+  { id: "tab.switcher.prev", description: "Tab switcher previous", defaults: ["Ctrl+Shift+Tab"], section: "Tabs" },
+  { id: "files.refresh", description: "Refresh file manager", defaults: ["F5", "Ctrl+R"], section: "Files" },
+  { id: "editor.toggle", description: "Toggle editor panel", defaults: ["Ctrl+E"], section: "Editor" },
+  { id: "editor.save", description: "Save current file", defaults: ["Ctrl+S"], section: "Editor" },
+  { id: "zoom.in", description: "Zoom in", defaults: ["Ctrl+=", "Ctrl+Num+"], section: "View" },
+  { id: "zoom.out", description: "Zoom out", defaults: ["Ctrl+-", "Ctrl+Num-"], section: "View" },
+  { id: "zoom.reset", description: "Reset zoom", defaults: ["Ctrl+0"], section: "View" },
+  { id: "fullscreen.toggle", description: "Toggle fullscreen", defaults: ["F11"], section: "View" },
+  { id: "terminal.copy", description: "Copy from terminal", defaults: ["Ctrl+Shift+C"], section: "Terminal" },
+  { id: "terminal.paste", description: "Paste to terminal", defaults: ["Ctrl+Shift+V"], section: "Terminal" },
+  { id: "terminal.clear", description: "Clear terminal", defaults: ["Ctrl+L"], section: "Terminal" },
+  { id: "clipboard.paste", description: "Paste (system)", defaults: ["Ctrl+V"], section: "General" },
+  { id: "select.all", description: "Select all", defaults: ["Ctrl+A"], section: "General" },
+  { id: "sidebar.files", description: "Show files panel", defaults: ["Ctrl+Shift+E"], section: "General" },
+  { id: "sidebar.snippets", description: "Show snippets panel", defaults: ["Ctrl+Shift+S"], section: "General" },
+  { id: "ui.escape", description: "Close overlays", defaults: ["Escape"], section: "General" },
+  { id: "tab.index.1", description: "Jump to tab 1", defaults: ["Alt+1"], section: "Tabs" },
+  { id: "tab.index.2", description: "Jump to tab 2", defaults: ["Alt+2"], section: "Tabs" },
+  { id: "tab.index.3", description: "Jump to tab 3", defaults: ["Alt+3"], section: "Tabs" },
+  { id: "tab.index.4", description: "Jump to tab 4", defaults: ["Alt+4"], section: "Tabs" },
+  { id: "tab.index.5", description: "Jump to tab 5", defaults: ["Alt+5"], section: "Tabs" },
+  { id: "tab.index.6", description: "Jump to tab 6", defaults: ["Alt+6"], section: "Tabs" },
+  { id: "tab.index.7", description: "Jump to tab 7", defaults: ["Alt+7"], section: "Tabs" },
+  { id: "tab.index.8", description: "Jump to tab 8", defaults: ["Alt+8"], section: "Tabs" },
+  { id: "tab.index.9", description: "Jump to tab 9", defaults: ["Alt+9"], section: "Tabs" },
 ];
 
 function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; alternates?: string[] | null }>) {

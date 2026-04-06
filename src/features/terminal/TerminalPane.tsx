@@ -4,6 +4,7 @@ import { Terminal } from "@xterm/xterm";
 import { memo, useEffect, useRef, useState } from "react";
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
+import { TERMINAL_COLOR_SCHEMES } from "@/app/settings/TerminalPreview";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -11,6 +12,8 @@ interface TerminalVisualSettings {
   cursor_style: string;
   scrollback_lines: number;
   syntax_highlighting?: boolean;
+  color_scheme?: string;
+  custom_colors?: Record<string, string>;
 }
 
 interface TerminalPaneProps {
@@ -109,7 +112,7 @@ export const TerminalPane = memo(function TerminalPane({
       fontFamily: terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace",
       fontSize: terminalSettings?.font_size ?? 13,
       lineHeight: 1.3,
-      theme: buildXtermTheme(),
+      theme: buildXtermTheme(terminalSettings?.color_scheme),
       scrollback: terminalSettings?.scrollback_lines ?? 20_000,
       allowProposedApi: true,
     });
@@ -266,16 +269,20 @@ export const TerminalPane = memo(function TerminalPane({
     xterm.options.fontFamily = terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace";
     xterm.options.fontSize = terminalSettings?.font_size ?? 13;
     xterm.options.scrollback = terminalSettings?.scrollback_lines ?? 20_000;
+    xterm.options.theme = buildXtermTheme(terminalSettings?.color_scheme);
 
     const fit = fitRef.current;
     if (fit) safeFit(fit);
   }, [terminalSettings]);
 
+  const colorSchemeRef = useRef(terminalSettings?.color_scheme);
+  colorSchemeRef.current = terminalSettings?.color_scheme;
+
   useEffect(() => {
     const applyTheme = () => {
       const xterm = xtermRef.current;
       if (!xterm) return;
-      xterm.options.theme = buildXtermTheme();
+      xterm.options.theme = buildXtermTheme(colorSchemeRef.current);
     };
 
     const observer = new MutationObserver((mutations) => {
@@ -363,7 +370,36 @@ function asCursorStyle(value?: string): "bar" | "block" | "underline" {
   return "bar";
 }
 
-function buildXtermTheme() {
+function buildXtermTheme(colorSchemeId?: string) {
+  const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
+  if (scheme) {
+    const c = scheme.colors;
+    return {
+      background: c.background,
+      foreground: c.foreground,
+      cursor: c.cursor,
+      cursorAccent: c.background,
+      selectionBackground: c.selection,
+      black: c.black,
+      brightBlack: c.brightBlack,
+      red: c.red,
+      brightRed: c.brightRed,
+      green: c.green,
+      brightGreen: c.brightGreen,
+      yellow: c.yellow,
+      brightYellow: c.brightYellow,
+      blue: c.blue,
+      brightBlue: c.brightBlue,
+      magenta: c.magenta,
+      brightMagenta: c.brightMagenta,
+      cyan: c.cyan,
+      brightCyan: c.brightCyan,
+      white: c.white,
+      brightWhite: c.brightWhite,
+    };
+  }
+
+  // Fallback: derive from CSS variables
   const bg = readCssVar("--bg", "#1a1d23");
   const bgElev = readCssVar("--bg-elev-1", "#21252b");
   const bgHover = readCssVar("--bg-hover", "#2c313a");

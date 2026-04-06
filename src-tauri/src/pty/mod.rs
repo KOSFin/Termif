@@ -423,6 +423,36 @@ impl TerminalManager {
         client.write_remote_text_file(path, content).await
     }
 
+    pub async fn create_remote_fs_entry(
+        &self,
+        session_id: &str,
+        path: &str,
+        is_dir: bool,
+    ) -> Result<(), TermifError> {
+        let client = self.ssh_client(session_id)?;
+        client.create_remote_fs_entry(path, is_dir).await
+    }
+
+    pub async fn delete_remote_fs_entry(
+        &self,
+        session_id: &str,
+        path: &str,
+        is_dir: bool,
+    ) -> Result<(), TermifError> {
+        let client = self.ssh_client(session_id)?;
+        client.delete_remote_fs_entry(path, is_dir).await
+    }
+
+    pub async fn rename_remote_fs_entry(
+        &self,
+        session_id: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<(), TermifError> {
+        let client = self.ssh_client(session_id)?;
+        client.rename_remote_fs_entry(from, to).await
+    }
+
     pub async fn fetch_system_stats(
         &self,
         session_id: &str,
@@ -663,6 +693,56 @@ impl SshClientRuntime {
             }));
         }
 
+        Ok(())
+    }
+
+    async fn create_remote_fs_entry(&self, path: &str, is_dir: bool) -> Result<(), TermifError> {
+        let command = if is_dir {
+            format!("mkdir -p {}", shell_single_quote(path))
+        } else {
+            format!("touch {}", shell_single_quote(path))
+        };
+        let output = self.exec_capture(&command, None).await?;
+        if output.exit_status.unwrap_or(1) != 0 {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(TermifError::Internal(if stderr.is_empty() {
+                format!("cannot create remote entry: {}", path)
+            } else {
+                stderr
+            }));
+        }
+        Ok(())
+    }
+
+    async fn delete_remote_fs_entry(&self, path: &str, is_dir: bool) -> Result<(), TermifError> {
+        let command = if is_dir {
+            format!("rm -rf {}", shell_single_quote(path))
+        } else {
+            format!("rm -f {}", shell_single_quote(path))
+        };
+        let output = self.exec_capture(&command, None).await?;
+        if output.exit_status.unwrap_or(1) != 0 {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(TermifError::Internal(if stderr.is_empty() {
+                format!("cannot delete remote entry: {}", path)
+            } else {
+                stderr
+            }));
+        }
+        Ok(())
+    }
+
+    async fn rename_remote_fs_entry(&self, from: &str, to: &str) -> Result<(), TermifError> {
+        let command = format!("mv {} {}", shell_single_quote(from), shell_single_quote(to));
+        let output = self.exec_capture(&command, None).await?;
+        if output.exit_status.unwrap_or(1) != 0 {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(TermifError::Internal(if stderr.is_empty() {
+                format!("cannot rename: {} -> {}", from, to)
+            } else {
+                stderr
+            }));
+        }
         Ok(())
     }
 

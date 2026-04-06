@@ -67,6 +67,10 @@ export interface AppSettings {
     ui_density: string;
     tab_switching_mode: string;
     custom_themes?: CustomTheme[];
+    modal_blur?: number;
+    modal_dimming?: number;
+    border_radius?: number;
+    animations_enabled?: boolean;
   };
   terminal: {
     default_shell: string;
@@ -75,6 +79,8 @@ export interface AppSettings {
     cursor_style: string;
     scrollback_lines: number;
     syntax_highlighting: boolean;
+    color_scheme?: string;
+    custom_colors?: Record<string, string>;
   };
   hotkeys: Array<{ command_id: string; primary: string; alternates?: string[] | null }>;
   ssh: {

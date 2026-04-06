@@ -463,7 +463,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       {/* Modals */}
       {/* ── Host Settings Modal ── */}
       {settingsDraft !== null && (
-        <div className="modal-overlay" onClick={() => setSettingsDraft(null)}>
+        <div className="modal-overlay" onClick={() => setSettingsDraft(null)} onKeyDown={(e) => {
+          if (e.key === "Escape") setSettingsDraft(null);
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "INPUT" && (e.target as HTMLElement).tagName !== "SELECT") void saveSettings();
+        }}>
           <div className="modal-panel modal-panel-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{settingsDraft.id ? `Edit: ${settingsDraft.alias}` : "New Host"}</h3>
@@ -534,7 +537,9 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
       {/* ── Import SSH Config Modal ── */}
       {importModalOpen && (
-        <div className="modal-overlay" onClick={() => setImportModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => setImportModalOpen(false)} onKeyDown={(e) => {
+          if (e.key === "Escape") setImportModalOpen(false);
+        }}>
           <div className="modal-panel modal-panel-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Import from ~/.ssh/config</h3>
@@ -628,7 +633,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
       {/* ── Already Connected Modal ── */}
       {alreadyConnectedModal && (
-        <div className="modal-overlay" onClick={() => setAlreadyConnectedModal(null)}>
+        <div className="modal-overlay" onClick={() => setAlreadyConnectedModal(null)} onKeyDown={(e) => {
+          if (e.key === "Escape") setAlreadyConnectedModal(null);
+          if (e.key === "Enter") void onConfirmConnect(alreadyConnectedModal);
+        }}>
           <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Host already connected</h3>
@@ -650,7 +658,9 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
       {/* ── Group Modal ── */}
       {groupModalOpen && (
-        <div className="modal-overlay" onClick={() => setGroupModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => setGroupModalOpen(false)} onKeyDown={(e) => {
+          if (e.key === "Escape") setGroupModalOpen(false);
+        }}>
           <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{renameGroupId ? "Rename Group" : "New Group"}</h3>

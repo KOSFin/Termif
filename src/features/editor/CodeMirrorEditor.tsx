@@ -5,8 +5,8 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { getLanguageExtension } from "./languageMap";
+import { buildEditorTheme } from "./editorTheme";
 
 interface CodeMirrorEditorProps {
   content: string;
@@ -62,14 +62,9 @@ export function CodeMirrorEditor({ content, languageId, readOnly, onChange, onCu
         ...historyKeymap,
         indentWithTab,
       ]),
-      oneDark,
+      ...buildEditorTheme(),
       updateListener,
       lc.of([]),
-      EditorView.theme({
-        "&": { height: "100%", fontSize: "13px" },
-        ".cm-scroller": { overflow: "auto", fontFamily: "'Cascadia Code', 'JetBrains Mono', monospace" },
-        ".cm-gutters": { border: "none" },
-      }),
     ];
 
     if (readOnly) {

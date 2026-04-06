@@ -288,13 +288,55 @@ fn create_fs_entry(path: String, is_dir: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn create_remote_fs_entry(
+    session_id: String,
+    path: String,
+    is_dir: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .terminal
+        .create_remote_fs_entry(&session_id, &path, is_dir)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn rename_fs_entry(from: String, to: String) -> Result<(), String> {
     fs_ops::rename_entry(&from, &to).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
+async fn rename_remote_fs_entry(
+    session_id: String,
+    from: String,
+    to: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .terminal
+        .rename_remote_fs_entry(&session_id, &from, &to)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn delete_fs_entry(path: String, is_dir: bool) -> Result<(), String> {
     fs_ops::delete_entry(&path, is_dir).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_remote_fs_entry(
+    session_id: String,
+    path: String,
+    is_dir: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .terminal
+        .delete_remote_fs_entry(&session_id, &path, is_dir)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -462,8 +504,11 @@ pub fn run() {
             read_remote_text_file,
             write_remote_text_file,
             create_fs_entry,
+            create_remote_fs_entry,
             rename_fs_entry,
+            rename_remote_fs_entry,
             delete_fs_entry,
+            delete_remote_fs_entry,
             copy_fs_entry,
             load_ssh_hosts,
             save_managed_ssh_host,

@@ -139,7 +139,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
   const onDelete = async (entry: FileEntryDto) => {
     if (!window.confirm(`Delete ${entry.name}?`)) return;
-    await invoke("delete_fs_entry", { path: entry.path, isDir: entry.is_dir });
+    if (props.isRemote && props.activeSessionId) {
+      await invoke("delete_remote_fs_entry", { sessionId: props.activeSessionId, path: entry.path, isDir: entry.is_dir });
+    } else {
+      await invoke("delete_fs_entry", { path: entry.path, isDir: entry.is_dir });
+    }
     await loadCurrentFiles({ force: true });
   };
 
@@ -147,7 +151,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     const nextName = window.prompt("Rename", entry.name)?.trim();
     if (!nextName || nextName === entry.name) return;
     const nextPath = entry.path.replace(/[^/\\]+$/, nextName);
-    await invoke("rename_fs_entry", { from: entry.path, to: nextPath });
+    if (props.isRemote && props.activeSessionId) {
+      await invoke("rename_remote_fs_entry", { sessionId: props.activeSessionId, from: entry.path, to: nextPath });
+    } else {
+      await invoke("rename_fs_entry", { from: entry.path, to: nextPath });
+    }
     await loadCurrentFiles({ force: true });
   };
 
@@ -155,7 +163,11 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     const name = window.prompt(isDir ? "Folder name" : "File name")?.trim();
     if (!name) return;
     const path = activePath.endsWith("/") ? `${activePath}${name}` : `${activePath}/${name}`;
-    await invoke("create_fs_entry", { path, isDir });
+    if (props.isRemote && props.activeSessionId) {
+      await invoke("create_remote_fs_entry", { sessionId: props.activeSessionId, path, isDir });
+    } else {
+      await invoke("create_fs_entry", { path, isDir });
+    }
     await loadCurrentFiles({ force: true });
   };
 

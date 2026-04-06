@@ -6,7 +6,7 @@ import { Minus, Square, Copy, X, Command, Settings, PanelLeftClose, PanelLeft } 
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
 import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
-import { SettingsPanel } from "@/app/settings/SettingsPanel";
+import { SettingsPanel, type SettingsSection } from "@/app/settings/SettingsPanel";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useAppStore, type EditorDock } from "@/store/useAppStore";
 import type { AppTab, SystemStats } from "@/types/models";
@@ -164,6 +164,16 @@ export function AppShell() {
     if (e.button !== 0) return;
     void appWindow.startDragging();
   };
+
+  // ── Settings navigation state ──────────────────────────────────────
+  const [settingsInitialSection, setSettingsInitialSection] = useState<SettingsSection | undefined>();
+  const [settingsHighlight, setSettingsHighlight] = useState<string | undefined>();
+
+  const openSettingsAt = useCallback((section: SettingsSection, highlight?: string) => {
+    setSettingsInitialSection(section);
+    setSettingsHighlight(highlight);
+    setSettingsOpen(true);
+  }, [setSettingsOpen]);
 
   // ── Tab switcher state (Windows Alt+Tab style) ────────────────────
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
@@ -813,7 +823,42 @@ export function AppShell() {
       title: "Reset Zoom",
       category: "UI",
       action: zoomReset
-    }
+    },
+    // ── Dynamic: Switch to open tabs ──
+    ...tabs.map((tab) => ({
+      id: `switch.tab.${tab.id}`,
+      title: `Switch to: ${tab.title}`,
+      category: "Tabs",
+      action: () => setActiveTab(tab.id),
+    })),
+    // ── Dynamic: Connect to SSH hosts ──
+    ...(useAppStore.getState().managedHosts ?? []).map((host) => ({
+      id: `ssh.connect.${host.id}`,
+      title: `Connect: ${host.alias} (${host.host_name})`,
+      category: "SSH Hosts",
+      action: () => {
+        const pickerTab = tabs.find((t) => t.kind === "ssh_picker");
+        if (pickerTab) {
+          setActiveTab(pickerTab.id);
+        } else {
+          createSshPickerTab();
+        }
+      },
+    })),
+    // ── Settings sections navigation ──
+    { id: "settings.appearance", title: "Settings: Appearance", category: "Settings", action: () => openSettingsAt("appearance") },
+    { id: "settings.terminal", title: "Settings: Terminal", category: "Settings", action: () => openSettingsAt("terminal") },
+    { id: "settings.hotkeys", title: "Settings: Hotkeys", category: "Settings", action: () => openSettingsAt("hotkeys") },
+    { id: "settings.ssh", title: "Settings: SSH", category: "Settings", action: () => openSettingsAt("ssh") },
+    { id: "settings.file_manager", title: "Settings: File Manager", category: "Settings", action: () => openSettingsAt("file_manager") },
+    { id: "settings.status_bar", title: "Settings: Status Bar", category: "Settings", action: () => openSettingsAt("status_bar") },
+    // ── Individual settings navigation ──
+    { id: "setting.font_size", title: "Setting: Font Size", category: "Settings", action: () => openSettingsAt("terminal", "Font Size") },
+    { id: "setting.font_family", title: "Setting: Font Family", category: "Settings", action: () => openSettingsAt("terminal", "Font Family") },
+    { id: "setting.cursor_style", title: "Setting: Cursor Style", category: "Settings", action: () => openSettingsAt("terminal", "Cursor Style") },
+    { id: "setting.color_scheme", title: "Setting: Terminal Color Scheme", category: "Settings", action: () => openSettingsAt("terminal", "Color Scheme") },
+    { id: "setting.modal_blur", title: "Setting: Modal Blur", category: "Settings", action: () => openSettingsAt("appearance", "Modal Blur") },
+    { id: "setting.modal_dimming", title: "Setting: Modal Dimming", category: "Settings", action: () => openSettingsAt("appearance", "Modal Dimming") },
   ];
 
   return (
@@ -1017,8 +1062,10 @@ export function AppShell() {
       <SettingsPanel
         open={settingsOpen}
         settings={settings}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => { setSettingsOpen(false); setSettingsInitialSection(undefined); setSettingsHighlight(undefined); }}
         onSave={saveSettings}
+        initialSection={settingsInitialSection}
+        highlightSetting={settingsHighlight}
       />
 
       {lastToast ? (
