@@ -162,7 +162,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   const onCreateEntry = async (isDir: boolean) => {
     const name = window.prompt(isDir ? "Folder name" : "File name")?.trim();
     if (!name) return;
-    const path = activePath.endsWith("/") ? `${activePath}${name}` : `${activePath}/${name}`;
+    const basePath = displayPath;
+    const path = basePath.endsWith("/") ? `${basePath}${name}` : `${basePath}/${name}`;
     if (props.isRemote && props.activeSessionId) {
       await invoke("create_remote_fs_entry", { sessionId: props.activeSessionId, path, isDir });
     } else {

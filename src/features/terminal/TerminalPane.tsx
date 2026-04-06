@@ -112,7 +112,7 @@ export const TerminalPane = memo(function TerminalPane({
       fontFamily: terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace",
       fontSize: terminalSettings?.font_size ?? 13,
       lineHeight: 1.3,
-      theme: buildXtermTheme(terminalSettings?.color_scheme),
+      theme: buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors),
       scrollback: terminalSettings?.scrollback_lines ?? 20_000,
       allowProposedApi: true,
     });
@@ -201,16 +201,20 @@ export const TerminalPane = memo(function TerminalPane({
     void invoke("stream_terminal_output", { sessionId, onData: channel });
 
     // ── Terminal color bootstrap ──────────────────────────────────────────────
+    const syntaxHighlightingEnabled = terminalSettings?.syntax_highlighting !== false;
+
     if (isSSH) {
-      window.setTimeout(() => {
-        if (syntaxBootstrapSentRef.current) return;
-        syntaxBootstrapSentRef.current = true;
-        const initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G' 2>/dev/null; true\r";
-        void invoke("send_terminal_input", { sessionId, data: initScript }).catch((error) => {
-          const message = error instanceof Error ? error.message : String(error);
-          onConnectionError?.(message);
-        });
-      }, 300);
+      if (syntaxHighlightingEnabled) {
+        window.setTimeout(() => {
+          if (syntaxBootstrapSentRef.current) return;
+          syntaxBootstrapSentRef.current = true;
+          const initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G' 2>/dev/null; true\r";
+          void invoke("send_terminal_input", { sessionId, data: initScript }).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            onConnectionError?.(message);
+          });
+        }, 300);
+      }
       // OS detection — scan buffered output after initial shell loads
       if (sshAlias) {
         window.setTimeout(() => {
@@ -223,7 +227,7 @@ export const TerminalPane = memo(function TerminalPane({
           }
         }, 3000);
       }
-    } else {
+    } else if (syntaxHighlightingEnabled) {
       // Local terminal: bootstrap color support for PowerShell / CMD
       window.setTimeout(() => {
         if (syntaxBootstrapSentRef.current) return;
@@ -269,7 +273,7 @@ export const TerminalPane = memo(function TerminalPane({
     xterm.options.fontFamily = terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace";
     xterm.options.fontSize = terminalSettings?.font_size ?? 13;
     xterm.options.scrollback = terminalSettings?.scrollback_lines ?? 20_000;
-    xterm.options.theme = buildXtermTheme(terminalSettings?.color_scheme);
+    xterm.options.theme = buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors);
 
     const fit = fitRef.current;
     if (fit) safeFit(fit);
@@ -282,7 +286,7 @@ export const TerminalPane = memo(function TerminalPane({
     const applyTheme = () => {
       const xterm = xtermRef.current;
       if (!xterm) return;
-      xterm.options.theme = buildXtermTheme(colorSchemeRef.current);
+        xterm.options.theme = buildXtermTheme(colorSchemeRef.current, terminalSettings?.custom_colors);
     };
 
     const observer = new MutationObserver((mutations) => {
@@ -297,7 +301,7 @@ export const TerminalPane = memo(function TerminalPane({
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [terminalSettings?.custom_colors]);
 
   // ── Visibility-change effect ─────────────────────────────────────────────
   useEffect(() => {
@@ -370,10 +374,10 @@ function asCursorStyle(value?: string): "bar" | "block" | "underline" {
   return "bar";
 }
 
-function buildXtermTheme(colorSchemeId?: string) {
+function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, string>) {
   const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
   if (scheme) {
-    const c = scheme.colors;
+    const c = { ...scheme.colors, ...(customColors ?? {}) };
     return {
       background: c.background,
       foreground: c.foreground,
@@ -410,29 +414,30 @@ function buildXtermTheme(colorSchemeId?: string) {
   const accent2 = readCssVar("--accent-2", "#98c379");
   const danger = readCssVar("--danger", "#e06c75");
   const warning = readCssVar("--warning", "#e5c07b");
+  const c = customColors ?? {};
 
   return {
-    background: bg,
-    foreground: text,
-    cursor: accent,
-    cursorAccent: bg,
-    selectionBackground: bgHover,
-    black: bg,
-    brightBlack: textMuted,
-    red: danger,
-    brightRed: "#ff7a8c",
-    green: accent2,
-    brightGreen: "#b5e890",
-    yellow: warning,
-    brightYellow: "#f5c06a",
-    blue: accent,
-    brightBlue: "#7ec8ff",
-    magenta: "#c678dd",
-    brightMagenta: "#d896f0",
-    cyan: "#56b6c2",
-    brightCyan: "#82ccdf",
-    white: text,
-    brightWhite: textBright,
+    background: c.background ?? bg,
+    foreground: c.foreground ?? text,
+    cursor: c.cursor ?? accent,
+    cursorAccent: c.background ?? bg,
+    selectionBackground: c.selection ?? bgHover,
+    black: c.black ?? bg,
+    brightBlack: c.brightBlack ?? textMuted,
+    red: c.red ?? danger,
+    brightRed: c.brightRed ?? "#ff7a8c",
+    green: c.green ?? accent2,
+    brightGreen: c.brightGreen ?? "#b5e890",
+    yellow: c.yellow ?? warning,
+    brightYellow: c.brightYellow ?? "#f5c06a",
+    blue: c.blue ?? accent,
+    brightBlue: c.brightBlue ?? "#7ec8ff",
+    magenta: c.magenta ?? "#c678dd",
+    brightMagenta: c.brightMagenta ?? "#d896f0",
+    cyan: c.cyan ?? "#56b6c2",
+    brightCyan: c.brightCyan ?? "#82ccdf",
+    white: c.white ?? text,
+    brightWhite: c.brightWhite ?? textBright,
     extendedAnsi: [bgElev],
   };
 }

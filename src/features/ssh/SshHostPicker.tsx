@@ -297,6 +297,81 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
   const hasAnyHosts = managedHosts.length > 0;
 
+  useEffect(() => {
+    const anyModalOpen = settingsDraft !== null || importModalOpen || quickConnectOpen || alreadyConnectedModal !== null || groupModalOpen;
+    if (!anyModalOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (settingsDraft !== null) {
+          setSettingsDraft(null);
+          return;
+        }
+        if (importModalOpen) {
+          setImportModalOpen(false);
+          return;
+        }
+        if (quickConnectOpen) {
+          setQuickConnectOpen(false);
+          return;
+        }
+        if (alreadyConnectedModal) {
+          setAlreadyConnectedModal(null);
+          return;
+        }
+        if (groupModalOpen) {
+          setGroupModalOpen(false);
+        }
+        return;
+      }
+
+      if (event.key !== "Enter") return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "TEXTAREA") return;
+
+      if (settingsDraft !== null) {
+        event.preventDefault();
+        void saveSettings();
+        return;
+      }
+
+      if (importModalOpen && importSelected.size > 0) {
+        event.preventDefault();
+        void importHosts();
+        return;
+      }
+
+      if (quickConnectOpen) {
+        event.preventDefault();
+        void runQuickConnect();
+        return;
+      }
+
+      if (alreadyConnectedModal) {
+        event.preventDefault();
+        void onConfirmConnect(alreadyConnectedModal);
+        return;
+      }
+
+      if (groupModalOpen) {
+        event.preventDefault();
+        void saveGroupModal();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [
+    alreadyConnectedModal,
+    groupModalOpen,
+    importModalOpen,
+    importSelected.size,
+    quickConnectOpen,
+    settingsDraft,
+  ]);
+
   // Filter rendering groups based on Active Tab
   const renderGroups = activeGroupTab === "ALL" ? groupedManaged : groupedManaged.filter(g => g.group.id === activeGroupTab);
   

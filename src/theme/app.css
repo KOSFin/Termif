@@ -1613,7 +1613,8 @@ textarea:focus {
 
 .modal-panel-lg {
   width: min(560px, calc(100vw - 40px));
-  min-height: 360px;
+  min-height: 420px;
+  height: min(520px, calc(100vh - 80px));
 }
 
 .modal-panel-sm {
@@ -2219,6 +2220,40 @@ textarea:focus {
 .terminal-preview-line {
   white-space: pre;
   line-height: 1.5;
+}
+
+.settings-terminal-preview-wrap {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+
+.settings-terminal-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.terminal-color-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--bg-elev-2) 55%, transparent);
+}
+
+.terminal-color-cell input[type='color'] {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
 }
 
 .theme-grid {

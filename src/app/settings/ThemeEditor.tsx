@@ -116,6 +116,28 @@ export function ThemeEditor({ existingTheme, customThemes, currentThemeId, onSav
     setVariables((prev) => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const target = event.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === "TEXTAREA") return;
+        if (!name.trim()) return;
+        event.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [handleClose, handleSave, name]);
+
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-panel modal-panel-lg" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "calc(100vh - 60px)" }}>

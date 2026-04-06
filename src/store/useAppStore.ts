@@ -12,7 +12,7 @@ import type {
   SshHostsPayload
 } from "@/types/models";
 import { detectLanguage } from "@/features/editor/languageMap";
-import { applyTheme } from "@/theme/themeEngine";
+import { applyTheme, applyAppearanceOverrides } from "@/theme/themeEngine";
 
 export interface EditorFile {
   id: string;
@@ -68,7 +68,7 @@ interface AppState {
 
   initialize: () => Promise<void>;
   createLocalTab: (shellProfile?: string) => Promise<void>;
-  createSshPickerTab: () => void;
+  createSshPickerTab: () => string;
   connectSshTab: (tabId: string, alias: string) => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   duplicateTab: (tabId: string) => Promise<void>;
@@ -239,6 +239,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Apply persisted theme on startup
     const themeId = settings?.appearance?.theme ?? "charcoal";
     applyTheme(themeId, settings?.appearance?.custom_themes ?? []);
+    applyAppearanceOverrides(settings?.appearance);
 
     const restoredTabs: AppTab[] = [];
     for (const savedTab of persisted.tabs) {
@@ -334,6 +335,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       tabMruOrder: [tab.id, ...state.tabMruOrder]
     }));
     void persistUiState(get());
+    return tab.id;
   },
 
   connectSshTab: async (tabId, alias) => {
@@ -807,8 +809,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveSettings: async (settings) => {
     await invoke("save_settings", { settings });
-    set({ settings, settingsOpen: false });
-    get().toast("Settings saved");
+    applyTheme(settings.appearance?.theme ?? "charcoal", settings.appearance?.custom_themes ?? []);
+    applyAppearanceOverrides(settings.appearance);
+    set({ settings });
   },
 
   toast: (message) => {

@@ -3,23 +3,18 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import type { Extension } from "@codemirror/state";
 
-function readCssVar(name: string, fallback: string): string {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
-
 export function buildEditorTheme(): Extension[] {
-  const bg = readCssVar("--bg", "#1a1d23");
-  const bgElev1 = readCssVar("--bg-elev-1", "#21252b");
-  const bgHover = readCssVar("--bg-hover", "#2c313a");
-  const text = readCssVar("--text", "#abb2bf");
-  const textMuted = readCssVar("--text-muted", "#636d83");
-  const textBright = readCssVar("--text-bright", "#e6e8ee");
-  const accent = readCssVar("--accent", "#61afef");
-  const accent2 = readCssVar("--accent-2", "#98c379");
-  const danger = readCssVar("--danger", "#e06c75");
-  const warning = readCssVar("--warning", "#e5c07b");
-  const stroke = readCssVar("--stroke", "#3a3f4b");
+  const bg = "var(--bg)";
+  const bgElev1 = "var(--bg-elev-1)";
+  const bgHover = "var(--bg-hover)";
+  const text = "var(--text)";
+  const textMuted = "var(--text-muted)";
+  const textBright = "var(--text-bright)";
+  const accent = "var(--accent)";
+  const accent2 = "var(--accent-2)";
+  const danger = "var(--danger)";
+  const warning = "var(--warning)";
+  const stroke = "var(--stroke)";
 
   const theme = EditorView.theme(
     {
@@ -50,21 +45,21 @@ export function buildEditorTheme(): Extension[] {
         borderBottom: `1px solid ${stroke}`,
       },
       ".cm-searchMatch": {
-        backgroundColor: "rgba(97, 175, 239, 0.2)",
+        backgroundColor: "color-mix(in srgb, var(--accent) 20%, transparent)",
         outline: `1px solid ${accent}`,
       },
       ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: "rgba(97, 175, 239, 0.35)",
+        backgroundColor: "color-mix(in srgb, var(--accent) 35%, transparent)",
       },
       ".cm-activeLine": {
         backgroundColor: `color-mix(in srgb, ${bgHover} 40%, transparent)`,
       },
       ".cm-selectionMatch": {
-        backgroundColor: "rgba(97, 175, 239, 0.12)",
+        backgroundColor: "color-mix(in srgb, var(--accent) 15%, transparent)",
       },
       ".cm-matchingBracket, .cm-nonmatchingBracket": {
-        backgroundColor: "rgba(97, 175, 239, 0.2)",
-        outline: "1px solid rgba(97, 175, 239, 0.4)",
+        backgroundColor: "color-mix(in srgb, var(--accent) 20%, transparent)",
+        outline: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)",
       },
       ".cm-gutters": {
         backgroundColor: bg,

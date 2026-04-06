@@ -24,11 +24,14 @@ export function AppShell() {
     paletteOpen,
     settingsOpen,
     settings,
+    managedHosts,
+    importedHosts,
     tabDisconnectReasons,
     selectedFile,
     lastToast,
     createLocalTab,
     createSshPickerTab,
+    connectSshTab,
     closeTab,
     duplicateTab,
     renameTab,
@@ -67,11 +70,14 @@ export function AppShell() {
     paletteOpen: state.paletteOpen,
     settingsOpen: state.settingsOpen,
     settings: state.settings,
+    managedHosts: state.managedHosts,
+    importedHosts: state.importedHosts,
     tabDisconnectReasons: state.tabDisconnectReasons,
     selectedFile: state.selectedFile,
     lastToast: state.lastToast,
     createLocalTab: state.createLocalTab,
     createSshPickerTab: state.createSshPickerTab,
+    connectSshTab: state.connectSshTab,
     closeTab: state.closeTab,
     duplicateTab: state.duplicateTab,
     renameTab: state.renameTab,
@@ -102,6 +108,16 @@ export function AppShell() {
     zoomOut: state.zoomOut,
     zoomReset: state.zoomReset,
   }));
+
+  const connectHostFromPalette = useCallback((alias: string) => {
+    const existing = tabs.find((tab) => tab.kind === "ssh" && tab.sshAlias === alias);
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
+    }
+    const pickerTabId = createSshPickerTab();
+    void connectSshTab(pickerTabId, alias);
+  }, [connectSshTab, createSshPickerTab, setActiveTab, tabs]);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
   // ── Window controls ─────────────────────────────────────────────────
@@ -760,7 +776,11 @@ export function AppShell() {
         const name = window.prompt("File name")?.trim();
         if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
-        await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
+        if (activeTab.kind === "ssh" && activeTab.sessionId) {
+          await invoke("create_remote_fs_entry", { sessionId: activeTab.sessionId, path: `${base}/${name}`, isDir: false });
+        } else {
+          await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
+        }
         await loadCurrentFiles({ force: true });
       }
     },
@@ -772,7 +792,11 @@ export function AppShell() {
         const name = window.prompt("Folder name")?.trim();
         if (!name || !activeTab) return;
         const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
-        await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
+        if (activeTab.kind === "ssh" && activeTab.sessionId) {
+          await invoke("create_remote_fs_entry", { sessionId: activeTab.sessionId, path: `${base}/${name}`, isDir: true });
+        } else {
+          await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
+        }
         await loadCurrentFiles({ force: true });
       }
     },
@@ -832,18 +856,11 @@ export function AppShell() {
       action: () => setActiveTab(tab.id),
     })),
     // ── Dynamic: Connect to SSH hosts ──
-    ...(useAppStore.getState().managedHosts ?? []).map((host) => ({
-      id: `ssh.connect.${host.id}`,
+    ...Array.from(new Map([...managedHosts, ...importedHosts].map((host) => [host.alias, host])).values()).map((host) => ({
+      id: `ssh.connect.${host.alias}`,
       title: `Connect: ${host.alias} (${host.host_name})`,
       category: "SSH Hosts",
-      action: () => {
-        const pickerTab = tabs.find((t) => t.kind === "ssh_picker");
-        if (pickerTab) {
-          setActiveTab(pickerTab.id);
-        } else {
-          createSshPickerTab();
-        }
-      },
+      action: () => connectHostFromPalette(host.alias),
     })),
     // ── Settings sections navigation ──
     { id: "settings.appearance", title: "Settings: Appearance", category: "Settings", action: () => openSettingsAt("appearance") },
@@ -857,8 +874,21 @@ export function AppShell() {
     { id: "setting.font_family", title: "Setting: Font Family", category: "Settings", action: () => openSettingsAt("terminal", "Font Family") },
     { id: "setting.cursor_style", title: "Setting: Cursor Style", category: "Settings", action: () => openSettingsAt("terminal", "Cursor Style") },
     { id: "setting.color_scheme", title: "Setting: Terminal Color Scheme", category: "Settings", action: () => openSettingsAt("terminal", "Color Scheme") },
+    { id: "setting.default_shell", title: "Setting: Default Shell", category: "Settings", action: () => openSettingsAt("terminal", "Default Shell") },
+    { id: "setting.scrollback", title: "Setting: Scrollback Lines", category: "Settings", action: () => openSettingsAt("terminal", "Scrollback Lines") },
+    { id: "setting.syntax", title: "Setting: Syntax Highlighting", category: "Settings", action: () => openSettingsAt("terminal", "Syntax Highlighting") },
+    { id: "setting.ui_density", title: "Setting: UI Density", category: "Settings", action: () => openSettingsAt("appearance", "UI Density") },
+    { id: "setting.accent", title: "Setting: Accent Color", category: "Settings", action: () => openSettingsAt("appearance", "Accent Color") },
     { id: "setting.modal_blur", title: "Setting: Modal Blur", category: "Settings", action: () => openSettingsAt("appearance", "Modal Blur") },
     { id: "setting.modal_dimming", title: "Setting: Modal Dimming", category: "Settings", action: () => openSettingsAt("appearance", "Modal Dimming") },
+    { id: "setting.border_radius", title: "Setting: UI Border Radius", category: "Settings", action: () => openSettingsAt("appearance", "UI Border Radius") },
+    { id: "setting.ssh_timeout", title: "Setting: SSH Timeout", category: "Settings", action: () => openSettingsAt("ssh", "Connect Timeout") },
+    { id: "setting.strict_key", title: "Setting: Strict Host Key Checking", category: "Settings", action: () => openSettingsAt("ssh", "Strict Host Key Checking") },
+    { id: "setting.hidden_files", title: "Setting: Show Hidden Files", category: "Settings", action: () => openSettingsAt("file_manager", "Show Hidden Files") },
+    { id: "setting.statusbar_enabled", title: "Setting: Enable Bottom Status Bar", category: "Settings", action: () => openSettingsAt("status_bar", "Enable Bottom Status Bar") },
+    { id: "setting.statusbar_resources", title: "Setting: Show SSH Resource Monitor", category: "Settings", action: () => openSettingsAt("status_bar", "Show SSH Resource Monitor") },
+    { id: "setting.statusbar_server_time", title: "Setting: Show SSH Server Time", category: "Settings", action: () => openSettingsAt("status_bar", "Show SSH Server Time") },
+    { id: "setting.statusbar_poll", title: "Setting: SSH Poll Interval", category: "Settings", action: () => openSettingsAt("status_bar", "SSH Poll Interval") },
   ];
 
   return (

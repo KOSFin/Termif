@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Palette,
   TerminalSquare,
@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import type { AppSettings, CustomTheme } from "@/types/models";
 import { ThemeEditor } from "./ThemeEditor";
-import { applyTheme as applyThemeEngine } from "@/theme/themeEngine";
-import { HotkeyRecorder } from "./HotkeyRecorder";
+import { applyTheme as applyThemeEngine, applyAppearanceOverrides } from "@/theme/themeEngine";
+import { HotkeyRecorder, buildConflictMap, getProtectedCombos } from "./HotkeyRecorder";
 import { TerminalPreview, TERMINAL_COLOR_SCHEMES, type TerminalColorScheme } from "./TerminalPreview";
 
 interface SettingsPanelProps {
@@ -65,10 +65,16 @@ export const hotkeyCatalog: Array<{ id: string; description: string; defaults: s
   { id: "zoom.out", description: "Zoom out", defaults: ["Ctrl+-", "Ctrl+Num-"], section: "View" },
   { id: "zoom.reset", description: "Reset zoom", defaults: ["Ctrl+0"], section: "View" },
   { id: "fullscreen.toggle", description: "Toggle fullscreen", defaults: ["F11"], section: "View" },
-  { id: "terminal.copy", description: "Copy from terminal", defaults: ["Ctrl+Shift+C"], section: "Terminal" },
-  { id: "terminal.paste", description: "Paste to terminal", defaults: ["Ctrl+Shift+V"], section: "Terminal" },
+  { id: "terminal.copy", description: "Copy from terminal", defaults: ["Ctrl+Shift+C", "Ctrl+Insert"], section: "Terminal" },
+  { id: "terminal.paste", description: "Paste to terminal", defaults: ["Ctrl+Shift+V", "Shift+Insert"], section: "Terminal" },
   { id: "terminal.clear", description: "Clear terminal", defaults: ["Ctrl+L"], section: "Terminal" },
+  { id: "clipboard.copy", description: "Copy (system)", defaults: ["Ctrl+C"], section: "General" },
   { id: "clipboard.paste", description: "Paste (system)", defaults: ["Ctrl+V"], section: "General" },
+  { id: "clipboard.cut", description: "Cut (system)", defaults: ["Ctrl+X"], section: "General" },
+  { id: "files.create_file", description: "Create new file", defaults: ["Alt+N"], section: "Files" },
+  { id: "files.create_folder", description: "Create new folder", defaults: ["Alt+Shift+N"], section: "Files" },
+  { id: "files.delete", description: "Delete file/folder", defaults: ["Delete"], section: "Files" },
+  { id: "files.rename", description: "Rename file/folder", defaults: ["F2"], section: "Files" },
   { id: "select.all", description: "Select all", defaults: ["Ctrl+A"], section: "General" },
   { id: "sidebar.files", description: "Show files panel", defaults: ["Ctrl+Shift+E"], section: "General" },
   { id: "sidebar.snippets", description: "Show snippets panel", defaults: ["Ctrl+Shift+S"], section: "General" },
@@ -102,6 +108,17 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
   const [themeEditorOpen, setThemeEditorOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [savedPulse, setSavedPulse] = useState(false);
+
+  const q = searchQuery.toLowerCase().trim();
+
+  const showSection = (section: SettingsSection) => q !== "" || activeSection === section;
+
+  const matches = (...texts: string[]) => {
+    if (!q) return true;
+    return texts.some((text) => text.toLowerCase().includes(q));
+  };
 
   useEffect(() => {
     Promise.resolve().then(() => setDraft(props.settings));
@@ -109,18 +126,76 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   useEffect(() => {
     if (props.open) {
-      setActiveSection("appearance");
+      setActiveSection(props.initialSection ?? "appearance");
       setThemeEditorOpen(false);
       setEditingTheme(null);
+      setSearchQuery("");
+
+      if (props.highlightSetting) {
+        window.setTimeout(() => {
+          const targetId = `setting-${props.highlightSetting?.replace(/\s+/g, "-").toLowerCase()}`;
+          const element = document.getElementById(targetId);
+          if (!element) return;
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.classList.add("highlight-flash");
+          window.setTimeout(() => element.classList.remove("highlight-flash"), 2000);
+        }, 120);
+      }
     }
-  }, [props.open]);
+  }, [props.open, props.initialSection, props.highlightSetting]);
+
+  useEffect(() => {
+    if (draft?.appearance) {
+      applyAppearanceOverrides(draft.appearance);
+    }
+  }, [draft?.appearance]);
+
+  useEffect(() => {
+    if (!props.open || !draft || draft === props.settings) return;
+    const timer = window.setTimeout(() => {
+      void props.onSave(draft);
+      setSavedPulse(true);
+      window.setTimeout(() => setSavedPulse(false), 1200);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [draft, props.open, props.onSave, props.settings]);
+
+  useEffect(() => {
+    if (!props.open || themeEditorOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        props.onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [props.open, props.onClose, themeEditorOpen]);
 
   if (!props.open || !draft) return null;
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
+  const conflicts = buildConflictMap(
+    draft.hotkeys.map((item) => ({
+      command_id: item.command_id,
+      combos: [item.primary, ...(item.alternates ?? [])].filter((combo) => combo.trim() !== "")
+    }))
+  );
+  const protectedCombos = getProtectedCombos();
+  const hasConflicts = conflicts.size > 0;
 
   const currentTheme = draft.appearance?.theme ?? "charcoal";
   const customThemes = draft.appearance?.custom_themes ?? [];
+  const selectedScheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === draft.terminal.color_scheme) ?? TERMINAL_COLOR_SCHEMES[0];
+  const previewColors = {
+    ...selectedScheme.colors,
+    ...(draft.terminal.custom_colors ?? {}),
+  };
+  const previewScheme: TerminalColorScheme = {
+    id: "preview",
+    name: "Preview",
+    colors: previewColors,
+  };
 
   const handleApplyTheme = (themeId: string) => {
     applyThemeEngine(themeId, customThemes);
@@ -163,12 +238,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <nav className="settings-nav">
           <div className="settings-nav-header">Settings</div>
+          <div className="settings-search-wrap" style={{ margin: "0 8px 10px" }}>
+            <Search size={13} strokeWidth={2} />
+            <input
+              className="settings-search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search all settings..."
+            />
+          </div>
           {sections.map((s) => {
             const Icon = s.icon;
+            const navMatch = matches(s.label, s.key.replace("_", " "));
             return (
               <button
                 key={s.key}
-                className={`settings-nav-item ${activeSection === s.key ? "active" : ""}`}
+                className={`settings-nav-item ${activeSection === s.key ? "active" : ""}${q && navMatch ? " search-match" : ""}`}
                 onClick={() => setActiveSection(s.key)}
               >
                 <Icon size={15} strokeWidth={1.8} />
@@ -180,18 +265,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
         <div className="settings-content">
           <div className="settings-content-header">
-            <h2>{sections.find((s) => s.key === activeSection)?.label}</h2>
+            <h2>{q ? "Search Results" : sections.find((s) => s.key === activeSection)?.label}</h2>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => void props.onSave(draft)} className="primary">Save</button>
+              {savedPulse ? (
+                <div className="settings-saved-indicator">
+                  <Check size={12} strokeWidth={2} /> Saved
+                </div>
+              ) : null}
               <button onClick={props.onClose} className="ghost">
                 <X size={14} strokeWidth={2} />
               </button>
             </div>
           </div>
 
-          {activeSection === "appearance" && (
+          {showSection("appearance") && (
             <div className="settings-section">
-              <div className="settings-row">
+              <div id="setting-color-theme" className="settings-row" style={{ display: matches("appearance", "theme", "color theme") ? undefined : "none" }}>
                 <label>Color Theme</label>
                 <div className="theme-grid">
                   {themes.map((theme) => (
@@ -208,7 +297,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               </div>
 
               {/* Custom Themes */}
-              <div className="custom-themes-section">
+              <div className="custom-themes-section" style={{ display: matches("custom theme", "theme editor", "appearance") ? undefined : "none" }}>
                 <div className="custom-themes-section-title">Custom Themes</div>
                 <div className="theme-grid">
                   {(draft.appearance.custom_themes ?? []).map((ct) => (
@@ -236,7 +325,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </div>
               </div>
 
-              <div className="settings-row">
+              <div id="setting-accent-color" className="settings-row" style={{ display: matches("accent", "accent color") ? undefined : "none" }}>
                 <label>Accent Color</label>
                 <input
                   value={draft.appearance.accent_color}
@@ -247,7 +336,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div className="settings-row">
+              <div id="setting-ui-density" className="settings-row" style={{ display: matches("ui density", "density", "compact", "comfortable") ? undefined : "none" }}>
                 <label>UI Density</label>
                 <select
                   value={draft.appearance.ui_density}
@@ -261,7 +350,51 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <option value="comfortable">Comfortable</option>
                 </select>
               </div>
-              <div className="settings-row">
+              <div id="setting-modal-blur" className="settings-row" style={{ display: matches("modal blur", "blur", "appearance") ? undefined : "none" }}>
+                <label>Modal Background Blur</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  step="1"
+                  value={draft.appearance.modal_blur ?? 4}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, modal_blur: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-modal-dimming" className="settings-row" style={{ display: matches("modal dimming", "dimming", "backdrop") ? undefined : "none" }}>
+                <label>Modal Background Dimming</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={draft.appearance.modal_dimming ?? 0.55}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, modal_dimming: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-ui-border-radius" className="settings-row" style={{ display: matches("border radius", "radius", "rounded") ? undefined : "none" }}>
+                <label>UI Border Radius</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="24"
+                  value={draft.appearance.border_radius ?? 8}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, border_radius: Number(e.target.value) || 0 } } : p
+                    )
+                  }
+                />
+              </div>
+              <div className="settings-row" style={{ display: matches("tab switching", "ctrl+tab", "mru", "positional") ? undefined : "none" }}>
                 <label>Tab Switching Order (Ctrl+Tab)</label>
                 <select
                   value={draft.appearance.tab_switching_mode ?? "mru"}
@@ -289,9 +422,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             />
           )}
 
-          {activeSection === "terminal" && (
+          {showSection("terminal") && (
             <div className="settings-section">
-              <div className="settings-row">
+              <div id="setting-default-shell" className="settings-row" style={{ display: matches("default shell", "shell", "powershell", "cmd") ? undefined : "none" }}>
                 <label>Default Shell</label>
                 <select
                   value={draft.terminal.default_shell}
@@ -306,7 +439,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <option value="pwsh">PowerShell 7</option>
                 </select>
               </div>
-              <div className="settings-row">
+              <div id="setting-font-family" className="settings-row" style={{ display: matches("font family", "terminal font") ? undefined : "none" }}>
                 <label>Font Family</label>
                 <input
                   value={draft.terminal.font_family}
@@ -317,7 +450,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div className="settings-row">
+              <div id="setting-font-size" className="settings-row" style={{ display: matches("font size", "terminal font") ? undefined : "none" }}>
                 <label>Font Size</label>
                 <input
                   type="number"
@@ -329,7 +462,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div className="settings-row">
+              <div id="setting-cursor-style" className="settings-row" style={{ display: matches("cursor", "cursor style") ? undefined : "none" }}>
                 <label>Cursor Style</label>
                 <select
                   value={draft.terminal.cursor_style}
@@ -344,7 +477,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <option value="underline">Underline</option>
                 </select>
               </div>
-              <div className="settings-row">
+              <div id="setting-scrollback-lines" className="settings-row" style={{ display: matches("scrollback", "history", "lines") ? undefined : "none" }}>
                 <label>Scrollback Lines</label>
                 <input
                   type="number"
@@ -358,7 +491,67 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div className="settings-row-toggle">
+              <div id="setting-color-scheme" className="settings-row" style={{ display: matches("color scheme", "theme", "ansi", "terminal colors") ? undefined : "none" }}>
+                <label>Terminal Color Scheme</label>
+                <select
+                  value={draft.terminal.color_scheme ?? selectedScheme.id}
+                  onChange={(e) => {
+                    const nextScheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === e.target.value) ?? TERMINAL_COLOR_SCHEMES[0];
+                    setDraft((p) =>
+                      p
+                        ? {
+                            ...p,
+                            terminal: {
+                              ...p.terminal,
+                              color_scheme: nextScheme.id,
+                              custom_colors: { ...nextScheme.colors },
+                            }
+                          }
+                        : p
+                    );
+                  }}
+                >
+                  {TERMINAL_COLOR_SCHEMES.map((scheme) => (
+                    <option key={scheme.id} value={scheme.id}>{scheme.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-terminal-preview-wrap" style={{ display: matches("preview", "terminal preview", "ansi", "syntax") ? undefined : "none" }}>
+                <label style={{ fontSize: 12, color: "var(--text-muted)" }}>Live Preview</label>
+                <TerminalPreview
+                  scheme={previewScheme}
+                  fontFamily={draft.terminal.font_family}
+                  fontSize={Math.max(10, (draft.terminal.font_size ?? 13) - 1)}
+                />
+                <div className="settings-terminal-colors-grid">
+                  {Object.entries(previewScheme.colors).map(([key, value]) => (
+                    <label key={key} className="terminal-color-cell">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) =>
+                          setDraft((p) =>
+                            p
+                              ? {
+                                  ...p,
+                                  terminal: {
+                                    ...p.terminal,
+                                    custom_colors: {
+                                      ...(p.terminal.custom_colors ?? selectedScheme.colors),
+                                      [key]: e.target.value,
+                                    }
+                                  }
+                                }
+                              : p
+                          )
+                        }
+                      />
+                      <span>{key}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div id="setting-syntax-highlighting" className="settings-row-toggle">
                 <span>Enable Shell Syntax Highlighting</span>
                 <input
                   type="checkbox"
@@ -375,49 +568,48 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
           )}
 
-          {activeSection === "hotkeys" && (
+          {showSection("hotkeys") && (
             <div className="settings-section">
-              <div className="settings-hotkeys-title">Command Bindings</div>
+              <div className="settings-hotkeys-title" style={{ display: matches("hotkey", "shortcut", "keybind") ? undefined : "none" }}>
+                Command Bindings
+                {hasConflicts ? <span className="hotkey-conflict-badge">Conflicts: {conflicts.size}</span> : null}
+              </div>
               <div className="settings-hotkeys-list">
-                {hotkeyRows.map((row) => (
-                  <div key={row.command_id} className="settings-hotkeys-item">
-                    <div className="settings-hotkey-desc-wrap">
-                      <span className="settings-hotkey-desc">{row.description}</span>
-                      <span className="settings-hotkey-id">{row.command_id}</span>
-                    </div>
-                    <div className="settings-hotkeys-inputs">
-                      <input
-                        value={row.primary}
-                        onChange={(e) => {
+                {hotkeyRows
+                  .filter((row) => {
+                    const combos = [row.primary, ...(row.alternates ?? [])].filter(Boolean);
+                    return matches("hotkey", row.description, row.command_id, ...combos);
+                  })
+                  .map((row) => {
+                    const combos = [row.primary, ...(row.alternates ?? [])].filter(Boolean);
+                    return (
+                      <HotkeyRecorder
+                        key={row.command_id}
+                        commandId={row.command_id}
+                        description={row.description}
+                        combos={combos}
+                        conflicts={conflicts}
+                        protectedCombos={protectedCombos}
+                        onChange={(nextCombos) => {
+                          const normalized = nextCombos.map((combo) => combo.trim()).filter(Boolean);
                           const next = draft.hotkeys.filter((item) => item.command_id !== row.command_id);
-                          next.push({ command_id: row.command_id, primary: e.target.value, alternates: row.alternates });
+                          next.push({
+                            command_id: row.command_id,
+                            primary: normalized[0] ?? "",
+                            alternates: normalized.slice(1),
+                          });
                           setDraft((p) => (p ? { ...p, hotkeys: next } : p));
                         }}
-                        placeholder="Primary combo"
                       />
-                      <input
-                        value={(row.alternates ?? []).join(", ")}
-                        onChange={(e) => {
-                          const alternates = e.target.value
-                            .split(",")
-                            .map((item) => item.trim())
-                            .filter(Boolean);
-                          const next = draft.hotkeys.filter((item) => item.command_id !== row.command_id);
-                          next.push({ command_id: row.command_id, primary: row.primary, alternates });
-                          setDraft((p) => (p ? { ...p, hotkeys: next } : p));
-                        }}
-                        placeholder="Additional combos, comma separated"
-                      />
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             </div>
           )}
 
-          {activeSection === "ssh" && (
+          {showSection("ssh") && (
             <div className="settings-section">
-              <div className="settings-row">
+              <div id="setting-connect-timeout" className="settings-row" style={{ display: matches("ssh", "timeout", "connect") ? undefined : "none" }}>
                 <label>Connect Timeout (seconds)</label>
                 <input
                   type="number"
@@ -431,8 +623,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <hr className="settings-divider" />
-              <div className="settings-row-toggle">
+              <hr className="settings-divider" style={{ display: matches("strict", "host key", "ssh") ? undefined : "none" }} />
+              <div id="setting-strict-host-key-checking" className="settings-row-toggle" style={{ display: matches("strict", "host key", "checking") ? undefined : "none" }}>
                 <span>Strict Host Key Checking</span>
                 <input
                   type="checkbox"
@@ -449,9 +641,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
           )}
 
-          {activeSection === "file_manager" && (
+          {showSection("file_manager") && (
             <div className="settings-section">
-              <div className="settings-row-toggle">
+              <div id="setting-show-hidden-files" className="settings-row-toggle" style={{ display: matches("file manager", "hidden", "show hidden") ? undefined : "none" }}>
                 <span>Show Hidden Files</span>
                 <input
                   type="checkbox"
@@ -468,9 +660,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
           )}
 
-          {activeSection === "experimental" && (
+          {showSection("experimental") && (
             <div className="settings-section">
-              <div className="settings-row-toggle">
+              <div className="settings-row-toggle" style={{ display: matches("experimental", "input overlay") ? undefined : "none" }}>
                 <span>Input Overlay Mode</span>
                 <input
                   type="checkbox"
@@ -487,9 +679,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
           )}
 
-          {activeSection === "status_bar" && (
+          {showSection("status_bar") && (
             <div className="settings-section">
-              <div className="settings-row-toggle">
+              <div id="setting-enable-bottom-status-bar" className="settings-row-toggle" style={{ display: matches("status bar", "enable", "bottom") ? undefined : "none" }}>
                 <span>Enable Bottom Status Bar</span>
                 <input
                   type="checkbox"
@@ -502,7 +694,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 />
               </div>
 
-              <div className="settings-row-toggle">
+              <div id="setting-show-ssh-resource-monitor" className="settings-row-toggle" style={{ display: matches("resource", "cpu", "ram", "disk", "monitor") ? undefined : "none" }}>
                 <span>Show SSH Resource Monitor</span>
                 <input
                   type="checkbox"
@@ -517,7 +709,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 />
               </div>
 
-              <div className="settings-row-toggle">
+              <div id="setting-show-ssh-server-time" className="settings-row-toggle" style={{ display: matches("server time", "clock", "status") ? undefined : "none" }}>
                 <span>Show SSH Server Time</span>
                 <input
                   type="checkbox"
@@ -532,7 +724,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 />
               </div>
 
-              <div className="settings-row">
+              <div id="setting-ssh-poll-interval" className="settings-row" style={{ display: matches("poll interval", "status refresh", "seconds") ? undefined : "none" }}>
                 <label>SSH Poll Interval (seconds)</label>
                 <input
                   type="number"

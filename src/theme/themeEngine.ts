@@ -80,6 +80,37 @@ export function clearCustomOverrides(): void {
   ALL_CSS_VARS.forEach((v) => document.documentElement.style.removeProperty(v));
 }
 
+export function applyAppearanceOverrides(appearance?: {
+  modal_blur?: number;
+  modal_dimming?: number;
+  border_radius?: number;
+  accent_color?: string;
+}): void {
+  if (!appearance) return;
+
+  if (appearance.modal_blur !== undefined) {
+    document.documentElement.style.setProperty("--modal-blur", `${appearance.modal_blur}px`);
+  } else {
+    document.documentElement.style.removeProperty("--modal-blur");
+  }
+
+  if (appearance.modal_dimming !== undefined) {
+    document.documentElement.style.setProperty("--modal-dimming", `${appearance.modal_dimming}`);
+  } else {
+    document.documentElement.style.removeProperty("--modal-dimming");
+  }
+
+  if (appearance.border_radius !== undefined) {
+    document.documentElement.style.setProperty("--ui-radius", `${appearance.border_radius}px`);
+  } else {
+    document.documentElement.style.removeProperty("--ui-radius");
+  }
+
+  if (appearance.accent_color) {
+    document.documentElement.style.setProperty("--accent", appearance.accent_color);
+  }
+}
+
 export function applyTheme(themeId: string, customThemes: CustomTheme[] = []): void {
   clearCustomOverrides();
 
