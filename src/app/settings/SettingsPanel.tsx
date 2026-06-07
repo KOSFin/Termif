@@ -15,7 +15,7 @@ import {
   Check
 } from "lucide-react";
 import type { AppSettings, CustomTheme } from "@/types/models";
-import { getShellProfileOptions, platformShortcut } from "@/platform/platform";
+import { getShellProfileOptions, platformDefaultShortcut } from "@/platform/platform";
 import { ThemeEditor } from "./ThemeEditor";
 import { applyTheme as applyThemeEngine, applyAppearanceOverrides } from "@/theme/themeEngine";
 import { HotkeyRecorder, buildConflictMap, getProtectedCombos } from "./HotkeyRecorder";
@@ -95,11 +95,13 @@ function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; al
   const map = new Map(bindings.map((binding) => [binding.command_id, binding]));
   return hotkeyCatalog.map((item) => {
     const saved = map.get(item.id);
+    const primary = saved ? saved.primary : item.defaults[0] ?? "";
+    const alternates = saved ? saved.alternates ?? [] : item.defaults.slice(1);
     return {
       command_id: item.id,
       description: item.description,
-      primary: platformShortcut(saved?.primary ?? item.defaults[0] ?? ""),
-      alternates: (saved?.alternates ?? item.defaults.slice(1)).map(platformShortcut),
+      primary: saved ? primary : platformDefaultShortcut(primary, item.id),
+      alternates: saved ? alternates : alternates.map((combo) => platformDefaultShortcut(combo, item.id)),
     };
   });
 }
@@ -177,11 +179,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
   const conflicts = buildConflictMap(
-    draft.hotkeys.map((item) => ({
+    hotkeyRows.map((item) => ({
       command_id: item.command_id,
-      combos: [item.primary, ...(item.alternates ?? [])]
-        .map(platformShortcut)
-        .filter((combo) => combo.trim() !== "")
+      combos: [item.primary, ...(item.alternates ?? [])].filter((combo) => combo.trim() !== "")
     }))
   );
   const protectedCombos = getProtectedCombos();

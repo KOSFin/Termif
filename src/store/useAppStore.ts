@@ -12,7 +12,13 @@ import type {
   SshHostsPayload
 } from "@/types/models";
 import { detectLanguage } from "@/features/editor/languageMap";
-import { coerceShellProfile, getDefaultLocalPath, getDefaultShellProfile } from "@/platform/platform";
+import {
+  coerceShellProfile,
+  getDefaultLocalPath,
+  getDefaultShellProfile,
+  getDefaultTerminalFont,
+  isMacLike,
+} from "@/platform/platform";
 import {
   buildDirCacheKey,
   isConnectionError,
@@ -204,6 +210,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           terminal: {
             ...settings.terminal,
             default_shell: coerceShellProfile(settings.terminal.default_shell),
+            font_family:
+              isMacLike && (
+                settings.terminal.font_family.trim() === "Cascadia Code" ||
+                settings.terminal.font_family.trim() === "SF Mono, Menlo, Monaco, Consolas, Liberation Mono, monospace"
+              )
+                ? getDefaultTerminalFont()
+                : settings.terminal.font_family,
+            color_scheme: settings.terminal.color_scheme ?? (isMacLike ? "macos_dark" : "one_dark"),
           },
         }
       : settings;

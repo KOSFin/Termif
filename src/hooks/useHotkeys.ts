@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { platformShortcut } from "@/platform/platform";
+import { platformDefaultShortcut } from "@/platform/platform";
 
 export interface HotkeyBindingEntry {
   command_id: string;
@@ -60,7 +60,7 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     const customMap = new Map<string, string[]>();
     for (const entry of configuredBindings ?? []) {
       const combos = [entry.primary, ...(entry.alternates ?? [])]
-        .map((item) => normalizeCombo(platformShortcut(item)))
+        .map((item) => normalizeCombo(item))
         .filter((item): item is string => !!item);
       if (combos.length > 0) {
         customMap.set(entry.command_id, combos);
@@ -68,7 +68,7 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     }
 
     const getBindings = (commandId: string): string[] => {
-      return customMap.get(commandId) ?? (defaultBindings[commandId] ?? []).map(platformShortcut);
+      return customMap.get(commandId) ?? (defaultBindings[commandId] ?? []).map((combo) => platformDefaultShortcut(combo, commandId));
     };
 
     const matchesAny = (e: KeyboardEvent, commandId: string) => {

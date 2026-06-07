@@ -5,7 +5,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
 import { TERMINAL_COLOR_SCHEMES } from "@/app/settings/TerminalPreview";
-import { isMacLike, isPosixShell } from "@/platform/platform";
+import { getDefaultTerminalFont, isMacLike } from "@/platform/platform";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -76,7 +76,7 @@ export const TerminalPane = memo(function TerminalPane({
   sessionId,
   isVisible,
   sshAlias,
-  shellProfile,
+  shellProfile: _shellProfile,
   terminalSettings,
   disconnectedReason,
   reconnecting,
@@ -90,7 +90,6 @@ export const TerminalPane = memo(function TerminalPane({
 
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
-  const syntaxBootstrapSentRef = useRef<boolean>(false);
   const osDetectedRef = useRef<boolean>(false);
   const outputBufferRef = useRef<string>("");
 
@@ -106,15 +105,15 @@ export const TerminalPane = memo(function TerminalPane({
     const isSSH = !!sshAlias;
     connectingRef.current = isSSH;
     setConnecting(isSSH);
-    syntaxBootstrapSentRef.current = false;
     osDetectedRef.current = false;
     outputBufferRef.current = "";
 
     const xterm = new Terminal({
       cursorBlink: true,
       cursorStyle: asCursorStyle(terminalSettings?.cursor_style),
-      fontFamily: terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace",
+      fontFamily: terminalSettings?.font_family ?? getDefaultTerminalFont(),
       fontSize: terminalSettings?.font_size ?? 13,
+      letterSpacing: 0,
       lineHeight: 1.3,
       theme: buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors),
       scrollback: terminalSettings?.scrollback_lines ?? 20_000,
@@ -145,6 +144,16 @@ export const TerminalPane = memo(function TerminalPane({
 
     // ── Custom key handler for copy/paste ────────────────────────────────────
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type === "keydown" && e.code === "Backspace" && !e.metaKey && !e.altKey) {
+        void sendTerminalInput(sessionId, "\x7f", onConnectionError);
+        return false;
+      }
+
+      if (e.type === "keydown" && e.code === "Delete" && !e.metaKey && !e.altKey) {
+        void sendTerminalInput(sessionId, "\x1b[3~", onConnectionError);
+        return false;
+      }
+
       // macOS: Cmd+C copies selected text and never sends ^C to the shell.
       if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyC") {
         const selection = xterm.getSelection();
@@ -155,9 +164,7 @@ export const TerminalPane = memo(function TerminalPane({
       // macOS: Cmd+V pastes from the system clipboard.
       if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
-            onConnectionError?.(err instanceof Error ? err.message : String(err));
-          });
+          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
         }).catch(() => {});
         return false;
       }
@@ -172,9 +179,7 @@ export const TerminalPane = memo(function TerminalPane({
       // Ctrl+V → paste from clipboard
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
-            onConnectionError?.(err instanceof Error ? err.message : String(err));
-          });
+          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
         }).catch(() => {});
         return false;
       }
@@ -182,9 +187,7 @@ export const TerminalPane = memo(function TerminalPane({
       // Ctrl+Shift+V → paste from clipboard (alternative shortcut)
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
-            onConnectionError?.(err instanceof Error ? err.message : String(err));
-          });
+          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
         }).catch(() => {});
         return false;
       }
@@ -205,10 +208,7 @@ export const TerminalPane = memo(function TerminalPane({
 
     // Forward keyboard/paste input to the PTY.
     const dataListener = xterm.onData((data) => {
-      void invoke("send_terminal_input", { sessionId, data }).catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        onConnectionError?.(message);
-      });
+      void sendTerminalInput(sessionId, data, onConnectionError);
     });
 
     // ── Push-based output via Tauri Channel ─────────────────────────────────
@@ -232,21 +232,7 @@ export const TerminalPane = memo(function TerminalPane({
 
     void invoke("stream_terminal_output", { sessionId, onData: channel });
 
-    // ── Terminal color bootstrap ──────────────────────────────────────────────
-    const syntaxHighlightingEnabled = terminalSettings?.syntax_highlighting !== false;
-
     if (isSSH) {
-      if (syntaxHighlightingEnabled) {
-        window.setTimeout(() => {
-          if (syntaxBootstrapSentRef.current) return;
-          syntaxBootstrapSentRef.current = true;
-          const initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; alias ls='ls --color=auto' 2>/dev/null || alias ls='ls -G' 2>/dev/null; true\r";
-          void invoke("send_terminal_input", { sessionId, data: initScript }).catch((error) => {
-            const message = error instanceof Error ? error.message : String(error);
-            onConnectionError?.(message);
-          });
-        }, 300);
-      }
       // OS detection — scan buffered output after initial shell loads
       if (sshAlias) {
         window.setTimeout(() => {
@@ -259,27 +245,6 @@ export const TerminalPane = memo(function TerminalPane({
           }
         }, 3000);
       }
-    } else if (syntaxHighlightingEnabled) {
-      // Local terminal: bootstrap color support by shell type
-      window.setTimeout(() => {
-        if (syntaxBootstrapSentRef.current) return;
-        syntaxBootstrapSentRef.current = true;
-
-        let initScript: string;
-        if (shellProfile === "cmd") {
-          initScript = "set TERM=xterm-256color\r";
-        } else if (!isPosixShell(shellProfile)) {
-          // PowerShell / pwsh
-          initScript = [
-            "$env:TERM='xterm-256color'",
-            "if ($PSVersionTable) { Set-PSReadLineOption -Colors @{ Command = \"`e[93m\"; Parameter = \"`e[97m\"; Operator = \"`e[36m\"; Variable = \"`e[92m\"; String = \"`e[33m\"; Number = \"`e[35m\"; Comment = \"`e[90m\"; Keyword = \"`e[95m\"; Type = \"`e[34m\"; Default = \"`e[37m\" } 2>$null }",
-            "clear",
-          ].join("; ") + "\r";
-        } else {
-          initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; clear\r";
-        }
-        void invoke("send_terminal_input", { sessionId, data: initScript }).catch(() => {});
-      }, 400);
     }
 
     // ── Resize observer ──────────────────────────────────────────────────────
@@ -312,8 +277,9 @@ export const TerminalPane = memo(function TerminalPane({
     if (!xterm) return;
 
     xterm.options.cursorStyle = asCursorStyle(terminalSettings?.cursor_style);
-    xterm.options.fontFamily = terminalSettings?.font_family ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace";
+    xterm.options.fontFamily = terminalSettings?.font_family ?? getDefaultTerminalFont();
     xterm.options.fontSize = terminalSettings?.font_size ?? 13;
+    xterm.options.letterSpacing = 0;
     xterm.options.scrollback = terminalSettings?.scrollback_lines ?? 20_000;
     xterm.options.theme = buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors);
 
@@ -414,6 +380,19 @@ function readCssVar(name: string, fallback: string): string {
 function asCursorStyle(value?: string): "bar" | "block" | "underline" {
   if (value === "block" || value === "underline") return value;
   return "bar";
+}
+
+async function sendTerminalInput(
+  sessionId: string,
+  data: string,
+  onConnectionError?: (message: string) => void,
+) {
+  try {
+    await invoke("send_terminal_input", { sessionId, data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    onConnectionError?.(message);
+  }
 }
 
 function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, string>) {

@@ -1,3 +1,5 @@
+import { getDefaultTerminalFont } from "@/platform/platform";
+
 export interface TerminalColorScheme {
   id: string;
   name: string;
@@ -11,6 +13,16 @@ export interface TerminalColorScheme {
 }
 
 export const TERMINAL_COLOR_SCHEMES: TerminalColorScheme[] = [
+  {
+    id: "macos_dark", name: "macOS Dark",
+    colors: {
+      black: "#000000", red: "#ff6961", green: "#8bd987", yellow: "#ffd866",
+      blue: "#7ab2ff", magenta: "#d6a5ff", cyan: "#7fe8d3", white: "#d8d8d8",
+      brightBlack: "#6c7079", brightRed: "#ff8a80", brightGreen: "#a8f0a3", brightYellow: "#ffe28a",
+      brightBlue: "#9cc8ff", brightMagenta: "#e3bdff", brightCyan: "#a4f4e3", brightWhite: "#ffffff",
+      background: "#1e1e1e", foreground: "#d8d8d8", cursor: "#f2f2f2", selection: "#515151",
+    },
+  },
   {
     id: "one_dark", name: "One Dark",
     colors: {
@@ -195,7 +207,7 @@ function buildSampleLines(c: TerminalColorScheme["colors"]): SampleLine[] {
 
 export function TerminalPreview({ scheme, fontFamily, fontSize }: TerminalPreviewProps) {
   const lines = buildSampleLines(scheme.colors);
-  const font = fontFamily ?? "Cascadia Code, Fira Code, JetBrains Mono, Consolas, monospace";
+  const font = fontFamily ?? getDefaultTerminalFont();
   const size = fontSize ?? 12;
 
   return (

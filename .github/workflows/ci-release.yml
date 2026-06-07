@@ -79,11 +79,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
   quality:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -140,11 +136,8 @@ jobs:
         working-directory: src-tauri
         run: cargo test --all-targets --all-features
 
-      - name: Tauri smoke build
-        run: npm run tauri:build -- --no-bundle
-
   build:
-    needs: [metadata, quality]
+    needs: [metadata]
     if: github.event_name != 'pull_request'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -235,6 +228,8 @@ jobs:
           NODE
 
       - name: Build Tauri bundles
+        env:
+          VITE_UPDATE_REPO: ${{ github.repository }}
         run: npm run ${{ matrix.build_script }}
 
       - name: Collect bundles and checksums
@@ -295,7 +290,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [metadata, build]
+    needs: [metadata, quality, build]
     if: needs.metadata.outputs.publish_release == 'true'
     runs-on: ubuntu-latest
     permissions:

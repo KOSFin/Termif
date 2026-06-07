@@ -27,6 +27,7 @@ import type { SystemStats } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
+import { UpdateBanner } from "@/features/update/UpdateBanner";
 
 export function AppShell() {
   const {
@@ -680,7 +681,6 @@ export function AppShell() {
   return (
     <div className={`app-root ${platformClassName}`}>
       <header className="topbar">
-        {isMacLike ? windowControls : null}
         <button
           className="sidebar-toggle-btn"
           onClick={() => toggleSidebar()}
@@ -811,6 +811,8 @@ export function AppShell() {
           onDismiss={() => useAppStore.setState({ lastToast: undefined })}
         />
       ) : null}
+
+      <UpdateBanner />
 
       {!isInitialized ? <BootOverlay /> : null}
     </div>

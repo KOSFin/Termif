@@ -33,11 +33,13 @@ Representative JSON shape:
 	},
 	"terminal": {
 		"default_shell": "powershell | zsh | bash",
-		"font_family": "Cascadia Code",
+		"font_family": "\"SF Mono\", Menlo, Monaco, Consolas, \"Liberation Mono\", monospace",
 		"font_size": 13,
 		"cursor_style": "bar",
 		"scrollback_lines": 20000,
-		"syntax_highlighting": false
+		"syntax_highlighting": false,
+		"color_scheme": "macos_dark | one_dark",
+		"custom_colors": null
 	},
 	"hotkeys": [
 		{
@@ -70,7 +72,7 @@ Representative JSON shape:
 
 The frontend requests settings through load_settings and submits updates through save_settings. Changes are applied as whole-object updates rather than patch deltas. This keeps synchronization straightforward at the cost of requiring callers to preserve unknown fields when future schema growth appears.
 
-Hotkeys are modeled as user-defined bindings but remain normalized in runtime through a default catalog in frontend hotkey handling. Missing commands inherit defaults, while user-defined entries override by command_id. On macOS, application-level Ctrl defaults are projected to Meta/Command at runtime; terminal control combinations remain true Ctrl so shells keep expected behavior.
+Hotkeys are modeled as user-defined bindings but remain normalized in runtime through a default catalog in frontend hotkey handling. Missing commands inherit defaults, while user-defined entries override by command_id. On macOS, application-level Ctrl defaults are projected to Meta/Command at runtime, but user-recorded shortcuts are preserved exactly; a recorded Ctrl binding remains Ctrl and is not rewritten to Command. Terminal control combinations remain true Ctrl so shells keep expected behavior.
 
 The terminal default shell is platform-aware. Windows defaults to `powershell`, macOS defaults to `zsh`, and Linux defaults to `bash`. The frontend settings panel only exposes shell profiles that make sense for the current platform.
 

@@ -25,6 +25,12 @@ export function getPlatformModLabel(): "Ctrl" | "Cmd" {
   return isMacLike ? "Cmd" : "Ctrl";
 }
 
+export function getDefaultTerminalFont(): string {
+  return isMacLike
+    ? "\"SF Mono\", Menlo, Monaco, Consolas, \"Liberation Mono\", monospace"
+    : "\"Cascadia Code\", \"Fira Code\", \"JetBrains Mono\", Consolas, \"Liberation Mono\", monospace";
+}
+
 export function getDefaultLocalPath(): string {
   return isWindows ? "C:/" : "/";
 }
@@ -78,12 +84,29 @@ export function isPosixShell(shellProfile?: string): boolean {
   return id === "zsh" || id === "bash" || id === "fish" || id === "sh";
 }
 
-export function platformShortcut(combo: string): string {
-  return isMacLike ? combo.replace(/\bCtrl\b/g, "Meta") : combo;
+export function platformDefaultShortcut(combo: string, commandId?: string): string {
+  if (!isMacLike) return combo;
+
+  if (commandId === "tab.switcher.next" || commandId === "tab.switcher.prev") {
+    return combo;
+  }
+
+  if (commandId?.startsWith("tab.index.")) {
+    return combo.replace(/\bAlt\b/g, "Meta");
+  }
+
+  if (commandId === "terminal.clear") {
+    return combo;
+  }
+
+  if (commandId === "terminal.copy") return "Meta+C";
+  if (commandId === "terminal.paste") return "Meta+V";
+
+  return combo.replace(/\bCtrl\b/g, "Meta");
 }
 
 export function displayShortcut(combo: string): string {
-  return platformShortcut(combo)
+  return platformDefaultShortcut(combo)
     .replace(/\bMeta\b/g, "Cmd")
     .replace(/\bCtrl\b/g, "Ctrl")
     .replace(/\bAlt\b/g, isMacLike ? "Option" : "Alt");

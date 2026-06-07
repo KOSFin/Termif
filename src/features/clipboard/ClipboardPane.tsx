@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { ClipboardPaste, Copy, Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-
-interface ClipboardPaneProps {
-  activeSessionId?: string;
-}
 
 interface ClipboardEntry {
   id: string;
@@ -44,7 +39,7 @@ function formatTimeAgo(ts: number): string {
   return `${days}d ago`;
 }
 
-export function ClipboardPane({ activeSessionId }: ClipboardPaneProps) {
+export function ClipboardPane() {
   const toast = useAppStore((s) => s.toast);
   const [entries, setEntries] = useState<ClipboardEntry[]>(() => loadEntries());
   const [, setTick] = useState(0);
@@ -103,19 +98,6 @@ export function ClipboardPane({ activeSessionId }: ClipboardPaneProps) {
     lastTextRef.current = "";
   }, []);
 
-  const pasteToTerminal = useCallback(async (text: string) => {
-    if (!activeSessionId) {
-      toast("No active terminal session");
-      return;
-    }
-    try {
-      await invoke("send_terminal_input", { sessionId: activeSessionId, data: text });
-      toast("Pasted to terminal");
-    } catch (error) {
-      toast(error instanceof Error ? error.message : String(error));
-    }
-  }, [activeSessionId, toast]);
-
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -146,23 +128,25 @@ export function ClipboardPane({ activeSessionId }: ClipboardPaneProps) {
           </div>
         ) : (
           entries.map((entry) => (
-            <div key={entry.id} className="clipboard-entry">
+            <button
+              key={entry.id}
+              className="clipboard-entry"
+              onClick={() => void copyToClipboard(entry.text)}
+              title="Copy to clipboard"
+            >
               <div className="clipboard-entry-main">
                 <div className="clipboard-entry-text">{entry.text}</div>
                 <div className="clipboard-entry-time">{formatTimeAgo(entry.timestamp)}</div>
               </div>
               <div className="clipboard-entry-actions">
-                <button className="primary" onClick={() => void pasteToTerminal(entry.text)} title="Paste to terminal">
-                  <ClipboardPaste size={12} strokeWidth={2} />
-                </button>
-                <button className="ghost icon-btn" onClick={() => void copyToClipboard(entry.text)} title="Copy">
+                <button className="ghost icon-btn" onClick={(e) => { e.stopPropagation(); void copyToClipboard(entry.text); }} title="Copy">
                   <Copy size={12} strokeWidth={2} />
                 </button>
-                <button className="ghost icon-btn danger" onClick={() => removeEntry(entry.id)} title="Delete">
+                <button className="ghost icon-btn danger" onClick={(e) => { e.stopPropagation(); removeEntry(entry.id); }} title="Delete">
                   <Trash2 size={12} strokeWidth={2} />
                 </button>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>

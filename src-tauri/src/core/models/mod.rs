@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -92,11 +94,13 @@ impl Default for AppSettings {
             },
             terminal: TerminalSettings {
                 default_shell: crate::platform::default_shell_profile().to_string(),
-                font_family: "Cascadia Code".to_string(),
+                font_family: default_terminal_font().to_string(),
                 font_size: 13,
                 cursor_style: "bar".to_string(),
                 scrollback_lines: 20_000,
                 syntax_highlighting: false,
+                color_scheme: Some(default_terminal_color_scheme().to_string()),
+                custom_colors: None,
             },
             hotkeys: vec![
                 HotkeyBinding {
@@ -146,6 +150,30 @@ fn default_tab_switching_mode() -> String {
     "mru".to_string()
 }
 
+fn default_terminal_font() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        "\"SF Mono\", Menlo, Monaco, Consolas, \"Liberation Mono\", monospace"
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        "\"Cascadia Code\", \"Fira Code\", \"JetBrains Mono\", Consolas, \"Liberation Mono\", monospace"
+    }
+}
+
+fn default_terminal_color_scheme() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        "macos_dark"
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        "one_dark"
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomTheme {
     pub id: String,
@@ -163,6 +191,10 @@ pub struct TerminalSettings {
     pub scrollback_lines: usize,
     #[serde(default)]
     pub syntax_highlighting: bool,
+    #[serde(default)]
+    pub color_scheme: Option<String>,
+    #[serde(default)]
+    pub custom_colors: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

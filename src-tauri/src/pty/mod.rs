@@ -133,6 +133,11 @@ impl TerminalManager {
             .map_err(|e| TermifError::Internal(e.to_string()))?;
 
         let mut command = CommandBuilder::new(program);
+        command.env("TERM", "xterm-256color");
+        command.env("COLORTERM", "truecolor");
+        command.env("CLICOLOR", "1");
+        #[cfg(target_os = "macos")]
+        command.env("LSCOLORS", "GxFxCxDxBxegedabagaced");
         for arg in args {
             command.arg(arg);
         }

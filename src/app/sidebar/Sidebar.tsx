@@ -54,7 +54,7 @@ export function Sidebar({ hidden }: SidebarProps) {
         ) : selectedSidebarTool === "snippets" ? (
           <SnippetsPane activeSessionId={activeTab?.sessionId} />
         ) : (
-          <ClipboardPane activeSessionId={activeTab?.sessionId} />
+          <ClipboardPane />
         )}
       </div>
     </aside>

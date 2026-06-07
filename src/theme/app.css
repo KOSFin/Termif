@@ -9,7 +9,7 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
 }
@@ -134,7 +134,15 @@ textarea:focus {
   gap: 0;
 }
 
-.platform-macos .topbar,
+.platform-macos .topbar {
+  height: 44px;
+  min-height: 44px;
+  padding-left: 78px;
+  border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) 72%, transparent);
+  backdrop-filter: blur(20px) saturate(1.25);
+}
+
 .platform-linux .topbar {
   background: color-mix(in srgb, var(--bg-elev-1) 78%, transparent);
   backdrop-filter: blur(18px) saturate(1.25);
@@ -168,6 +176,21 @@ textarea:focus {
   transition: background 0.1s, color 0.1s;
 }
 
+.platform-macos .sidebar-toggle-btn {
+  height: 44px;
+}
+
+.platform-macos .sidebar-toggle-btn {
+  width: 40px;
+  border-radius: 7px;
+  margin-right: 2px;
+}
+
+.platform-macos .topbar-btn {
+  border-radius: 7px;
+  margin: 0 2px;
+}
+
 .sidebar-toggle-btn:hover {
   color: var(--text);
   background: var(--bg-hover);
@@ -194,6 +217,7 @@ textarea:focus {
 }
 
 .platform-macos .window-controls {
+  display: none;
   width: 72px;
   height: 38px;
   justify-content: center;
@@ -217,6 +241,17 @@ textarea:focus {
 .topbar-btn:hover {
   color: var(--text);
   background: var(--bg-hover);
+}
+
+.platform-macos .topbar-btn,
+.platform-macos .tab {
+  height: 44px;
+}
+
+.platform-macos .tab {
+  min-width: 104px;
+  max-width: 210px;
+  padding: 0 12px;
 }
 
 .topbar-divider {
@@ -291,6 +326,7 @@ textarea:focus {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  background: var(--bg);
 }
 
 /* == Sidebar ================================================== */
@@ -298,7 +334,7 @@ textarea:focus {
 .sidebar {
   width: 280px;
   min-width: 0;
-  border-right: 1px solid var(--stroke);
+  border-right: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
   background: var(--bg-elev-1);
   display: grid;
   grid-template-rows: auto 1fr;
@@ -315,6 +351,10 @@ textarea:focus {
   backdrop-filter: blur(14px) saturate(1.15);
 }
 
+.platform-macos .sidebar {
+  border-right-color: color-mix(in srgb, var(--stroke) 45%, transparent);
+}
+
 .sidebar-hidden {
   width: 0;
   border-right-color: transparent;
@@ -325,8 +365,8 @@ textarea:focus {
 .sidebar-tools {
   display: flex;
   gap: 2px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--stroke);
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 48%, transparent);
 }
 
 .sidebar-tools button {
@@ -335,7 +375,7 @@ textarea:focus {
   padding: 0;
   font-size: 13px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 7px;
   background: transparent;
   color: var(--text-muted);
   display: grid;
@@ -668,8 +708,8 @@ textarea:focus {
 .file-toolbar {
   display: flex;
   gap: 2px;
-  padding: 6px;
-  border-bottom: 1px solid var(--stroke);
+  padding: 7px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 45%, transparent);
 }
 
 .file-toolbar button {
@@ -677,7 +717,7 @@ textarea:focus {
   height: 26px;
   padding: 0;
   border: none;
-  border-radius: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-muted);
   display: grid;
@@ -707,8 +747,8 @@ textarea:focus {
 .breadcrumbs {
   display: flex;
   gap: 2px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--stroke);
+  padding: 5px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 42%, transparent);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -722,7 +762,7 @@ textarea:focus {
   white-space: nowrap;
   font-size: 11px;
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-muted);
 }
@@ -741,9 +781,9 @@ textarea:focus {
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px;
+  padding: 6px 8px;
   display: grid;
-  gap: 1px;
+  gap: 2px;
   align-content: start;
 }
 
@@ -752,11 +792,11 @@ textarea:focus {
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 4px 8px;
+  padding: 5px 8px;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  border-radius: 0;
+  border-radius: 7px;
   font-size: 12px;
   color: var(--text);
   transition: background 0.1s;
@@ -773,7 +813,7 @@ textarea:focus {
 
 .file-item.selected {
   background: var(--accent-dim);
-  border-color: rgba(74, 143, 231, 0.2);
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .file-icon {
@@ -811,8 +851,8 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--stroke);
+  padding: 5px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 42%, transparent);
   min-height: 24px;
 }
 
@@ -822,8 +862,8 @@ textarea:focus {
   text-transform: uppercase;
   color: var(--text-bright);
   background: var(--bg-elev-2);
-  border: 1px solid var(--stroke);
-  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
+  border-radius: 5px;
   padding: 1px 5px;
   flex-shrink: 0;
 }
@@ -881,7 +921,7 @@ textarea:focus {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 6px;
+  padding: 10px 12px;
   overflow: hidden;
   background: var(--bg);
 }
@@ -892,6 +932,11 @@ textarea:focus {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  font-variant-ligatures: none;
+}
+
+.terminal-pane .xterm {
+  letter-spacing: 0;
 }
 
 .terminal-pane .xterm,
@@ -1715,8 +1760,13 @@ textarea:focus {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
   padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
   transition: background 0.1s;
 }
 
@@ -3038,20 +3088,20 @@ textarea:focus {
 }
 
 .split-handle {
-  background: var(--stroke);
+  background: color-mix(in srgb, var(--stroke) 55%, transparent);
   flex-shrink: 0;
   transition: background 0.15s;
 }
 
 .split-handle-row {
-  height: 4px;
-  min-height: 4px;
+  height: 2px;
+  min-height: 2px;
   cursor: row-resize;
 }
 
 .split-handle-col {
-  width: 4px;
-  min-width: 4px;
+  width: 2px;
+  min-width: 2px;
   cursor: col-resize;
 }
 
@@ -3424,7 +3474,7 @@ textarea:focus {
 .statusbar {
   height: 22px;
   min-height: 22px;
-  border-top: 1px solid var(--stroke);
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 50%, transparent);
   background: var(--bg-elev-1);
   display: flex;
   align-items: center;
@@ -3454,8 +3504,8 @@ textarea:focus {
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  border: 1px solid var(--stroke);
-  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 62%, transparent);
+  border-radius: 5px;
   padding: 1px 5px;
   background: var(--bg-elev-2);
   color: var(--text-bright);
@@ -3467,6 +3517,63 @@ textarea:focus {
   border: 1px solid var(--stroke);
   background: var(--bg-elev-2);
   white-space: nowrap;
+}
+
+/* == Update banner =========================================== */
+
+.update-banner {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--stroke));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elev-2) 94%, transparent);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.update-banner-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-banner-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.update-banner-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-banner-action {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.update-banner-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .status-users-wrap {

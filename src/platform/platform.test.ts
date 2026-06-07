@@ -17,7 +17,8 @@ describe("platform detection", () => {
     expect(platform.desktopPlatform).toBe("windows");
     expect(platform.getDefaultShellProfile()).toBe("powershell");
     expect(platform.getDefaultLocalPath()).toBe("C:/");
-    expect(platform.platformShortcut("Ctrl+T")).toBe("Ctrl+T");
+    expect(platform.platformDefaultShortcut("Ctrl+T")).toBe("Ctrl+T");
+    expect(platform.getDefaultTerminalFont()).toContain("Cascadia Code");
   });
 
   it("uses macOS defaults and Command shortcuts", async () => {
@@ -26,8 +27,11 @@ describe("platform detection", () => {
     expect(platform.desktopPlatform).toBe("macos");
     expect(platform.getDefaultShellProfile()).toBe("zsh");
     expect(platform.getDefaultLocalPath()).toBe("/");
-    expect(platform.platformShortcut("Ctrl+Shift+P")).toBe("Meta+Shift+P");
+    expect(platform.platformDefaultShortcut("Ctrl+Shift+P")).toBe("Meta+Shift+P");
+    expect(platform.platformDefaultShortcut("Ctrl+Tab", "tab.switcher.next")).toBe("Ctrl+Tab");
+    expect(platform.platformDefaultShortcut("Alt+1", "tab.index.1")).toBe("Meta+1");
     expect(platform.displayShortcut("Ctrl+,")).toBe("Cmd+,");
+    expect(platform.getDefaultTerminalFont()).toContain("SF Mono");
   });
 
   it("uses Linux defaults", async () => {

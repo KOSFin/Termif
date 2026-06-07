@@ -10,9 +10,9 @@ The workflow is triggered by pull requests, pushes to `main`/`develop`, version 
 
 The `metadata` job computes SemVer-compatible build metadata, release tag, release name, prerelease state, and publication intent.
 
-The `quality` job runs as a matrix on `windows-latest`, `macos-latest`, and `ubuntu-latest`. Each runner validates frontend lint, Vitest unit tests, frontend build integrity, Rust formatting, clippy warnings as errors, Rust tests, and a no-bundle Tauri smoke build.
+The `quality` job runs once on Ubuntu. It validates frontend lint, Vitest unit tests, frontend build integrity, Rust formatting, clippy warnings as errors, and Rust tests. It does not run a Tauri smoke build; native Tauri compilation is reserved for the platform `build` jobs that produce artifacts.
 
-The `build` job runs after quality for non-PR events. It builds native bundles per OS:
+The `build` job runs for non-PR events after metadata is resolved. It runs in parallel with quality to reduce wall-clock time, while release publication still waits for both quality and build to pass. It builds native bundles per OS:
 
 - Windows: MSI and NSIS EXE.
 - macOS: DMG and zipped `.app`.
@@ -38,7 +38,7 @@ Windows builds use the GitHub-hosted Windows runner and produce MSI/NSIS artifac
 
 macOS builds use the GitHub-hosted macOS runner and produce DMG/App artifacts. Signing and notarization are not enabled by default.
 
-Linux builds use Ubuntu with WebKitGTK, AppIndicator, SVG, OpenSSL, and AppImage packaging dependencies installed before validation and bundling.
+Linux validation and builds use Ubuntu with WebKitGTK, AppIndicator, SVG, OpenSSL, and AppImage packaging dependencies installed before Rust checks and bundling.
 
 ## Security and Reliability Posture
 

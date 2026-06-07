@@ -22,6 +22,10 @@
 
 [ci-release-plan.md](ci-release-plan.md) описывает кроссплатформенный CI, сборку артефактов и релизный контур.
 
+[macos-distribution.ru.md](macos-distribution.ru.md) объясняет, как запускать и распространять macOS-сборки без Apple Developer ID.
+
+[update-checker.ru.md](update-checker.ru.md) описывает GitHub-проверку новых версий и путь к полноценному Tauri auto-updater.
+
 ## Визуальные Материалы
 
 Скриншоты хранятся в [screenshots](screenshots).
