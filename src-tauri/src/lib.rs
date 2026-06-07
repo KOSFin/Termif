@@ -1,8 +1,8 @@
 mod core;
 mod fs;
 mod monitoring;
-mod platform;
 mod persistence;
+mod platform;
 mod plugins;
 mod pty;
 mod sessions;

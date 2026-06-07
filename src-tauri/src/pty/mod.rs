@@ -17,11 +17,11 @@ use tauri::ipc::Channel as FrontendChannel;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use self::parsers::{parse_ls_output, parse_system_stats, shell_single_quote};
 use crate::core::{
     errors::TermifError,
     models::{FileEntryDto, SessionDto, SessionKind, SystemStatsDto},
 };
-use self::parsers::{parse_ls_output, parse_system_stats, shell_single_quote};
 use crate::platform;
 
 const DIR_CACHE_TTL: Duration = Duration::from_millis(1_500);
@@ -855,10 +855,7 @@ fn resolve_local_shell(shell_profile: Option<String>) -> (String, Vec<String>, S
 
 #[cfg(target_os = "windows")]
 fn resolve_local_shell_for_platform(shell_profile: String) -> (String, Vec<String>, String) {
-    match shell_profile
-        .to_lowercase()
-        .as_str()
-    {
+    match shell_profile.to_lowercase().as_str() {
         "cmd" | "cmd.exe" => ("cmd.exe".to_string(), vec![], "CMD".to_string()),
         "pwsh" | "powershell7" => (
             "pwsh.exe".to_string(),
@@ -883,7 +880,11 @@ fn resolve_local_shell_for_platform(shell_profile: String) -> (String, Vec<Strin
         ),
         "fish" => ("fish".to_string(), vec![], "Fish".to_string()),
         "sh" => ("sh".to_string(), vec![], "Sh".to_string()),
-        "bash" => ("bash".to_string(), vec!["-l".to_string()], "Bash".to_string()),
+        "bash" => (
+            "bash".to_string(),
+            vec!["-l".to_string()],
+            "Bash".to_string(),
+        ),
         "zsh" => ("zsh".to_string(), vec!["-l".to_string()], "Zsh".to_string()),
         _ => {
             if let Ok(shell) = std::env::var("SHELL") {
@@ -902,7 +903,11 @@ fn resolve_local_shell_for_platform(shell_profile: String) -> (String, Vec<Strin
 
             #[cfg(all(unix, not(target_os = "macos")))]
             {
-                ("bash".to_string(), vec!["-l".to_string()], "Bash".to_string())
+                (
+                    "bash".to_string(),
+                    vec!["-l".to_string()],
+                    "Bash".to_string(),
+                )
             }
         }
     }

@@ -295,7 +295,10 @@ alice pts/2
         assert_eq!(stats.ram.map(|v| v.round() as u32), Some(75));
         assert_eq!(stats.disk, Some(42.0));
         assert_eq!(stats.users, Some(2));
-        assert_eq!(stats.user_names, Some(vec!["alice".to_string(), "bob".to_string()]));
+        assert_eq!(
+            stats.user_names,
+            Some(vec!["alice".to_string(), "bob".to_string()])
+        );
         assert_eq!(stats.server_time_epoch, Some(1710000000));
         assert_eq!(stats.server_tz, Some("UTC".to_string()));
     }

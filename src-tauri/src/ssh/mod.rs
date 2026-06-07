@@ -12,8 +12,8 @@ use crate::{
         errors::TermifError,
         models::{SshHostEntry, SshHostGroup, SshHostSource},
     },
-    platform,
     persistence::Persistence,
+    platform,
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
