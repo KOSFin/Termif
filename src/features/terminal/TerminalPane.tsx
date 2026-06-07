@@ -5,6 +5,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
 import { TERMINAL_COLOR_SCHEMES } from "@/app/settings/TerminalPreview";
+import { isMacLike, isPosixShell } from "@/platform/platform";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -144,15 +145,32 @@ export const TerminalPane = memo(function TerminalPane({
 
     // ── Custom key handler for copy/paste ────────────────────────────────────
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // macOS: Cmd+C copies selected text and never sends ^C to the shell.
+      if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyC") {
+        const selection = xterm.getSelection();
+        if (selection) void navigator.clipboard.writeText(selection).catch(() => {});
+        return false;
+      }
+
+      // macOS: Cmd+V pastes from the system clipboard.
+      if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyV") {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
+            onConnectionError?.(err instanceof Error ? err.message : String(err));
+          });
+        }).catch(() => {});
+        return false;
+      }
+
       // Ctrl+Shift+C → copy selected text
-      if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyC") {
+      if (!isMacLike && e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyC") {
         const selection = xterm.getSelection();
         if (selection) void navigator.clipboard.writeText(selection).catch(() => {});
         return false;
       }
 
       // Ctrl+V → paste from clipboard
-      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
+      if (!isMacLike && e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
           if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
             onConnectionError?.(err instanceof Error ? err.message : String(err));
@@ -162,7 +180,7 @@ export const TerminalPane = memo(function TerminalPane({
       }
 
       // Ctrl+Shift+V → paste from clipboard (alternative shortcut)
-      if (e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
+      if (!isMacLike && e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
           if (text) void invoke("send_terminal_input", { sessionId, data: text }).catch((err) => {
             onConnectionError?.(err instanceof Error ? err.message : String(err));
@@ -172,7 +190,7 @@ export const TerminalPane = memo(function TerminalPane({
       }
 
       // Ctrl+C with selection → copy, clear selection, don't send ^C interrupt
-      if (e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyC") {
+      if (!isMacLike && e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyC") {
         const selection = xterm.getSelection();
         if (selection) {
           void navigator.clipboard.writeText(selection).catch(() => {});
@@ -250,13 +268,15 @@ export const TerminalPane = memo(function TerminalPane({
         let initScript: string;
         if (shellProfile === "cmd") {
           initScript = "set TERM=xterm-256color\r";
-        } else {
+        } else if (!isPosixShell(shellProfile)) {
           // PowerShell / pwsh
           initScript = [
             "$env:TERM='xterm-256color'",
             "if ($PSVersionTable) { Set-PSReadLineOption -Colors @{ Command = \"`e[93m\"; Parameter = \"`e[97m\"; Operator = \"`e[36m\"; Variable = \"`e[92m\"; String = \"`e[33m\"; Number = \"`e[35m\"; Comment = \"`e[90m\"; Keyword = \"`e[95m\"; Type = \"`e[34m\"; Default = \"`e[37m\" } 2>$null }",
             "clear",
           ].join("; ") + "\r";
+        } else {
+          initScript = "export TERM=xterm-256color; export CLICOLOR=1; export COLORTERM=truecolor; clear\r";
         }
         void invoke("send_terminal_input", { sessionId, data: initScript }).catch(() => {});
       }, 400);

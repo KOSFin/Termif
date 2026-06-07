@@ -12,6 +12,7 @@ use crate::{
         errors::TermifError,
         models::{SshHostEntry, SshHostGroup, SshHostSource},
     },
+    platform,
     persistence::Persistence,
 };
 
@@ -371,17 +372,7 @@ fn parse_ssh_config() -> Result<Vec<SshHostEntry>, TermifError> {
 }
 
 fn ssh_config_path() -> Result<PathBuf, TermifError> {
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .map(PathBuf::from)
-        .map_err(|e| TermifError::Internal(e.to_string()))?;
-
-    let ssh_dir = home.join(".ssh");
-    if !ssh_dir.exists() {
-        fs::create_dir_all(&ssh_dir)?;
-    }
-
-    Ok(ssh_dir.join("config"))
+    platform::ssh_config_path()
 }
 
 fn is_host_header_line(line: &str) -> bool {

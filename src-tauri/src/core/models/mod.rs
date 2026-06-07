@@ -91,7 +91,7 @@ impl Default for AppSettings {
                 custom_themes: Vec::new(),
             },
             terminal: TerminalSettings {
-                default_shell: "powershell".to_string(),
+                default_shell: crate::platform::default_shell_profile().to_string(),
                 font_family: "Cascadia Code".to_string(),
                 font_size: 13,
                 cursor_style: "bar".to_string(),

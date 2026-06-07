@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Termif is a Windows-first terminal workspace built as a Tauri v2 desktop shell with a React frontend and a Rust backend. The architecture is designed around one core principle: the active tab defines execution context for terminal, filesystem, status telemetry, and editing surfaces. This allows the product to behave like a single coherent workspace instead of a collection of isolated panels.
+Termif is a cross-platform terminal workspace built as a Tauri v2 desktop shell with a React frontend and a Rust backend. The architecture is designed around one core principle: the active tab defines execution context for terminal, filesystem, status telemetry, and editing surfaces. This allows the product to behave like a single coherent workspace instead of a collection of isolated panels.
 
 Current implementation is production-oriented for local and SSH session workflows, with explicit module seams reserved for plugin runtime and richer typed event infrastructure in future iterations.
 
@@ -20,6 +20,8 @@ The app shell controls window framing, tab strip, command palette, settings pane
 
 Keyboard behavior is implemented against event.code rather than locale-dependent characters, so primary shortcuts stay stable across keyboard layouts.
 
+Platform behavior is centralized in the frontend `src/platform` layer. It selects the local root path, default shell profile, visible shell options, shortcut display labels, and platform CSS class. Runtime hotkeys keep Ctrl and Meta distinct: application commands use Command on macOS and Ctrl on Windows/Linux, while terminal control sequences remain available to shells.
+
 ## Backend Architecture
 
 The Rust backend centers on an application state container with four long-lived services: terminal manager, monitoring store, host store, settings store, and persistence service.
@@ -27,6 +29,8 @@ The Rust backend centers on an application state container with four long-lived 
 The terminal manager encapsulates two runtime types: local PTY sessions and SSH sessions. Both expose a common external contract for input, resize, close, and output streaming. Local sessions use portable-pty. SSH sessions use russh channels with command capture helpers for remote listing, remote read/write, and telemetry collection.
 
 Settings and host inventories are managed as strongly typed repositories backed by JSON files in app data storage. Persistence writes use temporary files followed by rename to reduce corruption risk during crashes or interrupted writes.
+
+Backend platform behavior is centralized in `src-tauri/src/platform.rs`. It resolves the OS default shell, user home directory, and `~/.ssh/config` path. Local PTY spawning remains shared through portable-pty, with shell profile mapping selected per target OS.
 
 ## Session and Context Lifecycle
 
@@ -51,6 +55,12 @@ This model currently favors transparent, inspectable state over opaque binary fo
 ## Filesystem and Editor Semantics
 
 Filesystem behavior follows active context. Local tabs call direct OS file operations for list/read/write/create/rename/delete/copy. SSH tabs route listing and text read/write through remote shell command execution with shell-safe quoting.
+
+Local file manager defaults use `C:/` on Windows and `/` on macOS/Linux. SSH host import/export uses the current platform home directory and the standard `.ssh/config` location, avoiding Windows-specific environment assumptions on Unix platforms.
+
+## Release Architecture
+
+Release automation is a single cross-platform GitHub Actions workflow. Quality gates run on Windows, macOS, and Ubuntu. Non-PR builds produce native installer artifacts for each platform and publish them into one GitHub Release with per-platform SHA-256 checksum files.
 
 The editor subsystem supports preview and edit modes, local and remote files, dirty-state tracking, language detection, docking positions, split resizing, and popout workspace windows. Save actions are mode-aware and propagate backend errors directly to file-level error state.
 

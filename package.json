@@ -6,10 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check": "npm run lint && npm run test && npm run build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "tauri:build:windows": "tauri build --ci --bundles msi,nsis",
+    "tauri:build:macos": "tauri build --ci --bundles dmg,app",
+    "tauri:build:linux": "tauri build --ci --bundles deb,appimage",
     "icons:check": "node scripts/check-icon.mjs"
   },
   "dependencies": {
@@ -49,7 +55,9 @@
     "@vitejs/plugin-react": "^4.3.3",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^29.1.1",
     "typescript": "^5.7.2",
-    "vite": "^6.0.1"
+    "vite": "^6.0.1",
+    "vitest": "^4.1.8"
   }
 }

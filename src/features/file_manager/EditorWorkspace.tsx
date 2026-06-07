@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Save, FolderOpen } from "lucide-react";
+import { appShortcutTitle } from "@/platform/platform";
 import type { EditorWindowTabSeed } from "./editorWindow";
 
 interface EditorTab {
@@ -118,7 +119,6 @@ export function EditorWorkspace() {
     if (path) {
       void openPath(path, mode, sessionId, serverLabel);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrateFromSeeds]);
 
   const openPath = async (
@@ -176,7 +176,7 @@ export function EditorWorkspace() {
   const closeTab = (tabId: string) => {
     const target = tabsRef.current.find((tab) => tab.id === tabId);
     if (target?.dirty) {
-      const ok = window.confirm(`\"${target.path.split(/[\\/]/).pop()}\" has unsaved changes. Close anyway?`);
+      const ok = window.confirm(`"${target.path.split(/[\\/]/).pop()}" has unsaved changes. Close anyway?`);
       if (!ok) return;
     }
     setTabs((prev) => {
@@ -293,7 +293,7 @@ export function EditorWorkspace() {
             className="editor-action-btn"
             onClick={() => void saveActive()}
             disabled={!activeTab || activeTab.mode === "preview"}
-            title="Save (Ctrl+S)"
+            title={appShortcutTitle("Save", "Ctrl+S")}
           >
             <Save size={14} strokeWidth={2} />
           </button>

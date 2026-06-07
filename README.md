@@ -5,16 +5,16 @@
 <h1 align="center">Termif</h1>
 
 <p align="center">
-	Windows-first terminal workspace with native shell sessions, SSH orchestration, contextual file operations, and integrated editing.
+	Cross-platform terminal workspace with native shell sessions, SSH orchestration, contextual file operations, and integrated editing.
 </p>
 
 <p align="center">
-	<img alt="Platform Windows" src="https://img.shields.io/badge/Platform-Windows%2010%2B-0A7A3E" />
+	<img alt="Platform Windows macOS Linux" src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0A7A3E" />
 	<img alt="Desktop Tauri" src="https://img.shields.io/badge/Desktop-Tauri%20v2-1B7F6B" />
 	<img alt="Backend Rust" src="https://img.shields.io/badge/Backend-Rust-8C4A2F" />
 	<img alt="Frontend React TypeScript" src="https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript%205-2457A6" />
 	<img alt="Terminal xterm" src="https://img.shields.io/badge/Terminal-xterm.js-2F2F2F" />
-	<img alt="CI Windows" src="https://img.shields.io/badge/CI-Windows-green" />
+	<img alt="CI Cross Platform" src="https://img.shields.io/badge/CI-Cross--Platform-green" />
 </p>
 
 English is the default documentation language.
@@ -27,7 +27,7 @@ Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Док�
 
 Termif is a desktop terminal product for operators and developers who move constantly between local and remote environments. The application combines low-latency local PTY sessions, SSH session orchestration, and a context-bound file workspace in one frame. Instead of treating terminal, files, and editor as disconnected utilities, Termif keeps those surfaces synchronized around the active tab context and connection state.
 
-The product is intentionally Windows-first in this generation. The shell layer, packaging model, and CI artifacts are all optimized for Windows distribution, while module boundaries in both frontend and backend keep the codebase ready for future platform expansion.
+The product now targets Windows, macOS, and Linux from the same codebase. Platform differences are isolated to shell/profile resolution, keyboard conventions, window controls, filesystem roots, and release packaging, while terminal, SSH, editor, and workspace behavior remain shared.
 
 ## Product Capabilities
 
@@ -59,7 +59,9 @@ Detailed model and compatibility rules are documented in [docs/persistence-model
 
 ## Platform Support
 
-Current release packaging targets Windows installers via MSI and NSIS bundles. Continuous integration runs on Windows and produces downloadable Windows artifacts. Linux and macOS are not declared as supported release targets in the current product line.
+Release packaging targets Windows MSI/NSIS installers, macOS DMG/App bundles, and Linux DEB/AppImage packages. GitHub Actions validates and builds on Windows, macOS, and Ubuntu, then publishes platform artifacts with SHA-256 checksum files.
+
+Local shell defaults follow the host platform: PowerShell on Windows, zsh on macOS, and bash on Linux. App shortcuts use Ctrl on Windows/Linux and Command on macOS, while terminal control sequences such as Ctrl+C remain available to the running shell. SSH host import/export resolves the user's platform home directory and uses the standard `~/.ssh/config` location on every OS.
 
 ## Screenshots
 
@@ -78,7 +80,7 @@ Termif surfaces concrete failures rather than generic UI states. If a session id
 
 [CONTRIBUTING.md](CONTRIBUTING.md) defines repository standards and review contract.
 
-[docs/settings-model.md](docs/settings-model.md), [docs/persistence-model.md](docs/persistence-model.md), [docs/plugin-system-proposal.md](docs/plugin-system-proposal.md), and [docs/ci-windows-plan.md](docs/ci-windows-plan.md) cover subsystem specifications.
+[docs/settings-model.md](docs/settings-model.md), [docs/persistence-model.md](docs/persistence-model.md), [docs/plugin-system-proposal.md](docs/plugin-system-proposal.md), and [docs/ci-release-plan.md](docs/ci-release-plan.md) cover subsystem specifications.
 
 ## License and Fork Policy
 

@@ -15,6 +15,7 @@ import {
   Check
 } from "lucide-react";
 import type { AppSettings, CustomTheme } from "@/types/models";
+import { getShellProfileOptions, platformShortcut } from "@/platform/platform";
 import { ThemeEditor } from "./ThemeEditor";
 import { applyTheme as applyThemeEngine, applyAppearanceOverrides } from "@/theme/themeEngine";
 import { HotkeyRecorder, buildConflictMap, getProtectedCombos } from "./HotkeyRecorder";
@@ -97,8 +98,8 @@ function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; al
     return {
       command_id: item.id,
       description: item.description,
-      primary: saved?.primary ?? item.defaults[0],
-      alternates: saved?.alternates ?? item.defaults.slice(1),
+      primary: platformShortcut(saved?.primary ?? item.defaults[0] ?? ""),
+      alternates: (saved?.alternates ?? item.defaults.slice(1)).map(platformShortcut),
     };
   });
 }
@@ -178,7 +179,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const conflicts = buildConflictMap(
     draft.hotkeys.map((item) => ({
       command_id: item.command_id,
-      combos: [item.primary, ...(item.alternates ?? [])].filter((combo) => combo.trim() !== "")
+      combos: [item.primary, ...(item.alternates ?? [])]
+        .map(platformShortcut)
+        .filter((combo) => combo.trim() !== "")
     }))
   );
   const protectedCombos = getProtectedCombos();
@@ -187,6 +190,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const currentTheme = draft.appearance?.theme ?? "charcoal";
   const customThemes = draft.appearance?.custom_themes ?? [];
   const selectedScheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === draft.terminal.color_scheme) ?? TERMINAL_COLOR_SCHEMES[0];
+  const shellOptions = getShellProfileOptions();
   const previewColors = {
     ...selectedScheme.colors,
     ...(draft.terminal.custom_colors ?? {}),
@@ -424,7 +428,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           {showSection("terminal") && (
             <div className="settings-section">
-              <div id="setting-default-shell" className="settings-row" style={{ display: matches("default shell", "shell", "powershell", "cmd") ? undefined : "none" }}>
+              <div id="setting-default-shell" className="settings-row" style={{ display: matches("default shell", "shell", "powershell", "cmd", "zsh", "bash", "fish") ? undefined : "none" }}>
                 <label>Default Shell</label>
                 <select
                   value={draft.terminal.default_shell}
@@ -434,9 +438,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
                     )
                   }
                 >
-                  <option value="powershell">PowerShell</option>
-                  <option value="cmd">CMD</option>
-                  <option value="pwsh">PowerShell 7</option>
+                  {shellOptions.map((shell) => (
+                    <option key={shell.id} value={shell.id}>{shell.label}</option>
+                  ))}
                 </select>
               </div>
               <div id="setting-font-family" className="settings-row" style={{ display: matches("font family", "terminal font") ? undefined : "none" }}>

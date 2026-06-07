@@ -722,7 +722,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
                 This host is already open in another tab. Do you want to open a new connection or switch to the existing tab?
               </div>
             </div>
-            <div className="modal-footer" style={{ justifyContent: 'flex-end', gap: '8px', display: 'flex' }}>
+            <div className="modal-footer" style={{ justifyContent: "flex-end", gap: "8px", display: "flex" }}>
               <button className="ghost" onClick={() => setAlreadyConnectedModal(null)}>Cancel</button>
               <button className="ghost" onClick={() => handleGoToTab(alreadyConnectedModal)}>Go to Tab</button>
               <button className="primary" onClick={() => onConfirmConnect(alreadyConnectedModal)}>Open New Connection</button>

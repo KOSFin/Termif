@@ -1,0 +1,328 @@
+name: ci-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish GitHub Release
+        required: false
+        type: boolean
+        default: true
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - "v*"
+  pull_request:
+
+concurrency:
+  group: ci-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.meta.outputs.app_version }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      release_name: ${{ steps.meta.outputs.release_name }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      publish_release: ${{ steps.meta.outputs.publish_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_version="$(node -p "require('./package.json').version")"
+          short_sha="${GITHUB_SHA:0:7}"
+          ref_name="${GITHUB_REF_NAME}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            raw_tag_version="${ref_name#v}"
+            if [[ ! "${raw_tag_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Tag version '${raw_tag_version}' must be SemVer, for example v1.2.3 or v1.2.3-rc.1" >&2
+              exit 1
+            fi
+            app_version="${raw_tag_version}"
+            release_tag="${ref_name}"
+            release_name="Termif ${app_version}"
+            prerelease="false"
+            publish_release="true"
+          else
+            if [[ ! "${base_version}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+              echo "Base version must start with X.Y.Z" >&2
+              exit 1
+            fi
+            app_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}-ci.${GITHUB_RUN_NUMBER}"
+            safe_ref="$(echo "${ref_name}" | sed -E 's/[^A-Za-z0-9._-]+/-/g')"
+            release_tag="ci-${safe_ref}-${GITHUB_RUN_NUMBER}-${short_sha}"
+            release_name="Termif CI ${safe_ref} ${short_sha}"
+            prerelease="true"
+            publish_release="true"
+            if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_release }}" == "false" ]]; then
+              publish_release="false"
+            fi
+          fi
+
+          {
+            echo "app_version=${app_version}"
+            echo "release_tag=${release_tag}"
+            echo "release_name=${release_name}"
+            echo "prerelease=${prerelease}"
+            echo "publish_release=${publish_release}"
+          } >> "${GITHUB_OUTPUT}"
+
+  quality:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri -> target
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend tests
+        run: npm run test
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Rust fmt check
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --all-targets --all-features
+
+      - name: Tauri smoke build
+        run: npm run tauri:build -- --no-bundle
+
+  build:
+    needs: [metadata, quality]
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: termif-windows-x64
+            build_script: tauri:build:windows
+          - os: macos-latest
+            artifact_name: termif-macos
+            build_script: tauri:build:macos
+          - os: ubuntu-latest
+            artifact_name: termif-linux-x64
+            build_script: tauri:build:linux
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri -> target
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Apply build version
+        shell: bash
+        env:
+          APP_VERSION: ${{ needs.metadata.outputs.app_version }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const appVersion = process.env.APP_VERSION;
+          const runNumber = Number(process.env.GITHUB_RUN_NUMBER || "0");
+
+          const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          packageJson.version = appVersion;
+          fs.writeFileSync("package.json", `${JSON.stringify(packageJson, null, 2)}\n`);
+
+          const tauriPath = "src-tauri/tauri.conf.json";
+          const tauriConfig = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
+          tauriConfig.version = appVersion;
+
+          if (process.platform === "win32") {
+            const match = appVersion.match(/^(\d+)\.(\d+)\.(\d+)/);
+            if (!match) throw new Error(`Version '${appVersion}' does not start with X.Y.Z`);
+            const build = Math.max(1, runNumber % 65535 || 1);
+            tauriConfig.version = `${match[1]}.${match[2]}.${match[3]}`;
+            tauriConfig.bundle.windows = tauriConfig.bundle.windows || {};
+            tauriConfig.bundle.windows.wix = tauriConfig.bundle.windows.wix || {};
+            tauriConfig.bundle.windows.wix.version = `${match[1]}.${match[2]}.${match[3]}.${build}`;
+          }
+
+          fs.writeFileSync(tauriPath, `${JSON.stringify(tauriConfig, null, 2)}\n`);
+
+          const cargoPath = "src-tauri/Cargo.toml";
+          const cargoToml = fs.readFileSync(cargoPath, "utf8");
+          fs.writeFileSync(
+            cargoPath,
+            cargoToml.replace(/(^\[package\][\s\S]*?^version\s*=\s*")[^"]+(")/m, `$1${appVersion}$2`)
+          );
+          NODE
+
+      - name: Build Tauri bundles
+        run: npm run ${{ matrix.build_script }}
+
+      - name: Collect bundles and checksums
+        shell: bash
+        env:
+          ARTIFACT_NAME: ${{ matrix.artifact_name }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release-artifacts
+
+          while IFS= read -r -d '' file; do
+            cp "${file}" "release-artifacts/$(basename "${file}")"
+          done < <(find src-tauri/target/release/bundle -type f \( \
+            -name '*.msi' -o \
+            -name '*.exe' -o \
+            -name '*.dmg' -o \
+            -name '*.deb' -o \
+            -name '*.AppImage' -o \
+            -name '*.rpm' -o \
+            -name '*.sig' \
+          \) -print0)
+
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            while IFS= read -r -d '' app; do
+              ditto -c -k --sequesterRsrc --keepParent "${app}" "release-artifacts/$(basename "${app}").zip"
+            done < <(find src-tauri/target/release/bundle -maxdepth 3 -type d -name '*.app' -print0)
+          fi
+
+          count="$(find release-artifacts -type f | wc -l | tr -d ' ')"
+          if [[ "${count}" == "0" ]]; then
+            echo "No release bundles were produced by tauri build" >&2
+            exit 1
+          fi
+
+          node - <<'NODE'
+          const crypto = require("crypto");
+          const fs = require("fs");
+          const path = require("path");
+          const dir = "release-artifacts";
+          const artifact = process.env.ARTIFACT_NAME;
+          const files = fs.readdirSync(dir)
+            .filter((name) => !name.startsWith("checksums-"))
+            .sort();
+          const lines = files.map((name) => {
+            const bytes = fs.readFileSync(path.join(dir, name));
+            return `${crypto.createHash("sha256").update(bytes).digest("hex")}  ${name}`;
+          });
+          fs.writeFileSync(path.join(dir, `checksums-${artifact}.txt`), `${lines.join("\n")}\n`);
+          NODE
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-${{ needs.metadata.outputs.release_tag }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  release:
+    needs: [metadata, build]
+    if: needs.metadata.outputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.metadata.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.metadata.outputs.release_name }}
+          prerelease: ${{ needs.metadata.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            release-artifacts/*.msi
+            release-artifacts/*.exe
+            release-artifacts/*.dmg
+            release-artifacts/*.zip
+            release-artifacts/*.deb
+            release-artifacts/*.AppImage
+            release-artifacts/*.rpm
+            release-artifacts/*.sig
+            release-artifacts/checksums-*.txt

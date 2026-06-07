@@ -5,16 +5,16 @@
 <h1 align="center">Termif</h1>
 
 <p align="center">
-  Терминальный рабочий стол для Windows: локальные shell-сессии, SSH-оркестрация, контекстный файловый менеджер и встроенное редактирование.
+  Кроссплатформенный терминальный workspace: локальные shell-сессии, SSH-оркестрация, контекстный файловый менеджер и встроенное редактирование.
 </p>
 
 <p align="center">
-  <img alt="Платформа Windows" src="https://img.shields.io/badge/Platform-Windows%2010%2B-0A7A3E" />
+  <img alt="Платформы Windows macOS Linux" src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0A7A3E" />
   <img alt="Desktop Tauri" src="https://img.shields.io/badge/Desktop-Tauri%20v2-1B7F6B" />
   <img alt="Backend Rust" src="https://img.shields.io/badge/Backend-Rust-8C4A2F" />
   <img alt="Frontend React TypeScript" src="https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript%205-2457A6" />
   <img alt="Terminal xterm" src="https://img.shields.io/badge/Terminal-xterm.js-2F2F2F" />
-  <img alt="CI Windows" src="https://img.shields.io/badge/CI-Windows-green" />
+  <img alt="CI Cross Platform" src="https://img.shields.io/badge/CI-Cross--Platform-green" />
 </p>
 
 Язык документации по умолчанию: English.
@@ -27,7 +27,7 @@
 
 Termif - это продуктовый терминальный workspace для инженеров и операторов, которые постоянно переключаются между локальными и удаленными окружениями. Приложение объединяет локальные PTY-сессии, SSH-подключения, файловую навигацию и редактор в едином контексте активной вкладки. Это не набор несвязанных утилит, а единая рабочая среда, где терминал, файлы и редактор синхронизированы между собой.
 
-Текущая продуктовая линия ориентирована на Windows. Архитектура модулей при этом подготовлена для последующего расширения на другие платформы.
+Текущая продуктовая линия ориентирована на Windows, macOS и Linux из одной кодовой базы. Платформенные различия вынесены в отдельные места: shell-профили, горячие клавиши, root-пути локальной файловой системы, элементы управления окном и упаковка релизов.
 
 ## Что Уже Работает
 
@@ -49,7 +49,9 @@ Termif - это продуктовый терминальный workspace для
 
 ## Поддерживаемые Платформы
 
-Сейчас официально поддерживается Windows с упаковкой в MSI и NSIS. CI и артефакты выпуска ориентированы на Windows. Linux и macOS пока не объявлены как поддерживаемые release-платформы.
+Релизная сборка готовит Windows MSI/NSIS, macOS DMG/App и Linux DEB/AppImage. GitHub Actions прогоняет проверки и сборку на Windows, macOS и Ubuntu, после чего публикует артефакты и SHA-256 checksums в GitHub Release.
+
+Локальный shell выбирается по платформе: PowerShell на Windows, zsh на macOS и bash на Linux. Команды приложения используют Ctrl на Windows/Linux и Command на macOS, при этом терминальные последовательности вроде Ctrl+C остаются доступными shell-сессии. Импорт и экспорт SSH-хостов работают через стандартный `~/.ssh/config` в home-директории текущей платформы.
 
 ## Скриншоты
 

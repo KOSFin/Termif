@@ -11,6 +11,7 @@ import {
   PanelTop
 } from "lucide-react";
 import { useAppStore, type EditorDock, type EditorFile } from "@/store/useAppStore";
+import { appShortcutTitle } from "@/platform/platform";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { allLanguages } from "./languageMap";
 import { openEditorWorkspaceWindow } from "@/features/file_manager/editorWindow";
@@ -62,7 +63,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     setCursorPos({ line, col });
   }, []);
 
-  // Ctrl+S save
+  // Platform save shortcut.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.code === "KeyS") {
@@ -212,7 +213,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
               if (activeFile && activeFile.dirty) void saveEditorFile(activeFile.id);
             }}
             disabled={!activeFile || !activeFile.dirty || activeFile.mode === "preview"}
-            title="Save (Ctrl+S)"
+            title={appShortcutTitle("Save", "Ctrl+S")}
           >
             <Save size={14} strokeWidth={2} />
           </button>

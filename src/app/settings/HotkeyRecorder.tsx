@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
+import { isMacLike } from "@/platform/platform";
 
 interface HotkeyRecorderProps {
   commandId: string;
@@ -13,6 +14,8 @@ interface HotkeyRecorderProps {
 const PROTECTED_SYSTEM_COMBOS = new Set([
   "Ctrl+C", "Ctrl+V", "Ctrl+X", "Ctrl+A", "Ctrl+Z", "Ctrl+Y",
   "Ctrl+S", "Ctrl+F", "Alt+F4",
+  "Meta+C", "Meta+V", "Meta+X", "Meta+A", "Meta+Z", "Meta+Shift+Z",
+  "Meta+S", "Meta+F", "Meta+Q", "Meta+H", "Meta+M",
 ]);
 
 export function getProtectedCombos(): Set<string> {
@@ -44,7 +47,8 @@ export function buildConflictMap(
 
 function eventToCombo(e: KeyboardEvent): string {
   const mods: string[] = [];
-  if (e.ctrlKey || e.metaKey) mods.push("Ctrl");
+  if (e.ctrlKey) mods.push("Ctrl");
+  if (e.metaKey) mods.push("Meta");
   if (e.shiftKey) mods.push("Shift");
   if (e.altKey) mods.push("Alt");
 
@@ -174,7 +178,7 @@ export function HotkeyRecorder({ commandId, description, combos, conflicts, prot
               className={`hotkey-chip${conflictInfo ? " conflict" : ""}`}
               title={conflictInfo ?? combo}
             >
-              {combo}
+              {isMacLike ? combo.replace(/\bMeta\b/g, "Cmd").replace(/\bAlt\b/g, "Option") : combo}
               <button
                 className="hotkey-chip-remove"
                 onClick={(e) => { e.stopPropagation(); removeCombo(index); }}
@@ -186,7 +190,7 @@ export function HotkeyRecorder({ commandId, description, combos, conflicts, prot
         })}
         {recording ? (
           <span className="hotkey-chip recording">
-            {liveCombo || "Press keys..."}
+            {isMacLike ? (liveCombo || "Press keys...").replace(/\bMeta\b/g, "Cmd").replace(/\bAlt\b/g, "Option") : (liveCombo || "Press keys...")}
           </span>
         ) : (
           <button className="hotkey-add-btn" onClick={startRecording} title="Add shortcut">

@@ -16,6 +16,7 @@ import {
   Terminal
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
+import { getDefaultLocalPath } from "@/platform/platform";
 import type { FileEntryDto } from "@/types/models";
 
 interface FileManagerPaneProps {
@@ -73,8 +74,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
   const activePath = useMemo(() => {
     const tab = tabs.find((item) => item.id === activeTabId);
-    if (!tab) return props.isRemote ? "/" : "C:/";
-    return tabPaths[tab.id] ?? (props.isRemote ? "/" : "C:/");
+    if (!tab) return props.isRemote ? "/" : getDefaultLocalPath();
+    return tabPaths[tab.id] ?? (props.isRemote ? "/" : getDefaultLocalPath());
   }, [activeTabId, props.isRemote, tabPaths, tabs]);
 
   const displayTab = useMemo(
@@ -175,8 +176,8 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   const onCdHere = async (entry: FileEntryDto) => {
     if (!props.activeSessionId) return;
     const target = entry.is_dir ? entry.path : entry.path.replace(/[/\\][^/\\]+$/, "");
-    const escapedLocal = target.replace(/"/g, '""');
-    const escapedRemote = `'${target.replace(/'/g, `'\\''`)}'`;
+    const escapedLocal = target.replace(/"/g, "\"\"");
+    const escapedRemote = `'${target.replace(/'/g, "'\\''")}'`;
     const command = props.isRemote
       ? `cd -- ${escapedRemote}\r`
       : `cd "${escapedLocal}"\r`;

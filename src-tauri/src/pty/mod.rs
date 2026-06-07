@@ -1,5 +1,7 @@
+mod parsers;
+
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io::{Read, Write},
     path::PathBuf,
     sync::{mpsc, Arc, Mutex},
@@ -19,11 +21,11 @@ use crate::core::{
     errors::TermifError,
     models::{FileEntryDto, SessionDto, SessionKind, SystemStatsDto},
 };
+use self::parsers::{parse_ls_output, parse_system_stats, shell_single_quote};
+use crate::platform;
 
 const DIR_CACHE_TTL: Duration = Duration::from_millis(1_500);
 const MONITORING_SCRIPT: &str = "grep '^cpu ' /proc/stat 2>/dev/null; sleep 0.5; grep '^cpu ' /proc/stat 2>/dev/null; echo '===REACH_SEP==='; cat /proc/meminfo; echo '===REACH_SEP==='; df -P /; echo '===REACH_SEP==='; w -hs || who; echo '===REACH_SEP==='; date '+%s %Z' 2>/dev/null || date +%s 2>/dev/null";
-const REACH_SEP: &str = "===REACH_SEP===";
-
 #[derive(Clone, Debug)]
 pub struct SshConnectOptions {
     pub alias: String,
@@ -844,8 +846,16 @@ fn flush_pending_to_channel(pending: &Arc<Mutex<Vec<u8>>>, ch: &FrontendChannel<
 }
 
 fn resolve_local_shell(shell_profile: Option<String>) -> (String, Vec<String>, String) {
+    resolve_local_shell_for_platform(
+        shell_profile
+            .unwrap_or_else(|| platform::default_shell_profile().to_string())
+            .to_lowercase(),
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_local_shell_for_platform(shell_profile: String) -> (String, Vec<String>, String) {
     match shell_profile
-        .unwrap_or_else(|| "powershell".to_string())
         .to_lowercase()
         .as_str()
     {
@@ -860,6 +870,53 @@ fn resolve_local_shell(shell_profile: Option<String>) -> (String, Vec<String>, S
             vec!["-NoLogo".to_string()],
             "PowerShell".to_string(),
         ),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn resolve_local_shell_for_platform(shell_profile: String) -> (String, Vec<String>, String) {
+    match shell_profile.as_str() {
+        "pwsh" | "powershell7" => (
+            "pwsh".to_string(),
+            vec!["-NoLogo".to_string()],
+            "PowerShell 7".to_string(),
+        ),
+        "fish" => ("fish".to_string(), vec![], "Fish".to_string()),
+        "sh" => ("sh".to_string(), vec![], "Sh".to_string()),
+        "bash" => ("bash".to_string(), vec!["-l".to_string()], "Bash".to_string()),
+        "zsh" => ("zsh".to_string(), vec!["-l".to_string()], "Zsh".to_string()),
+        _ => {
+            if let Ok(shell) = std::env::var("SHELL") {
+                let title = PathBuf::from(&shell)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(title_case_shell)
+                    .unwrap_or_else(|| "Shell".to_string());
+                return (shell, vec!["-l".to_string()], title);
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                ("zsh".to_string(), vec!["-l".to_string()], "Zsh".to_string())
+            }
+
+            #[cfg(all(unix, not(target_os = "macos")))]
+            {
+                ("bash".to_string(), vec!["-l".to_string()], "Bash".to_string())
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn title_case_shell(name: &str) -> String {
+    match name {
+        "zsh" => "Zsh".to_string(),
+        "bash" => "Bash".to_string(),
+        "fish" => "Fish".to_string(),
+        "sh" => "Sh".to_string(),
+        "pwsh" => "PowerShell 7".to_string(),
+        other => other.to_string(),
     }
 }
 
@@ -906,10 +963,7 @@ fn resolve_ssh_key_path(options: &SshConnectOptions) -> Result<PathBuf, TermifEr
 }
 
 fn user_home_dir() -> Result<PathBuf, TermifError> {
-    std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .map(PathBuf::from)
-        .map_err(|e| TermifError::Internal(e.to_string()))
+    platform::home_dir()
 }
 
 fn expand_home_path(path: &str) -> PathBuf {
@@ -920,225 +974,4 @@ fn expand_home_path(path: &str) -> PathBuf {
     }
 
     PathBuf::from(path)
-}
-
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-fn parse_ls_output(text: &str, base_path: &str) -> Result<Vec<FileEntryDto>, TermifError> {
-    let mut result = Vec::new();
-
-    for line in text.lines() {
-        let line = line.trim();
-        if line.starts_with("total ") || line.is_empty() {
-            continue;
-        }
-
-        let collapsed = line.split_whitespace().collect::<Vec<_>>().join(" ");
-        let parts: Vec<&str> = collapsed.splitn(9, ' ').collect();
-        if parts.len() < 7 {
-            continue;
-        }
-
-        let perms = parts[0];
-        let is_dir = perms.starts_with('d');
-        let size = parts[4].parse::<u64>().unwrap_or(0);
-
-        let (modified_unix, name) =
-            if parts[5].chars().all(|c| c.is_ascii_digit()) && parts[5].len() >= 9 {
-                let ts = parts[5].parse::<u64>().ok();
-                (ts, parts[6..].join(" "))
-            } else if parts.len() >= 9 {
-                (None, parts[8..].join(" "))
-            } else {
-                continue;
-            };
-
-        if name.is_empty() || name == "." || name == ".." {
-            continue;
-        }
-
-        let name = name.split(" -> ").next().unwrap_or(&name).to_string();
-        let path = if base_path.ends_with('/') {
-            format!("{}{}", base_path, name)
-        } else {
-            format!("{}/{}", base_path, name)
-        };
-
-        result.push(FileEntryDto {
-            name,
-            path,
-            is_dir,
-            size,
-            modified_unix,
-        });
-    }
-
-    result.sort_by(|a, b| {
-        if a.is_dir != b.is_dir {
-            return b.is_dir.cmp(&a.is_dir);
-        }
-        a.name.to_lowercase().cmp(&b.name.to_lowercase())
-    });
-
-    Ok(result)
-}
-
-fn parse_system_stats(output: &str) -> SystemStatsDto {
-    let sections: Vec<&str> = output.split(REACH_SEP).collect();
-    let cpu_section = sections.first().copied().unwrap_or_default();
-    let meminfo_section = sections.get(1).copied().unwrap_or_default();
-    let disk_section = sections.get(2).copied().unwrap_or_default();
-    let users_section = sections.get(3).copied().unwrap_or_default();
-    let clock_section = sections.get(4).copied().unwrap_or_default();
-    let user_names = parse_user_names(users_section);
-    let (server_time_epoch, server_tz) = parse_server_clock(clock_section);
-
-    SystemStatsDto {
-        cpu: parse_cpu_percent(cpu_section),
-        ram: parse_ram_percent(meminfo_section),
-        disk: parse_disk_percent(disk_section),
-        users: Some(user_names.len() as u32),
-        user_names: if user_names.is_empty() {
-            None
-        } else {
-            Some(user_names)
-        },
-        server_time_epoch,
-        server_tz,
-    }
-}
-
-fn parse_cpu_percent(cpu_section: &str) -> Option<f32> {
-    let mut samples = cpu_section
-        .lines()
-        .map(str::trim)
-        .filter(|line| line.starts_with("cpu "))
-        .filter_map(parse_cpu_snapshot);
-
-    let first = samples.next()?;
-    let second = samples.next()?;
-
-    let total_delta = second.total.saturating_sub(first.total);
-    if total_delta == 0 {
-        return None;
-    }
-
-    let idle_delta = second.idle.saturating_sub(first.idle);
-    let busy_delta = total_delta.saturating_sub(idle_delta);
-    Some(((busy_delta as f32 / total_delta as f32) * 100.0).clamp(0.0, 100.0))
-}
-
-fn parse_ram_percent(meminfo_section: &str) -> Option<f32> {
-    let mut mem_total_kb: Option<u64> = None;
-    let mut mem_available_kb: Option<u64> = None;
-
-    for line in meminfo_section.lines() {
-        let Some((key, raw)) = line.split_once(':') else {
-            continue;
-        };
-
-        let value_kb = raw
-            .split_whitespace()
-            .next()
-            .and_then(|v| v.parse::<u64>().ok());
-
-        match key.trim() {
-            "MemTotal" => mem_total_kb = value_kb,
-            "MemAvailable" => mem_available_kb = value_kb,
-            _ => {}
-        }
-    }
-
-    let total = mem_total_kb?;
-    let available = mem_available_kb?;
-    if total == 0 {
-        return None;
-    }
-
-    let used = total.saturating_sub(available);
-    Some(((used as f32 / total as f32) * 100.0).clamp(0.0, 100.0))
-}
-
-fn parse_disk_percent(disk_section: &str) -> Option<f32> {
-    for line in disk_section
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-    {
-        if line.starts_with("Filesystem") {
-            continue;
-        }
-
-        let cols: Vec<&str> = line.split_whitespace().collect();
-        if cols.len() < 6 {
-            continue;
-        }
-
-        if cols[5] == "/" {
-            return cols[4].trim_end_matches('%').parse::<f32>().ok();
-        }
-    }
-
-    None
-}
-
-fn parse_user_names(users_section: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    let mut seen = HashSet::new();
-
-    for line in users_section
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-    {
-        let Some(first_col) = line.split_whitespace().next() else {
-            continue;
-        };
-        if seen.insert(first_col.to_string()) {
-            names.push(first_col.to_string());
-        }
-    }
-
-    names
-}
-
-fn parse_server_clock(clock_section: &str) -> (Option<i64>, Option<String>) {
-    for line in clock_section
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-    {
-        let mut cols = line.split_whitespace();
-        let epoch = cols.next().and_then(|raw| raw.parse::<i64>().ok());
-        if let Some(epoch) = epoch {
-            let tz = cols.next().map(|value| value.to_string());
-            return (Some(epoch), tz);
-        }
-    }
-
-    (None, None)
-}
-
-#[derive(Debug, Clone, Copy)]
-struct CpuSnapshot {
-    total: u64,
-    idle: u64,
-}
-
-fn parse_cpu_snapshot(line: &str) -> Option<CpuSnapshot> {
-    let mut cols = line.split_whitespace();
-    if cols.next()? != "cpu" {
-        return None;
-    }
-
-    let values: Vec<u64> = cols.filter_map(|x| x.parse::<u64>().ok()).collect();
-    if values.len() < 4 {
-        return None;
-    }
-
-    let idle = values.get(3).copied().unwrap_or(0) + values.get(4).copied().unwrap_or(0);
-    let total = values.iter().sum();
-    Some(CpuSnapshot { total, idle })
 }

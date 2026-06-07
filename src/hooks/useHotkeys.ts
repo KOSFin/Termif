@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { platformShortcut } from "@/platform/platform";
 
 export interface HotkeyBindingEntry {
   command_id: string;
@@ -59,7 +60,7 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     const customMap = new Map<string, string[]>();
     for (const entry of configuredBindings ?? []) {
       const combos = [entry.primary, ...(entry.alternates ?? [])]
-        .map((item) => normalizeCombo(item))
+        .map((item) => normalizeCombo(platformShortcut(item)))
         .filter((item): item is string => !!item);
       if (combos.length > 0) {
         customMap.set(entry.command_id, combos);
@@ -67,7 +68,7 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     }
 
     const getBindings = (commandId: string): string[] => {
-      return customMap.get(commandId) ?? defaultBindings[commandId] ?? [];
+      return customMap.get(commandId) ?? (defaultBindings[commandId] ?? []).map(platformShortcut);
     };
 
     const matchesAny = (e: KeyboardEvent, commandId: string) => {
@@ -167,8 +168,15 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      // When Ctrl is released while tab switcher is open, confirm selection
-      if (e.key === "Control" || e.code === "ControlLeft" || e.code === "ControlRight") {
+      // When the platform modifier is released while tab switcher is open, confirm selection.
+      if (
+        e.key === "Control" ||
+        e.code === "ControlLeft" ||
+        e.code === "ControlRight" ||
+        e.key === "Meta" ||
+        e.code === "MetaLeft" ||
+        e.code === "MetaRight"
+      ) {
         handlers.onTabSwitcherClose();
       }
     };
@@ -193,12 +201,13 @@ function normalizeCombo(combo?: string): string | null {
     .replace(/Command/gi, "Meta")
     .replace(/Option/gi, "Alt")
     .replace(/Num\+/gi, "Num+")
-    .replace(/Num\-/gi, "Num-");
+    .replace(/Num-/gi, "Num-");
 }
 
 function getEventComboCandidates(e: KeyboardEvent): string[] {
   const mods: string[] = [];
-  if (e.ctrlKey || e.metaKey) mods.push("Ctrl");
+  if (e.ctrlKey) mods.push("Ctrl");
+  if (e.metaKey) mods.push("Meta");
   if (e.shiftKey) mods.push("Shift");
   if (e.altKey) mods.push("Alt");
 

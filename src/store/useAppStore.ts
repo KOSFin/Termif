@@ -12,6 +12,13 @@ import type {
   SshHostsPayload
 } from "@/types/models";
 import { detectLanguage } from "@/features/editor/languageMap";
+import { coerceShellProfile, getDefaultLocalPath, getDefaultShellProfile } from "@/platform/platform";
+import {
+  buildDirCacheKey,
+  isConnectionError,
+  makeTabFromSession,
+  normalizeLineEndings,
+} from "@/store/appStoreUtils";
 import { applyTheme, applyAppearanceOverrides } from "@/theme/themeEngine";
 
 export interface EditorFile {
@@ -124,49 +131,11 @@ interface AppState {
   zoomReset: () => void;
 }
 
-const defaultTabColor = "#4a8fe7";
 let fileLoadRequestSeq = 0;
 let fileLoadDebounceTimer: number | undefined;
 const FILE_LOAD_DEBOUNCE_MS = 180;
 const FILE_CACHE_FRESH_MS = 1500;
 const dirCacheFreshAt: Record<string, number> = {};
-
-function buildDirCacheKey(tab: AppTab, path: string): string {
-  if (tab.kind === "ssh") {
-    const hostKey = tab.sshAlias ?? tab.sessionId ?? "ssh";
-    return `ssh:${hostKey}:${path}`;
-  }
-  return `local:${path}`;
-}
-
-function normalizeLineEndings(value: string): string {
-  return value.replace(/\r\n/g, "\n");
-}
-
-function isConnectionError(message: string): boolean {
-  const text = message.toLowerCase();
-  return (
-    text.includes("channel send") ||
-    text.includes("channel closed") ||
-    text.includes("session not found") ||
-    text.includes("connection") ||
-    text.includes("broken pipe") ||
-    text.includes("timeout")
-  );
-}
-
-function makeTabFromSession(session: SessionDto): AppTab {
-  return {
-    id: crypto.randomUUID(),
-    title: session.title,
-    color: defaultTabColor,
-    icon: session.kind === "ssh" ? "globe" : "terminal",
-    kind: session.kind,
-    sessionId: session.id,
-    sshAlias: session.ssh_alias ?? undefined,
-    shellProfile: session.shell
-  };
-}
 
 async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId">): Promise<void> {
   const payload: PersistedUiState = {
@@ -229,24 +198,34 @@ export const useAppStore = create<AppState>((set, get) => ({
       invoke<SshHostsPayload>("load_ssh_hosts")
     ]);
 
+    const platformSettings = settings
+      ? {
+          ...settings,
+          terminal: {
+            ...settings.terminal,
+            default_shell: coerceShellProfile(settings.terminal.default_shell),
+          },
+        }
+      : settings;
+
     set({
-      settings,
+      settings: platformSettings,
       importedHosts: hosts.imported,
       managedHosts: hosts.managed,
       sshGroups: hosts.groups
     });
 
     // Apply persisted theme on startup
-    const themeId = settings?.appearance?.theme ?? "charcoal";
-    applyTheme(themeId, settings?.appearance?.custom_themes ?? []);
-    applyAppearanceOverrides(settings?.appearance);
+    const themeId = platformSettings?.appearance?.theme ?? "charcoal";
+    applyTheme(themeId, platformSettings?.appearance?.custom_themes ?? []);
+    applyAppearanceOverrides(platformSettings?.appearance);
 
     const restoredTabs: AppTab[] = [];
     for (const savedTab of persisted.tabs) {
       if (savedTab.kind === "local") {
         try {
           const session = await invoke<SessionDto>("create_local_session", {
-            shellProfile: settings?.terminal.default_shell,
+            shellProfile: coerceShellProfile(platformSettings?.terminal.default_shell),
             cwd: null
           });
           restoredTabs.push({
@@ -280,7 +259,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     if (restoredTabs.length === 0) {
-      await get().createLocalTab(settings?.terminal.default_shell ?? "powershell");
+      await get().createLocalTab(coerceShellProfile(platformSettings?.terminal.default_shell));
     } else {
       set({
         tabs: restoredTabs,
@@ -297,7 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   createLocalTab: async (shellProfile) => {
     const session = await invoke<SessionDto>("create_local_session", {
-      shellProfile,
+      shellProfile: coerceShellProfile(shellProfile),
       cwd: null
     });
     const tab = makeTabFromSession(session);
@@ -493,7 +472,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     if (tabs.length === 0) {
-      await get().createLocalTab(get().settings?.terminal.default_shell ?? "powershell");
+      await get().createLocalTab(coerceShellProfile(get().settings?.terminal.default_shell));
       return;
     }
 
@@ -507,7 +486,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!source) return;
 
     if (source.kind === "local") {
-      await get().createLocalTab(source.shellProfile ?? get().settings?.terminal.default_shell ?? "powershell");
+      await get().createLocalTab(coerceShellProfile(source.shellProfile ?? get().settings?.terminal.default_shell ?? getDefaultShellProfile()));
       return;
     }
 
@@ -652,7 +631,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const currentPath =
       get().tabPaths[activeTab.id] ??
-      (activeTab.kind === "ssh" ? "/" : "C:/");
+      (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
     const requestSeq = ++fileLoadRequestSeq;
 
     // Show cached data instantly — only show loading spinner if no cache exists
@@ -694,7 +673,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const live = get();
       const liveTab = live.tabs.find((tab) => tab.id === requestTabId);
       const livePath = liveTab
-        ? (live.tabPaths[requestTabId] ?? (liveTab.kind === "ssh" ? "/" : "C:/"))
+        ? (live.tabPaths[requestTabId] ?? (liveTab.kind === "ssh" ? "/" : getDefaultLocalPath()))
         : undefined;
       if (requestSeq !== fileLoadRequestSeq || live.activeTabId !== requestTabId || livePath !== currentPath) {
         return;
@@ -746,7 +725,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const currentPath =
       get().tabPaths[activeTab.id] ??
-      (activeTab.kind === "ssh" ? "/" : "C:/");
+      (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
 
     const cacheKey = buildDirCacheKey(activeTab, currentPath);
     const cached = get().dirCache[cacheKey];
@@ -797,7 +776,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
 
-    const currentPath = get().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/");
+    const currentPath = get().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
     const normalized = currentPath.replace(/\\/g, "/").replace(/\/+$/, "");
     const idx = normalized.lastIndexOf("/");
     if (idx <= 0) return;

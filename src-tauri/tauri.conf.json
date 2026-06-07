@@ -15,8 +15,8 @@
         "title": "Termif",
         "width": 1100,
         "height": 700,
-        "minWidth": 1100,
-        "minHeight": 700,
+        "minWidth": 960,
+        "minHeight": 620,
         "resizable": true,
         "center": true,
         "maximized": false,
@@ -29,8 +29,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
-    "icon": ["icons/icon.ico"],
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
     "windows": {
       "digestAlgorithm": "sha256",
       "timestampUrl": ""

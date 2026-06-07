@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { X, ChevronDown, Plus, Terminal, Globe, Monitor } from "lucide-react";
+import { getShellProfileOptions } from "@/platform/platform";
 import type { AppTab } from "@/types/models";
 import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/SshHostPicker";
 
@@ -61,6 +62,7 @@ export function TabStrip(props: TabStripProps) {
     () => props.tabs.find((tab) => tab.id === contextTabId),
     [contextTabId, props.tabs]
   );
+  const shellOptions = useMemo(() => getShellProfileOptions(), []);
 
   const closeContext = () => {
     setContextTabId(undefined);
@@ -171,9 +173,11 @@ export function TabStrip(props: TabStripProps) {
           {newTabMenuOpen ? (
             <div className="newtab-dropdown" onMouseLeave={() => setNewTabMenuOpen(false)}>
               <button onClick={() => { props.onNewDefault(); setNewTabMenuOpen(false); }}>Default Terminal</button>
-              <button onClick={() => { props.onNewShell("powershell"); setNewTabMenuOpen(false); }}>PowerShell</button>
-              <button onClick={() => { props.onNewShell("cmd"); setNewTabMenuOpen(false); }}>CMD</button>
-              <button onClick={() => { props.onNewShell("pwsh"); setNewTabMenuOpen(false); }}>PowerShell 7</button>
+              {shellOptions.map((shell) => (
+                <button key={shell.id} onClick={() => { props.onNewShell(shell.id); setNewTabMenuOpen(false); }}>
+                  {shell.label}
+                </button>
+              ))}
               <button onClick={() => { props.onNewSsh(); setNewTabMenuOpen(false); }}>SSH Connection</button>
             </div>
           ) : null}

@@ -20,7 +20,7 @@
 
 [plugin-system-proposal.md](plugin-system-proposal.md) фиксирует направление plugin-системы и capability-модель.
 
-[ci-windows-plan.md](ci-windows-plan.md) описывает Windows CI, сборку артефактов и релизный контур.
+[ci-release-plan.md](ci-release-plan.md) описывает кроссплатформенный CI, сборку артефактов и релизный контур.
 
 ## Визуальные Материалы
 

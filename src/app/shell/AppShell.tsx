@@ -2,14 +2,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Square, Copy, X, Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
 import { TabStrip } from "@/app/tabs/TabStrip";
 import { Sidebar } from "@/app/sidebar/Sidebar";
-import { CommandPalette, type PaletteCommand } from "@/app/palette/CommandPalette";
+import { CommandPalette } from "@/app/palette/CommandPalette";
 import { SettingsPanel, type SettingsSection } from "@/app/settings/SettingsPanel";
+import { buildAppCommands } from "@/app/shell/appCommands";
+import { BootOverlay } from "@/app/shell/BootOverlay";
+import { DockDropOverlay } from "@/app/shell/DockDropOverlay";
+import { StatusBar } from "@/app/shell/StatusBar";
+import { TabSwitcherOverlay } from "@/app/shell/TabSwitcherOverlay";
+import { Toast } from "@/app/shell/Toast";
+import { WindowControls } from "@/app/shell/WindowControls";
+import { looksLikeDisconnected } from "@/app/shell/shellUtils";
 import { useHotkeys } from "@/hooks/useHotkeys";
+import {
+  appShortcutTitle,
+  coerceShellProfile,
+  isMacLike,
+  platformClassName,
+} from "@/platform/platform";
 import { useAppStore, type EditorDock } from "@/store/useAppStore";
-import type { AppTab, SystemStats } from "@/types/models";
+import type { SystemStats } from "@/types/models";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
@@ -318,7 +332,7 @@ export function AppShell() {
     onOpenPalette: () => setPaletteOpen(true),
     onToggleSidebar: () => toggleSidebar(),
     onNewTab: () => {
-      void createLocalTab(settings?.terminal.default_shell ?? "powershell");
+      void createLocalTab(coerceShellProfile(settings?.terminal.default_shell));
     },
     onOpenSettings: () => setSettingsOpen(true),
     onCloseTab: () => {
@@ -413,10 +427,10 @@ export function AppShell() {
     document.documentElement.style.zoom = `${zoomLevel}%`;
   }, [zoomLevel]);
 
-  // ── Zoom: Ctrl+Mouse Wheel ──────────────────────────────────────
+  // ── Zoom: platform-modifier + mouse wheel ───────────────────────
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
+      if ((isMacLike && e.metaKey) || (!isMacLike && e.ctrlKey)) {
         e.preventDefault();
         if (e.deltaY < 0) zoomIn();
         else if (e.deltaY > 0) zoomOut();
@@ -625,280 +639,52 @@ export function AppShell() {
         : { width: `${100 - editorSplitPercent}%` })
     : undefined;
 
-  const remoteUsers = useMemo(
-    () => (remoteStatus?.user_names ?? []).filter((name) => !!name),
-    [remoteStatus?.user_names]
+  const commands = buildAppCommands({
+    activeTab,
+    editorVisible,
+    importedHosts,
+    managedHosts,
+    selectedFile,
+    settings,
+    tabs,
+    activateNextTab,
+    activatePrevTab,
+    closeTab,
+    connectHostFromPalette,
+    createLocalTab,
+    createSshPickerTab,
+    loadCurrentFiles,
+    openFile,
+    openSettingsAt,
+    renameTab,
+    setActiveTab,
+    setEditorVisible,
+    setSettingsOpen,
+    setTabColor,
+    toast,
+    toggleSidebar,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+  });
+
+  const windowControls = (
+    <WindowControls
+      isMaximized={isMax}
+      onMinimize={onMinimize}
+      onMaximize={onMaximize}
+      onClose={onCloseWindow}
+    />
   );
 
-  const localClock = useMemo(() => {
-    if (!statusBarEnabled || !statusBarShowServerTime) {
-      return { value: "", visible: false };
-    }
-
-    return {
-      value: formatClock(new Date()),
-      visible: true,
-    };
-  }, [clockTick, statusBarEnabled, statusBarShowServerTime]);
-
-  const serverClock = useMemo(() => {
-    if (!statusBarEnabled || !statusBarShowServerTime) {
-      return { value: "", zone: "", visible: false };
-    }
-
-    if (activeTab?.kind !== "ssh") {
-      return { value: "", zone: "", visible: false };
-    }
-
-    const serverEpoch = remoteStatus?.server_time_epoch;
-    if (serverEpoch === null || serverEpoch === undefined || !remoteStatusFetchedAt) {
-      return { value: "--", zone: "", visible: true };
-    }
-
-    const elapsedSec = Math.max(0, Math.floor((Date.now() - remoteStatusFetchedAt) / 1000));
-    const liveEpoch = serverEpoch + elapsedSec;
-    const date = new Date(liveEpoch * 1000);
-    const tz = remoteStatus?.server_tz ?? undefined;
-    return {
-      value: formatClock(date, tz),
-      zone: tz ?? "",
-      visible: true,
-    };
-  }, [
-    activeTab?.kind,
-    clockTick,
-    remoteStatus?.server_time_epoch,
-    remoteStatus?.server_tz,
-    remoteStatusFetchedAt,
-    statusBarEnabled,
-    statusBarShowServerTime,
-  ]);
-
-  const cpuLevel = classifyPercent(remoteStatus?.cpu ?? null);
-  const ramLevel = classifyPercent(remoteStatus?.ram ?? null);
-  const diskLevel = classifyPercent(remoteStatus?.disk ?? null);
-
-  const commands: PaletteCommand[] = [
-    {
-      id: "tab.new_default",
-      title: "New Default Terminal",
-      category: "Tabs",
-      action: () => {
-        void createLocalTab(settings?.terminal.default_shell ?? "powershell");
-      }
-    },
-    {
-      id: "tab.new_powershell",
-      title: "New PowerShell Tab",
-      category: "Tabs",
-      action: () => {
-        void createLocalTab("powershell");
-      }
-    },
-    {
-      id: "tab.new_cmd",
-      title: "New CMD Tab",
-      category: "Tabs",
-      action: () => {
-        void createLocalTab("cmd");
-      }
-    },
-    {
-      id: "ssh.open",
-      title: "Open SSH Connection",
-      category: "SSH",
-      action: createSshPickerTab
-    },
-    {
-      id: "settings.open",
-      title: "Open Settings",
-      category: "UI",
-      action: () => setSettingsOpen(true)
-    },
-    {
-      id: "sidebar.toggle",
-      title: "Toggle Sidebar",
-      category: "UI",
-      action: toggleSidebar
-    },
-    {
-      id: "tab.close",
-      title: "Close Current Tab",
-      category: "Tabs",
-      action: () => {
-        if (activeTab) void closeTab(activeTab.id);
-      }
-    },
-    {
-      id: "tab.rename",
-      title: "Rename Current Tab",
-      category: "Tabs",
-      action: () => {
-        if (!activeTab) return;
-        const nextName = window.prompt("Rename tab", activeTab.title)?.trim();
-        if (nextName) renameTab(activeTab.id, nextName);
-      }
-    },
-    {
-      id: "tab.recolor",
-      title: "Change Tab Color",
-      category: "Tabs",
-      action: () => {
-        if (!activeTab) return;
-        const color = window.prompt("Hex color", activeTab.color)?.trim();
-        if (color) setTabColor(activeTab.id, color);
-      }
-    },
-    {
-      id: "tab.next",
-      title: "Next Tab",
-      category: "Tabs",
-      action: activateNextTab
-    },
-    {
-      id: "tab.prev",
-      title: "Previous Tab",
-      category: "Tabs",
-      action: activatePrevTab
-    },
-    {
-      id: "files.refresh",
-      title: "Refresh File Manager",
-      category: "Files",
-      action: () => {
-        void loadCurrentFiles({ force: true });
-      }
-    },
-    {
-      id: "files.new_file",
-      title: "Create New File",
-      category: "Files",
-      action: async () => {
-        const name = window.prompt("File name")?.trim();
-        if (!name || !activeTab) return;
-        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
-        if (activeTab.kind === "ssh" && activeTab.sessionId) {
-          await invoke("create_remote_fs_entry", { sessionId: activeTab.sessionId, path: `${base}/${name}`, isDir: false });
-        } else {
-          await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: false });
-        }
-        await loadCurrentFiles({ force: true });
-      }
-    },
-    {
-      id: "files.new_folder",
-      title: "Create New Folder",
-      category: "Files",
-      action: async () => {
-        const name = window.prompt("Folder name")?.trim();
-        if (!name || !activeTab) return;
-        const base = (useAppStore.getState().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : "C:/")).replace(/\/$/, "");
-        if (activeTab.kind === "ssh" && activeTab.sessionId) {
-          await invoke("create_remote_fs_entry", { sessionId: activeTab.sessionId, path: `${base}/${name}`, isDir: true });
-        } else {
-          await invoke("create_fs_entry", { path: `${base}/${name}`, isDir: true });
-        }
-        await loadCurrentFiles({ force: true });
-      }
-    },
-    {
-      id: "files.open_selected",
-      title: "Open Selected File",
-      category: "Files",
-      action: () => {
-        if (!selectedFile) {
-          toast("No file selected");
-          return;
-        }
-        void openFile(selectedFile.path, "edit", activeTab?.kind === "ssh" ? activeTab.sessionId : undefined);
-      }
-    },
-    {
-      id: "files.preview_selected",
-      title: "Preview Selected File",
-      category: "Files",
-      action: () => {
-        if (!selectedFile) {
-          toast("No file selected");
-          return;
-        }
-        void openFile(selectedFile.path, "preview", activeTab?.kind === "ssh" ? activeTab.sessionId : undefined);
-      }
-    },
-    {
-      id: "editor.toggle",
-      title: "Toggle Editor Panel",
-      category: "UI",
-      action: () => setEditorVisible(!editorVisible)
-    },
-    {
-      id: "zoom.in",
-      title: "Zoom In",
-      category: "UI",
-      action: zoomIn
-    },
-    {
-      id: "zoom.out",
-      title: "Zoom Out",
-      category: "UI",
-      action: zoomOut
-    },
-    {
-      id: "zoom.reset",
-      title: "Reset Zoom",
-      category: "UI",
-      action: zoomReset
-    },
-    // ── Dynamic: Switch to open tabs ──
-    ...tabs.map((tab) => ({
-      id: `switch.tab.${tab.id}`,
-      title: `Switch to: ${tab.title}`,
-      category: "Tabs",
-      action: () => setActiveTab(tab.id),
-    })),
-    // ── Dynamic: Connect to SSH hosts ──
-    ...Array.from(new Map([...managedHosts, ...importedHosts].map((host) => [host.alias, host])).values()).map((host) => ({
-      id: `ssh.connect.${host.alias}`,
-      title: `Connect: ${host.alias} (${host.host_name})`,
-      category: "SSH Hosts",
-      action: () => connectHostFromPalette(host.alias),
-    })),
-    // ── Settings sections navigation ──
-    { id: "settings.appearance", title: "Settings: Appearance", category: "Settings", action: () => openSettingsAt("appearance") },
-    { id: "settings.terminal", title: "Settings: Terminal", category: "Settings", action: () => openSettingsAt("terminal") },
-    { id: "settings.hotkeys", title: "Settings: Hotkeys", category: "Settings", action: () => openSettingsAt("hotkeys") },
-    { id: "settings.ssh", title: "Settings: SSH", category: "Settings", action: () => openSettingsAt("ssh") },
-    { id: "settings.file_manager", title: "Settings: File Manager", category: "Settings", action: () => openSettingsAt("file_manager") },
-    { id: "settings.status_bar", title: "Settings: Status Bar", category: "Settings", action: () => openSettingsAt("status_bar") },
-    // ── Individual settings navigation ──
-    { id: "setting.font_size", title: "Setting: Font Size", category: "Settings", action: () => openSettingsAt("terminal", "Font Size") },
-    { id: "setting.font_family", title: "Setting: Font Family", category: "Settings", action: () => openSettingsAt("terminal", "Font Family") },
-    { id: "setting.cursor_style", title: "Setting: Cursor Style", category: "Settings", action: () => openSettingsAt("terminal", "Cursor Style") },
-    { id: "setting.color_scheme", title: "Setting: Terminal Color Scheme", category: "Settings", action: () => openSettingsAt("terminal", "Color Scheme") },
-    { id: "setting.default_shell", title: "Setting: Default Shell", category: "Settings", action: () => openSettingsAt("terminal", "Default Shell") },
-    { id: "setting.scrollback", title: "Setting: Scrollback Lines", category: "Settings", action: () => openSettingsAt("terminal", "Scrollback Lines") },
-    { id: "setting.syntax", title: "Setting: Syntax Highlighting", category: "Settings", action: () => openSettingsAt("terminal", "Syntax Highlighting") },
-    { id: "setting.ui_density", title: "Setting: UI Density", category: "Settings", action: () => openSettingsAt("appearance", "UI Density") },
-    { id: "setting.accent", title: "Setting: Accent Color", category: "Settings", action: () => openSettingsAt("appearance", "Accent Color") },
-    { id: "setting.modal_blur", title: "Setting: Modal Blur", category: "Settings", action: () => openSettingsAt("appearance", "Modal Blur") },
-    { id: "setting.modal_dimming", title: "Setting: Modal Dimming", category: "Settings", action: () => openSettingsAt("appearance", "Modal Dimming") },
-    { id: "setting.border_radius", title: "Setting: UI Border Radius", category: "Settings", action: () => openSettingsAt("appearance", "UI Border Radius") },
-    { id: "setting.ssh_timeout", title: "Setting: SSH Timeout", category: "Settings", action: () => openSettingsAt("ssh", "Connect Timeout") },
-    { id: "setting.strict_key", title: "Setting: Strict Host Key Checking", category: "Settings", action: () => openSettingsAt("ssh", "Strict Host Key Checking") },
-    { id: "setting.hidden_files", title: "Setting: Show Hidden Files", category: "Settings", action: () => openSettingsAt("file_manager", "Show Hidden Files") },
-    { id: "setting.statusbar_enabled", title: "Setting: Enable Bottom Status Bar", category: "Settings", action: () => openSettingsAt("status_bar", "Enable Bottom Status Bar") },
-    { id: "setting.statusbar_resources", title: "Setting: Show SSH Resource Monitor", category: "Settings", action: () => openSettingsAt("status_bar", "Show SSH Resource Monitor") },
-    { id: "setting.statusbar_server_time", title: "Setting: Show SSH Server Time", category: "Settings", action: () => openSettingsAt("status_bar", "Show SSH Server Time") },
-    { id: "setting.statusbar_poll", title: "Setting: SSH Poll Interval", category: "Settings", action: () => openSettingsAt("status_bar", "SSH Poll Interval") },
-  ];
-
   return (
-    <div className="app-root">
+    <div className={`app-root ${platformClassName}`}>
       <header className="topbar">
+        {isMacLike ? windowControls : null}
         <button
           className="sidebar-toggle-btn"
           onClick={() => toggleSidebar()}
-          title={sidebarVisible ? "Hide Sidebar (Ctrl+B)" : "Show Sidebar (Ctrl+B)"}
+          title={sidebarVisible ? appShortcutTitle("Hide Sidebar", "Ctrl+B") : appShortcutTitle("Show Sidebar", "Ctrl+B")}
         >
           {sidebarVisible ? <PanelLeftClose size={15} strokeWidth={2} /> : <PanelLeft size={15} strokeWidth={2} />}
         </button>
@@ -907,7 +693,7 @@ export function AppShell() {
           tabs={tabs}
           activeTabId={activeTabId}
           onSelectTab={setActiveTab}
-          onNewDefault={() => void createLocalTab(settings?.terminal.default_shell ?? "powershell")}
+          onNewDefault={() => void createLocalTab(coerceShellProfile(settings?.terminal.default_shell))}
           onNewShell={(shell) => void createLocalTab(shell)}
           onNewSsh={createSshPickerTab}
           onRename={renameTab}
@@ -921,22 +707,14 @@ export function AppShell() {
         />
         <div className="topbar-spacer" data-tauri-drag-region onMouseDown={onStartWindowDrag} />
         <div className="topbar-right">
-          <button className="topbar-btn" onClick={() => setPaletteOpen(true)} title="Command Palette (Ctrl+Shift+P)">
+          <button className="topbar-btn" onClick={() => setPaletteOpen(true)} title={appShortcutTitle("Command Palette", "Ctrl+Shift+P")}>
             <Command size={14} strokeWidth={2} />
           </button>
-          <button className="topbar-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">
+          <button className="topbar-btn" onClick={() => setSettingsOpen(true)} title={appShortcutTitle("Settings", "Ctrl+,")}>
             <Settings size={14} strokeWidth={2} />
           </button>
-          <div className="topbar-divider" />
-          <button className="window-btn" onClick={onMinimize} title="Minimize">
-            <Minus size={14} strokeWidth={2} />
-          </button>
-          <button className="window-btn" onClick={onMaximize} title={isMax ? "Restore Down" : "Maximize"}>
-            {isMax ? <Copy size={11} strokeWidth={2} /> : <Square size={11} strokeWidth={2} />}
-          </button>
-          <button className="window-btn window-btn-close" onClick={onCloseWindow} title="Close">
-            <X size={14} strokeWidth={2} />
-          </button>
+          {!isMacLike ? <div className="topbar-divider" /> : null}
+          {!isMacLike ? windowControls : null}
         </div>
       </header>
 
@@ -985,108 +763,36 @@ export function AppShell() {
           )}
 
           {editorVisible && dockDropTarget ? (
-            <div className="dock-drop-overlay" aria-hidden="true">
-              <div className={`dock-drop-target dock-left${dockDropTarget === "left" ? " active" : ""}`} />
-              <div className={`dock-drop-target dock-top${dockDropTarget === "top" ? " active" : ""}`} />
-              <div className={`dock-drop-target dock-right${dockDropTarget === "right" ? " active" : ""}`} />
-              <div className={`dock-drop-target dock-bottom${dockDropTarget === "bottom" ? " active" : ""}`} />
-            </div>
+            <DockDropOverlay target={dockDropTarget} />
           ) : null}
         </section>
       </main>
 
-      <footer className="statusbar">
-        <div className="statusbar-left">
-          <span className="status-pill">{activeTab?.kind === "ssh" ? "SSH" : "LOCAL"}</span>
-          <span className="status-label">{activeTab?.title ?? "No active tab"}</span>
-        </div>
+      <StatusBar
+        activeTab={activeTab}
+        remoteStatus={remoteStatus}
+        remoteStatusError={remoteStatusError}
+        remoteStatusFetchedAt={remoteStatusFetchedAt}
+        statusBarEnabled={statusBarEnabled}
+        showResources={statusBarShowResources}
+        showServerTime={statusBarShowServerTime}
+        clockTick={clockTick}
+      />
 
-        <div className="statusbar-right">
-          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className={`status-metric status-${cpuLevel}`}>
-              CPU {remoteStatus?.cpu !== null && remoteStatus?.cpu !== undefined ? `${remoteStatus.cpu.toFixed(0)}%` : "--"}
-            </span>
-          ) : null}
-
-          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className={`status-metric status-${ramLevel}`}>
-              RAM {remoteStatus?.ram !== null && remoteStatus?.ram !== undefined ? `${remoteStatus.ram.toFixed(0)}%` : "--"}
-            </span>
-          ) : null}
-
-          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <span className={`status-metric status-${diskLevel}`}>
-              Disk {remoteStatus?.disk !== null && remoteStatus?.disk !== undefined ? `${remoteStatus.disk.toFixed(0)}%` : "--"}
-            </span>
-          ) : null}
-
-          {activeTab?.kind === "ssh" && statusBarEnabled && statusBarShowResources ? (
-            <div className="status-users-wrap">
-              <span className="status-metric status-users-trigger">
-                Users {remoteStatus?.users !== null && remoteStatus?.users !== undefined ? remoteStatus.users : "--"}
-              </span>
-              <div className="status-users-dropdown">
-                {remoteUsers.length > 0 ? (
-                  remoteUsers.map((user, idx) => (
-                    <div key={`${user}-${idx}`} className="status-users-item">
-                      {user}
-                    </div>
-                  ))
-                ) : (
-                  <div className="status-users-item muted">No active users</div>
-                )}
-              </div>
-            </div>
-          ) : null}
-
-          {localClock.visible ? (
-            <span className="status-metric">
-              Local {localClock.value}
-            </span>
-          ) : null}
-
-          {serverClock.visible ? (
-            <span className="status-metric">
-              Server {serverClock.value}{serverClock.zone ? ` ${serverClock.zone}` : ""}
-            </span>
-          ) : null}
-
-          {remoteStatusError ? <span className="status-metric status-danger">{remoteStatusError}</span> : null}
-        </div>
-      </footer>
-
-      {/* ── Tab switcher overlay (Windows Alt+Tab style) ─────────── */}
-      {tabSwitcherOpen && (() => {
-        const useMru = settings?.appearance.tab_switching_mode !== "positional";
-        const orderedTabs = useMru
-          ? tabMruOrder
-              .map((id) => tabs.find((t) => t.id === id))
-              .filter((t): t is AppTab => !!t)
-              .concat(tabs.filter((t) => !tabMruOrder.includes(t.id)))
-          : tabs;
-        return (
-          <div className="tab-switcher-overlay">
-            <div className="tab-switcher-panel">
-              {orderedTabs.map((tab, idx) => (
-                <button
-                  key={tab.id}
-                  className={`tab-switcher-item${idx === tabSwitcherIndex ? " selected" : ""}${tab.id === activeTabId ? " current" : ""}`}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setTabSwitcherOpen(false);
-                    tabSwitcherOpenRef.current = false;
-                    tabSwitcherPendingRef.current = false;
-                  }}
-                >
-                  <span className="tab-switcher-dot" style={{ background: tab.color }} />
-                  <span className="tab-switcher-title">{tab.title}</span>
-                  <span className="tab-switcher-index">{idx + 1}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      <TabSwitcherOverlay
+        open={tabSwitcherOpen}
+        tabs={tabs}
+        activeTabId={activeTabId}
+        selectedIndex={tabSwitcherIndex}
+        tabMruOrder={tabMruOrder}
+        useMru={settings?.appearance.tab_switching_mode !== "positional"}
+        onSelect={(tabId) => {
+          setActiveTab(tabId);
+          setTabSwitcherOpen(false);
+          tabSwitcherOpenRef.current = false;
+          tabSwitcherPendingRef.current = false;
+        }}
+      />
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
 
@@ -1106,89 +812,7 @@ export function AppShell() {
         />
       ) : null}
 
-      {!isInitialized ? (
-        <div className="app-boot-overlay">
-          <div className="app-boot-spinner" />
-          <span>Initializing workspace...</span>
-        </div>
-      ) : null}
+      {!isInitialized ? <BootOverlay /> : null}
     </div>
-  );
-}
-
-function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
-  const [paused, setPaused] = useState(false);
-  const timerRef = useRef<number>();
-  const remainingRef = useRef<number>(Math.min(6000, Math.max(2000, 2000 + message.length * 30)));
-
-  useEffect(() => {
-    const startTimer = () => {
-      timerRef.current = window.setTimeout(onDismiss, remainingRef.current);
-    };
-    startTimer();
-    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
-  }, [message]);
-
-  useEffect(() => {
-    if (paused) {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    } else {
-      // Reset full duration on mouse leave
-      remainingRef.current = Math.min(6000, Math.max(2000, 2000 + message.length * 30));
-      timerRef.current = window.setTimeout(onDismiss, remainingRef.current);
-    }
-    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
-  }, [paused]);
-
-  return (
-    <div
-      className="toast"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <span className="toast-message">{message}</span>
-      <button className="toast-close" onClick={onDismiss}>
-        <X size={12} strokeWidth={2} />
-      </button>
-    </div>
-  );
-}
-
-function formatClock(date: Date, timeZone?: string): string {
-  try {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-      ...(timeZone ? { timeZone } : {}),
-    });
-  } catch {
-    // Fallback if timezone string is not a valid IANA name
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-  }
-}
-
-function classifyPercent(value: number | null): "ok" | "warn" | "danger" {
-  if (value === null || Number.isNaN(value)) return "ok";
-  if (value >= 90) return "danger";
-  if (value >= 75) return "warn";
-  return "ok";
-}
-
-function looksLikeDisconnected(message: string): boolean {
-  const text = message.toLowerCase();
-  return (
-    text.includes("channel send") ||
-    text.includes("session not found") ||
-    text.includes("channel closed") ||
-    text.includes("connection") ||
-    text.includes("broken pipe") ||
-    text.includes("timeout")
   );
 }

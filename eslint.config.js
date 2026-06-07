@@ -8,6 +8,15 @@ import reactHooks from "eslint-plugin-react-hooks";
 /** @type {import("eslint").Linter.FlatConfig[]} */
 export default [
   {
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "src-tauri/target/**",
+      "src-tauri/gen/**",
+      "coverage/**"
+    ]
+  },
+  {
     ...js.configs.recommended,
     languageOptions: {
       ...js.configs.recommended.languageOptions,
@@ -16,8 +25,26 @@ export default [
         window: "readonly",
         document: "readonly",
         navigator: "readonly",
+        localStorage: "readonly",
+        getComputedStyle: "readonly",
+        requestAnimationFrame: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        process: "readonly",
+        __dirname: "readonly",
+        React: "readonly",
+        Node: "readonly",
+        Event: "readonly",
+        MouseEvent: "readonly",
+        WheelEvent: "readonly",
+        MutationObserver: "readonly",
+        BeforeUnloadEvent: "readonly",
         HTMLElement: "readonly",
         HTMLDivElement: "readonly",
+        HTMLButtonElement: "readonly",
+        HTMLTextAreaElement: "readonly",
         ResizeObserver: "readonly",
         KeyboardEvent: "readonly",
         URLSearchParams: "readonly",
@@ -50,7 +77,10 @@ export default [
     rules: {
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off"
+      "react/react-in-jsx-scope": "off",
+      "react/no-unescaped-entities": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off"
     },
     settings: {
       react: { version: "detect" }

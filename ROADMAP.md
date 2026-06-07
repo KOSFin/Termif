@@ -2,11 +2,11 @@
 
 ## Direction
 
-Termif is evolving from a technically complete Windows-first MVP into an operationally hardened terminal workspace product. The next roadmap cycle focuses less on adding isolated features and more on improving trust, execution consistency, and release quality for users who rely on SSH and file workflows daily.
+Termif is evolving from a technically complete desktop MVP into an operationally hardened cross-platform terminal workspace product. The next roadmap cycle focuses less on adding isolated features and more on improving trust, execution consistency, and release quality for users who rely on SSH and file workflows daily.
 
 ## Current Product Baseline
 
-The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows CI artifact generation.
+The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows/macOS/Linux CI artifact generation.
 
 This means roadmap work now targets depth over breadth.
 
@@ -24,9 +24,9 @@ Reconnect behavior, stale session cleanup, and background wake-up handling need 
 
 Inline and popout editing are functional, but large-file behavior, remote latency tolerance, and conflict handling require refinement. Future work should preserve the current context-bound file model while improving resilience and user confidence around save operations.
 
-### 4) Release Confidence for Windows
+### 4) Cross-Platform Release Confidence
 
-Artifact generation is active, but release lifecycle improvements are still needed around signing, checksum publication policy, and release metadata quality. This is essential for enterprise adoption where provenance and reproducibility are mandatory.
+Artifact generation is active for Windows, macOS, and Linux, but release lifecycle improvements are still needed around signing, notarization, checksum publication policy, and release metadata quality. This is essential for enterprise adoption where provenance and reproducibility are mandatory.
 
 ## Mid-Term Objectives
 
@@ -38,9 +38,9 @@ The experimental input overlay direction remains valid, but should be implemente
 
 Plugin architecture remains a strategic investment. Runtime enablement should occur only after capability prompts, permission boundaries, and crash isolation guarantees are implemented to product standards.
 
-### Cross-Platform Readiness
+### Platform UX Depth
 
-Although Windows is the only declared release target today, code boundaries should continue to avoid platform lock-in where unnecessary. Packaging and QA expansion can follow once Windows trust and reliability targets are met.
+Platform UX should keep one shared design language while respecting OS conventions: Command-key shortcuts and left-side window controls on macOS, Ctrl-first workflows on Windows/Linux, POSIX shell defaults on Unix, and restrained transparency based on platform capability.
 
 ## Delivery Principles
 

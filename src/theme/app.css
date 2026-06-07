@@ -134,6 +134,12 @@ textarea:focus {
   gap: 0;
 }
 
+.platform-macos .topbar,
+.platform-linux .topbar {
+  background: color-mix(in srgb, var(--bg-elev-1) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(1.25);
+}
+
 .topbar button,
 .topbar .tabstrip,
 .topbar .topbar-right {
@@ -179,6 +185,20 @@ textarea:focus {
   align-items: center;
   gap: 0;
   flex-shrink: 0;
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.platform-macos .window-controls {
+  width: 72px;
+  height: 38px;
+  justify-content: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
 }
 
 .topbar-btn {
@@ -230,6 +250,39 @@ textarea:focus {
   color: #fff;
 }
 
+.platform-macos .window-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: none;
+  color: transparent;
+  overflow: hidden;
+}
+
+.platform-macos .window-btn svg {
+  opacity: 0;
+}
+
+.platform-macos .window-btn-close {
+  background: #ff5f57;
+}
+
+.platform-macos .window-btn-minimize {
+  background: #ffbd2e;
+}
+
+.platform-macos .window-btn-maximize {
+  background: #28c840;
+}
+
+.platform-macos .window-btn:hover {
+  filter: brightness(0.92);
+}
+
+.platform-macos .window-btn-close:hover {
+  background: #ff5f57;
+}
+
 /* == Workspace ================================================ */
 
 .workspace {
@@ -252,6 +305,14 @@ textarea:focus {
   min-height: 0;
   overflow: hidden;
   transition: width 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.platform-macos .sidebar,
+.platform-linux .sidebar,
+.platform-macos .statusbar,
+.platform-linux .statusbar {
+  background: color-mix(in srgb, var(--bg-elev-1) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(1.15);
 }
 
 .sidebar-hidden {

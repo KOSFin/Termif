@@ -20,7 +20,7 @@ For Russian navigation, open 🇷🇺 [docs/README.ru.md](README.ru.md).
 
 [plugin-system-proposal.md](plugin-system-proposal.md) describes plugin strategy and capability-gated runtime direction.
 
-[ci-windows-plan.md](ci-windows-plan.md) specifies Windows CI, artifact generation, and release flow.
+[ci-release-plan.md](ci-release-plan.md) specifies cross-platform CI, artifact generation, and release flow.
 
 ## Visual Assets
 
