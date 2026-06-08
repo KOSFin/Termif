@@ -126,6 +126,8 @@ textarea:focus {
 .topbar {
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 180;
   height: 38px;
   min-height: 38px;
   border-bottom: 1px solid var(--stroke);
@@ -611,8 +613,9 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.36);
   overflow: hidden;
-  z-index: 40;
+  z-index: 240;
 }
 
 .newtab-dropdown button {
@@ -633,7 +636,7 @@ textarea:focus {
 .context-anchor {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 230;
 }
 
 .tab-context-menu,
@@ -643,8 +646,9 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
   overflow: hidden;
-  z-index: 80;
+  z-index: 240;
 }
 
 .tab-context-menu button,
@@ -787,6 +791,14 @@ textarea:focus {
   align-content: start;
 }
 
+.file-list.busy {
+  overflow: hidden;
+}
+
+.file-list.busy .file-item {
+  pointer-events: none;
+}
+
 .file-item {
   display: flex;
   align-items: center;
@@ -879,9 +891,9 @@ textarea:focus {
 .file-loading-overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(1px);
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -921,9 +933,9 @@ textarea:focus {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 10px 12px;
+  padding: 14px 16px;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--terminal-bg, var(--bg));
 }
 
 .terminal-pane-inner {
@@ -933,6 +945,7 @@ textarea:focus {
   min-height: 0;
   overflow: hidden;
   font-variant-ligatures: none;
+  background: var(--terminal-bg, var(--bg));
 }
 
 .terminal-pane .xterm {
@@ -1828,7 +1841,7 @@ textarea:focus {
   backdrop-filter: blur(var(--modal-blur, 4px));
   display: grid;
   place-items: center;
-  z-index: 100;
+  z-index: 260;
   animation: overlay-enter var(--anim-duration, 0.15s) ease-out;
 }
 
@@ -2030,16 +2043,17 @@ textarea:focus {
 .palette-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px);
   display: flex;
   justify-content: center;
-  padding-top: 80px;
-  z-index: 120;
+  padding-top: 64px;
+  z-index: 260;
 }
 
 .palette-panel {
-  width: min(560px, calc(100vw - 40px));
-  max-height: 420px;
+  width: min(720px, calc(100vw - 40px));
+  max-height: min(620px, calc(100vh - 96px));
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
   background: var(--bg-elev-1);
@@ -2047,16 +2061,18 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
 }
 
 .palette-panel > input {
-  height: 44px;
+  height: 58px;
   border: 0;
   border-bottom: 1px solid var(--stroke);
   border-radius: 0;
-  padding: 0 14px;
+  padding: 0 18px;
   background: var(--bg-elev-2);
-  font-size: 14px;
+  font-size: 18px;
+  color: var(--text-bright);
 }
 
 .palette-list {
@@ -2070,11 +2086,12 @@ textarea:focus {
   border-radius: 0;
   background: transparent;
   text-align: left;
-  padding: 9px 14px;
+  min-height: 46px;
+  padding: 10px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -2089,7 +2106,7 @@ textarea:focus {
 
 .palette-list small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .palette-empty {
@@ -2107,7 +2124,7 @@ textarea:focus {
   backdrop-filter: blur(var(--modal-blur, 4px));
   display: grid;
   place-items: center;
-  z-index: 120;
+  z-index: 260;
   animation: overlay-enter var(--anim-duration, 0.15s) ease-out;
 }
 
@@ -3311,8 +3328,9 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
   overflow: hidden;
-  z-index: 65;
+  z-index: 240;
 }
 
 .editor-action-menu button {
@@ -3342,6 +3360,21 @@ textarea:focus {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.editor-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .editor-inline-error {
@@ -3445,7 +3478,8 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
-  z-index: 60;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
+  z-index: 240;
   margin-bottom: 4px;
 }
 
@@ -3474,6 +3508,8 @@ textarea:focus {
 .statusbar {
   height: 22px;
   min-height: 22px;
+  position: relative;
+  z-index: 180;
   border-top: 1px solid color-mix(in srgb, var(--stroke) 50%, transparent);
   background: var(--bg-elev-1);
   display: flex;
@@ -3491,6 +3527,15 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.statusbar-left {
+  flex: 1 1 auto;
+}
+
+.statusbar-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .status-label {
@@ -3512,11 +3557,31 @@ textarea:focus {
 }
 
 .status-metric {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
   border-radius: 3px;
   padding: 1px 6px;
   border: 1px solid var(--stroke);
   background: var(--bg-elev-2);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-clock-local {
+  min-width: 108px;
+}
+
+.status-clock-server {
+  min-width: 142px;
+}
+
+.status-danger {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
 }
 
 /* == Update banner =========================================== */
@@ -3593,7 +3658,7 @@ textarea:focus {
   border-radius: var(--radius-md);
   background: var(--bg-elev-2);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  z-index: 120;
+  z-index: 260;
 }
 
 .status-users-wrap:hover .status-users-dropdown,

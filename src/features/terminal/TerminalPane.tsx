@@ -1,7 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
 import { TERMINAL_COLOR_SCHEMES } from "@/app/settings/TerminalPreview";
@@ -87,6 +87,8 @@ export const TerminalPane = memo(function TerminalPane({
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const visibleRef = useRef<boolean>(isVisible);
+  const inputBufferRef = useRef<string>("");
+  const inputFlushTimerRef = useRef<number | undefined>();
 
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
@@ -127,8 +129,7 @@ export const TerminalPane = memo(function TerminalPane({
     xtermRef.current = xterm;
     fitRef.current = fitAddon;
 
-    // Initial fit — defer one frame so the element dimensions are ready.
-    requestAnimationFrame(() => {
+    const resizeBackend = () => {
       if (!fitRef.current || !xtermRef.current) return;
       safeFit(fitRef.current);
       void invoke("resize_terminal", {
@@ -136,7 +137,23 @@ export const TerminalPane = memo(function TerminalPane({
         cols: xtermRef.current.cols,
         rows: xtermRef.current.rows,
       });
-    });
+    };
+
+    let resizeTimer: number | undefined;
+    const scheduleResizeBackend = () => {
+      if (resizeTimer !== undefined) return;
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = undefined;
+        resizeBackend();
+      }, 60);
+    };
+
+    const queueInput = (data: string) => {
+      queueTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, data, onConnectionError);
+    };
+
+    // Initial fit — defer one frame so the element dimensions are ready.
+    requestAnimationFrame(resizeBackend);
 
     // ── Block native paste so xterm.onData doesn't double-fire ────────────
     const onNativePaste = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
@@ -145,12 +162,12 @@ export const TerminalPane = memo(function TerminalPane({
     // ── Custom key handler for copy/paste ────────────────────────────────────
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       if (e.type === "keydown" && e.code === "Backspace" && !e.metaKey && !e.altKey) {
-        void sendTerminalInput(sessionId, "\x7f", onConnectionError);
+        queueInput("\x7f");
         return false;
       }
 
       if (e.type === "keydown" && e.code === "Delete" && !e.metaKey && !e.altKey) {
-        void sendTerminalInput(sessionId, "\x1b[3~", onConnectionError);
+        queueInput("\x1b[3~");
         return false;
       }
 
@@ -164,7 +181,7 @@ export const TerminalPane = memo(function TerminalPane({
       // macOS: Cmd+V pastes from the system clipboard.
       if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
+          if (text) queueInput(text);
         }).catch(() => {});
         return false;
       }
@@ -179,7 +196,7 @@ export const TerminalPane = memo(function TerminalPane({
       // Ctrl+V → paste from clipboard
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
+          if (text) queueInput(text);
         }).catch(() => {});
         return false;
       }
@@ -187,7 +204,7 @@ export const TerminalPane = memo(function TerminalPane({
       // Ctrl+Shift+V → paste from clipboard (alternative shortcut)
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
         void navigator.clipboard.readText().then((text) => {
-          if (text) void sendTerminalInput(sessionId, text, onConnectionError);
+          if (text) queueInput(text);
         }).catch(() => {});
         return false;
       }
@@ -208,7 +225,7 @@ export const TerminalPane = memo(function TerminalPane({
 
     // Forward keyboard/paste input to the PTY.
     const dataListener = xterm.onData((data) => {
-      void sendTerminalInput(sessionId, data, onConnectionError);
+      queueInput(data);
     });
 
     // ── Push-based output via Tauri Channel ─────────────────────────────────
@@ -251,12 +268,7 @@ export const TerminalPane = memo(function TerminalPane({
     const resizeObserver = new ResizeObserver(() => {
       if (!xtermRef.current || !fitRef.current) return;
       if (!visibleRef.current) return;
-      safeFit(fitRef.current);
-      void invoke("resize_terminal", {
-        sessionId,
-        cols: xtermRef.current.cols,
-        rows: xtermRef.current.rows,
-      });
+      scheduleResizeBackend();
     });
     resizeObserver.observe(el);
 
@@ -264,6 +276,8 @@ export const TerminalPane = memo(function TerminalPane({
       el.removeEventListener("paste", onNativePaste, true);
       dataListener.dispose();
       resizeObserver.disconnect();
+      if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
+      flushTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, onConnectionError);
       xterm.dispose();
       xtermRef.current = null;
       fitRef.current = null;
@@ -331,7 +345,10 @@ export const TerminalPane = memo(function TerminalPane({
   }, [isVisible, sessionId]);
 
   return (
-    <div className={`terminal-pane-wrap${isVisible ? " active" : ""}`}>
+    <div
+      className={`terminal-pane-wrap${isVisible ? " active" : ""}`}
+      style={{ "--terminal-bg": getTerminalBackground(terminalSettings?.color_scheme, terminalSettings?.custom_colors) } as CSSProperties}
+    >
       <div className="terminal-pane">
         <div className="terminal-pane-inner" ref={containerRef} />
       </div>
@@ -393,6 +410,52 @@ async function sendTerminalInput(
     const message = error instanceof Error ? error.message : String(error);
     onConnectionError?.(message);
   }
+}
+
+function queueTerminalInput(
+  bufferRef: MutableRefObject<string>,
+  timerRef: MutableRefObject<number | undefined>,
+  sessionId: string,
+  data: string,
+  onConnectionError?: (message: string) => void,
+) {
+  bufferRef.current += data;
+
+  if (timerRef.current !== undefined) {
+    if (bufferRef.current.length < 4096 && !data.includes("\r")) return;
+    window.clearTimeout(timerRef.current);
+    timerRef.current = undefined;
+  }
+
+  if (bufferRef.current.length >= 4096 || data.includes("\r")) {
+    flushTerminalInput(bufferRef, timerRef, sessionId, onConnectionError);
+    return;
+  }
+
+  timerRef.current = window.setTimeout(() => {
+    flushTerminalInput(bufferRef, timerRef, sessionId, onConnectionError);
+  }, 4);
+}
+
+function flushTerminalInput(
+  bufferRef: MutableRefObject<string>,
+  timerRef: MutableRefObject<number | undefined>,
+  sessionId: string,
+  onConnectionError?: (message: string) => void,
+) {
+  if (timerRef.current !== undefined) {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = undefined;
+  }
+  const data = bufferRef.current;
+  if (!data) return;
+  bufferRef.current = "";
+  void sendTerminalInput(sessionId, data, onConnectionError);
+}
+
+function getTerminalBackground(colorSchemeId?: string, customColors?: Record<string, string>) {
+  const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
+  return customColors?.background ?? scheme?.colors.background ?? readCssVar("--bg", "#1a1d23");
 }
 
 function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, string>) {

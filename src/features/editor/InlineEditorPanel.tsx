@@ -212,7 +212,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
             onClick={() => {
               if (activeFile && activeFile.dirty) void saveEditorFile(activeFile.id);
             }}
-            disabled={!activeFile || !activeFile.dirty || activeFile.mode === "preview"}
+            disabled={!activeFile || !!activeFile.loading || !activeFile.dirty || activeFile.mode === "preview"}
             title={appShortcutTitle("Save", "Ctrl+S")}
           >
             <Save size={14} strokeWidth={2} />
@@ -237,10 +237,16 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
             <CodeMirrorEditor
               content={activeFile.content}
               languageId={activeFile.languageId}
-              readOnly={activeFile.mode === "preview"}
+              readOnly={activeFile.mode === "preview" || activeFile.loading}
               onChange={(value) => updateEditorContent(activeFile.id, value)}
               onCursorChange={onCursorChange}
             />
+            {activeFile.loading ? (
+              <div className="editor-loading-overlay">
+                <div className="file-loading-spinner" />
+                <span>Loading file...</span>
+              </div>
+            ) : null}
           </div>
           {/* Status bar */}
           <div className="editor-statusbar">

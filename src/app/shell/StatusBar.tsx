@@ -84,13 +84,13 @@ export function StatusBar({
         ) : null}
 
         {localClock.visible ? (
-          <span className="status-metric">
+          <span className="status-metric status-clock-local">
             Local {localClock.value}
           </span>
         ) : null}
 
         {serverClock.visible ? (
-          <span className="status-metric">
+          <span className="status-metric status-clock-server">
             Server {serverClock.value}{serverClock.zone ? ` ${serverClock.zone}` : ""}
           </span>
         ) : null}

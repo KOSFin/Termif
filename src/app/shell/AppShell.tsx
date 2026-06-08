@@ -318,6 +318,39 @@ export function AppShell() {
     void initialize();
   }, [initialize]);
 
+  // macOS WebView can autocapitalize values like "root" in plain inputs.
+  useEffect(() => {
+    type TextAssistElement = {
+      tagName?: string;
+      spellcheck?: boolean;
+      setAttribute: (name: string, value: string) => void;
+      querySelectorAll?: (selector: string) => { forEach: (cb: (element: TextAssistElement) => void) => void };
+    };
+
+    const disableTextAssist = (element: TextAssistElement) => {
+      const tag = element.tagName?.toLowerCase();
+      if (tag !== "input" && tag !== "textarea") return;
+      if ("spellcheck" in element) element.spellcheck = false;
+      element.setAttribute("autocomplete", "off");
+      element.setAttribute("autocapitalize", "off");
+      element.setAttribute("autocorrect", "off");
+    };
+
+    document.querySelectorAll("input, textarea").forEach(disableTextAssist);
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+          const element = node as unknown as TextAssistElement;
+          disableTextAssist(element);
+          element.querySelectorAll?.("input, textarea").forEach(disableTextAssist);
+        });
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   // ── Disable browser right-click context menu globally ─────────────
   useEffect(() => {
     const prevent = (e: MouseEvent) => {

@@ -232,14 +232,14 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
       {fileError ? <div className="file-status error">{fileError}</div> : null}
 
-      <div className="file-list">
+      <div className={`file-list${uiBusy ? " busy" : ""}`}>
         {fileEntries.map((entry) => (
           <button
             key={entry.path}
             className={`file-item ${selectedFile?.path === entry.path ? "selected" : ""}`}
             onClick={() => setSelectedFile(entry)}
             onDoubleClick={() => void onOpenFile(entry)}
-            disabled={fileTransitioning}
+            disabled={uiBusy}
             onContextMenu={(event) => {
               event.preventDefault();
               event.stopPropagation();

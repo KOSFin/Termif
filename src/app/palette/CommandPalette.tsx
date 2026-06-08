@@ -83,6 +83,10 @@ export function CommandPalette(props: CommandPaletteProps) {
       <div className="palette-panel" onClick={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
         <input
           autoFocus
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Type a command..."

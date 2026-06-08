@@ -39,6 +39,7 @@ export interface EditorFile {
   languageId: string;
   languageName: string;
   encoding: string;
+  loading?: boolean;
 }
 
 export type EditorDock = "left" | "right" | "top" | "bottom";
@@ -139,8 +140,8 @@ interface AppState {
 
 let fileLoadRequestSeq = 0;
 let fileLoadDebounceTimer: number | undefined;
-const FILE_LOAD_DEBOUNCE_MS = 180;
-const FILE_CACHE_FRESH_MS = 1500;
+const FILE_LOAD_DEBOUNCE_MS = 40;
+const FILE_CACHE_FRESH_MS = 60_000;
 const dirCacheFreshAt: Record<string, number> = {};
 
 async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId">): Promise<void> {
@@ -669,7 +670,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } else {
       // No cache: show loading indicator
-      set({ fileLoading: true, fileTransitioning: true, fileError: undefined });
+      set({
+        fileEntries: [],
+        fileLoading: true,
+        fileTransitioning: true,
+        fileDisplayTabId: requestTabId,
+        fileDisplayPath: currentPath,
+        fileError: undefined,
+        selectedFile: undefined
+      });
     }
 
     try {
@@ -756,7 +765,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    set({ fileTransitioning: true });
+    set({
+      fileEntries: [],
+      fileLoading: true,
+      fileTransitioning: true,
+      fileDisplayTabId: activeTab.id,
+      fileDisplayPath: currentPath,
+      fileError: undefined,
+      selectedFile: undefined
+    });
   },
 
   navigatePath: async (path) => {
@@ -777,6 +794,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         fileEntries: cached,
         fileLoading: false,
         fileTransitioning: false,
+        fileDisplayTabId: activeTab.id,
+        fileDisplayPath: path,
+        fileError: undefined
+      });
+    } else {
+      set({
+        fileEntries: [],
+        fileLoading: true,
         fileDisplayTabId: activeTab.id,
         fileDisplayPath: path,
         fileError: undefined
@@ -833,6 +858,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = crypto.randomUUID();
     const filename = path.split(/[\\/]/).pop() ?? path;
     const lang = detectLanguage(filename);
+    const loadingFile: EditorFile = {
+      id,
+      path,
+      mode,
+      content: "",
+      originalContent: "",
+      dirty: false,
+      sessionId,
+      languageId: lang.id,
+      languageName: lang.name,
+      encoding: "UTF-8",
+      loading: true,
+    };
+
+    set((state) => ({
+      editorFiles: [...state.editorFiles, loadingFile],
+      activeEditorFileId: id,
+      editorVisible: true,
+    }));
 
     try {
       const rawContent: string = sessionId
@@ -851,12 +895,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         languageId: lang.id,
         languageName: lang.name,
         encoding: "UTF-8",
+        loading: false,
       };
-      set((state) => ({
-        editorFiles: [...state.editorFiles, file],
-        activeEditorFileId: id,
-        editorVisible: true,
-      }));
+      set((state) => {
+        if (!state.editorFiles.some((item) => item.id === id)) return {};
+        return {
+          editorFiles: state.editorFiles.map((item) => (item.id === id ? file : item)),
+          activeEditorFileId: id,
+          editorVisible: true,
+        };
+      });
     } catch (error) {
       const file: EditorFile = {
         id,
@@ -870,12 +918,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         languageId: lang.id,
         languageName: lang.name,
         encoding: "UTF-8",
+        loading: false,
       };
-      set((state) => ({
-        editorFiles: [...state.editorFiles, file],
-        activeEditorFileId: id,
-        editorVisible: true,
-      }));
+      set((state) => {
+        if (!state.editorFiles.some((item) => item.id === id)) return {};
+        return {
+          editorFiles: state.editorFiles.map((item) => (item.id === id ? file : item)),
+          activeEditorFileId: id,
+          editorVisible: true,
+        };
+      });
     }
   },
 
