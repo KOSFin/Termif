@@ -29,6 +29,9 @@ interface AppCommandContext {
   setTabColor: (tabId: string, color: string) => void;
   toast: (message: string) => void;
   toggleSidebar: () => void;
+  terminalTextIn: () => void;
+  terminalTextOut: () => void;
+  terminalTextReset: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
@@ -166,6 +169,24 @@ export function buildAppCommands(ctx: AppCommandContext): PaletteCommand[] {
       category: "UI",
       action: ctx.zoomReset,
     },
+    {
+      id: "terminal.text_in",
+      title: "Increase Terminal Text Size",
+      category: "Terminal",
+      action: ctx.terminalTextIn,
+    },
+    {
+      id: "terminal.text_out",
+      title: "Decrease Terminal Text Size",
+      category: "Terminal",
+      action: ctx.terminalTextOut,
+    },
+    {
+      id: "terminal.text_reset",
+      title: "Reset Terminal Text Size",
+      category: "Terminal",
+      action: ctx.terminalTextReset,
+    },
     ...ctx.tabs.map((tab) => ({
       id: `switch.tab.${tab.id}`,
       title: `Switch to: ${tab.title}`,
@@ -196,6 +217,11 @@ export function buildAppCommands(ctx: AppCommandContext): PaletteCommand[] {
     { id: "setting.modal_blur", title: "Setting: Modal Blur", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Modal Blur") },
     { id: "setting.modal_dimming", title: "Setting: Modal Dimming", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Modal Dimming") },
     { id: "setting.border_radius", title: "Setting: UI Border Radius", category: "Settings", action: () => ctx.openSettingsAt("appearance", "UI Border Radius") },
+    { id: "setting.panel_opacity", title: "Setting: Panel Opacity", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Panel Opacity") },
+    { id: "setting.topbar_opacity", title: "Setting: Topbar Opacity", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Topbar Opacity") },
+    { id: "setting.terminal_opacity", title: "Setting: Terminal Opacity", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Terminal Opacity") },
+    { id: "setting.terminal_background_image", title: "Setting: Terminal Background Image", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Terminal Background Image") },
+    { id: "setting.terminal_background_dim", title: "Setting: Terminal Background Dimming", category: "Settings", action: () => ctx.openSettingsAt("appearance", "Terminal Background Dimming") },
     { id: "setting.ssh_timeout", title: "Setting: SSH Timeout", category: "Settings", action: () => ctx.openSettingsAt("ssh", "Connect Timeout") },
     { id: "setting.strict_key", title: "Setting: Strict Host Key Checking", category: "Settings", action: () => ctx.openSettingsAt("ssh", "Strict Host Key Checking") },
     { id: "setting.hidden_files", title: "Setting: Show Hidden Files", category: "Settings", action: () => ctx.openSettingsAt("file_manager", "Show Hidden Files") },

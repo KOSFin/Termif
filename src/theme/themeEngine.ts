@@ -70,6 +70,42 @@ export const BUILT_IN_THEMES: Record<string, Record<string, string>> = {
     "--accent-2": "#a6e22e", "--danger": "#f92672", "--danger-dim": "rgba(249, 38, 114, 0.12)",
     "--warning": "#e6db74",
   },
+  amethyst: {
+    "--bg": "#171221", "--bg-elev-1": "#21192f", "--bg-elev-2": "#2b2140",
+    "--bg-panel": "#1d162b", "--bg-surface": "#2f2445", "--bg-hover": "#382a52",
+    "--bg-active": "#453160", "--stroke": "#55416f", "--stroke-soft": "#3c2d55",
+    "--text": "#d8d0e8", "--text-muted": "#8f80a8", "--text-bright": "#fff7ff",
+    "--accent": "#b98cff", "--accent-hover": "#c9a4ff", "--accent-dim": "rgba(185, 140, 255, 0.15)",
+    "--accent-2": "#47d6b4", "--danger": "#ff6f91", "--danger-dim": "rgba(255, 111, 145, 0.13)",
+    "--warning": "#f3c96b",
+  },
+  ember: {
+    "--bg": "#161412", "--bg-elev-1": "#211d1a", "--bg-elev-2": "#2b2621",
+    "--bg-panel": "#1d1916", "--bg-surface": "#302923", "--bg-hover": "#3a3129",
+    "--bg-active": "#473a30", "--stroke": "#554538", "--stroke-soft": "#382f28",
+    "--text": "#e4d8ca", "--text-muted": "#948579", "--text-bright": "#fff6ee",
+    "--accent": "#ff9f43", "--accent-hover": "#ffb15f", "--accent-dim": "rgba(255, 159, 67, 0.14)",
+    "--accent-2": "#4fd1c5", "--danger": "#ff6b6b", "--danger-dim": "rgba(255, 107, 107, 0.13)",
+    "--warning": "#ffd166",
+  },
+  lagoon: {
+    "--bg": "#101a1d", "--bg-elev-1": "#172529", "--bg-elev-2": "#1f3035",
+    "--bg-panel": "#142126", "--bg-surface": "#24383d", "--bg-hover": "#2b454a",
+    "--bg-active": "#345259", "--stroke": "#3f6268", "--stroke-soft": "#2a454b",
+    "--text": "#cce1df", "--text-muted": "#789694", "--text-bright": "#f4fffd",
+    "--accent": "#44d7c8", "--accent-hover": "#62e4d7", "--accent-dim": "rgba(68, 215, 200, 0.14)",
+    "--accent-2": "#d7b24c", "--danger": "#ff6b82", "--danger-dim": "rgba(255, 107, 130, 0.13)",
+    "--warning": "#f2c76b",
+  },
+  paper: {
+    "--bg": "#f3f1eb", "--bg-elev-1": "#fffdf7", "--bg-elev-2": "#ebe7dd",
+    "--bg-panel": "#faf7ef", "--bg-surface": "#e7e1d6", "--bg-hover": "#ded8cc",
+    "--bg-active": "#d4cbbc", "--stroke": "#c7bcac", "--stroke-soft": "#ded5c6",
+    "--text": "#2f2b26", "--text-muted": "#756b61", "--text-bright": "#14110f",
+    "--accent": "#2f7d8c", "--accent-hover": "#246f7d", "--accent-dim": "rgba(47, 125, 140, 0.14)",
+    "--accent-2": "#b45f36", "--danger": "#b84242", "--danger-dim": "rgba(184, 66, 66, 0.13)",
+    "--warning": "#9a741e",
+  },
 };
 
 export const BUILT_IN_THEME_IDS = Object.keys(BUILT_IN_THEMES);
@@ -85,6 +121,11 @@ export function applyAppearanceOverrides(appearance?: {
   modal_dimming?: number;
   border_radius?: number;
   accent_color?: string;
+  panel_opacity?: number;
+  topbar_opacity?: number;
+  terminal_opacity?: number;
+  terminal_background_image?: string;
+  terminal_background_dim?: number;
 }): void {
   if (!appearance) return;
 
@@ -109,6 +150,30 @@ export function applyAppearanceOverrides(appearance?: {
   if (appearance.accent_color) {
     document.documentElement.style.setProperty("--accent", appearance.accent_color);
   }
+
+  setNumberVar("--panel-opacity", appearance.panel_opacity, 1);
+  setNumberVar("--topbar-opacity", appearance.topbar_opacity, 0.88);
+  setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
+  setNumberVar("--terminal-bg-dim", appearance.terminal_background_dim, 0.35);
+
+  const bgImage = appearance.terminal_background_image?.trim();
+  if (bgImage) {
+    document.documentElement.style.setProperty("--terminal-bg-image", `url("${toCssImageUrl(bgImage)}")`);
+  } else {
+    document.documentElement.style.removeProperty("--terminal-bg-image");
+  }
+}
+
+function setNumberVar(name: string, value: number | undefined, fallback: number): void {
+  const next = value ?? fallback;
+  document.documentElement.style.setProperty(name, String(next));
+}
+
+function toCssImageUrl(value: string): string {
+  const escaped = value.replace(/\\/g, "/").replace(/"/g, "%22");
+  if (/^(file|https?|data|asset):/i.test(escaped)) return escaped;
+  if (escaped.startsWith("/")) return `file://${escaped}`;
+  return escaped;
 }
 
 export function applyTheme(themeId: string, customThemes: CustomTheme[] = []): void {

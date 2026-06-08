@@ -91,6 +91,14 @@ impl Default for AppSettings {
                 ui_density: "comfortable".to_string(),
                 tab_switching_mode: "mru".to_string(),
                 custom_themes: Vec::new(),
+                modal_blur: 4,
+                modal_dimming: 0.55,
+                border_radius: 8,
+                panel_opacity: 1.0,
+                topbar_opacity: 0.88,
+                terminal_opacity: 1.0,
+                terminal_background_image: String::new(),
+                terminal_background_dim: 0.35,
             },
             terminal: TerminalSettings {
                 default_shell: crate::platform::default_shell_profile().to_string(),
@@ -134,20 +142,74 @@ impl Default for AppSettings {
 pub struct AppearanceSettings {
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_accent_color")]
     pub accent_color: String,
+    #[serde(default = "default_ui_density")]
     pub ui_density: String,
     #[serde(default = "default_tab_switching_mode")]
     pub tab_switching_mode: String,
     #[serde(default)]
     pub custom_themes: Vec<CustomTheme>,
+    #[serde(default = "default_modal_blur")]
+    pub modal_blur: u8,
+    #[serde(default = "default_modal_dimming")]
+    pub modal_dimming: f32,
+    #[serde(default = "default_border_radius")]
+    pub border_radius: u8,
+    #[serde(default = "default_panel_opacity")]
+    pub panel_opacity: f32,
+    #[serde(default = "default_topbar_opacity")]
+    pub topbar_opacity: f32,
+    #[serde(default = "default_terminal_opacity")]
+    pub terminal_opacity: f32,
+    #[serde(default)]
+    pub terminal_background_image: String,
+    #[serde(default = "default_terminal_background_dim")]
+    pub terminal_background_dim: f32,
 }
 
 fn default_theme() -> String {
     "charcoal".to_string()
 }
 
+fn default_accent_color() -> String {
+    "#61a0ff".to_string()
+}
+
+fn default_ui_density() -> String {
+    "comfortable".to_string()
+}
+
 fn default_tab_switching_mode() -> String {
     "mru".to_string()
+}
+
+fn default_modal_blur() -> u8 {
+    4
+}
+
+fn default_modal_dimming() -> f32 {
+    0.55
+}
+
+fn default_border_radius() -> u8 {
+    8
+}
+
+fn default_panel_opacity() -> f32 {
+    1.0
+}
+
+fn default_topbar_opacity() -> f32 {
+    0.88
+}
+
+fn default_terminal_opacity() -> f32 {
+    1.0
+}
+
+fn default_terminal_background_dim() -> f32 {
+    0.35
 }
 
 fn default_terminal_font() -> &'static str {

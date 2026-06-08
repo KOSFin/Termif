@@ -20,6 +20,9 @@ export interface HotkeyHandlers {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  onTerminalTextIn: () => void;
+  onTerminalTextOut: () => void;
+  onTerminalTextReset: () => void;
   onToggleEditor: () => void;
   onTabSwitcherOpen: (direction: 1 | -1) => void;
   onTabSwitcherClose: () => void;
@@ -38,6 +41,9 @@ const defaultBindings: Record<string, string[]> = {
   "zoom.in": ["Ctrl+=", "Ctrl+Num+"],
   "zoom.out": ["Ctrl+-", "Ctrl+Num-"],
   "zoom.reset": ["Ctrl+0"],
+  "terminal.text_in": ["Ctrl+Shift+="],
+  "terminal.text_out": ["Ctrl+Shift+-"],
+  "terminal.text_reset": ["Ctrl+Shift+0"],
   "editor.toggle": ["Ctrl+E"],
   "ui.escape": ["Escape"],
   "tab.index.1": ["Alt+1"],
@@ -78,6 +84,10 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (shouldBypassGlobalHotkeys(e)) {
+        return;
+      }
+
       if (matchesAny(e, "tab.switcher.next")) {
         e.preventDefault();
         e.stopPropagation();
@@ -152,6 +162,24 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
         return;
       }
 
+      if (matchesAny(e, "terminal.text_in")) {
+        e.preventDefault();
+        handlers.onTerminalTextIn();
+        return;
+      }
+
+      if (matchesAny(e, "terminal.text_out")) {
+        e.preventDefault();
+        handlers.onTerminalTextOut();
+        return;
+      }
+
+      if (matchesAny(e, "terminal.text_reset")) {
+        e.preventDefault();
+        handlers.onTerminalTextReset();
+        return;
+      }
+
       if (matchesAny(e, "editor.toggle")) {
         e.preventDefault();
         handlers.onToggleEditor();
@@ -188,6 +216,40 @@ export function useHotkeys(handlers: HotkeyHandlers, configuredBindings?: Hotkey
       window.removeEventListener("keyup", onKeyUp, true);
     };
   }, [configuredBindings, handlers]);
+}
+
+function shouldBypassGlobalHotkeys(e: KeyboardEvent): boolean {
+  const target = e.target as HTMLElement | null;
+  if (!target) return false;
+
+  const isEditable =
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT";
+
+  const inTerminal = !!target.closest(".terminal-pane, .xterm");
+  const terminalPayloadKeys = new Set([
+    "Tab",
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "Home",
+    "End",
+    "PageUp",
+    "PageDown",
+    "Insert",
+    "Delete",
+  ]);
+
+  if (inTerminal && terminalPayloadKeys.has(e.key)) {
+    if (e.key === "Tab" && (e.ctrlKey || e.metaKey)) return false;
+    return true;
+  }
+  if (inTerminal) return false;
+  if (isEditable && e.key !== "Escape") return true;
+  return false;
 }
 
 function normalizeCombo(combo?: string): string | null {

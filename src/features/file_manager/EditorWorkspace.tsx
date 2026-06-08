@@ -1,8 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Save, FolderOpen } from "lucide-react";
 import { appShortcutTitle } from "@/platform/platform";
-import type { EditorWindowTabSeed } from "./editorWindow";
+import {
+  clearEditorPopoutLive,
+  EDITOR_OPEN_FILE_EVENT,
+  markEditorPopoutLive,
+  type EditorWindowOpenFilePayload,
+  type EditorWindowTabSeed
+} from "./editorWindow";
 
 interface EditorTab {
   id: string;
@@ -110,18 +117,7 @@ export function EditorWorkspace() {
     }
   }, []);
 
-  useEffect(() => {
-    const { path, mode, sessionId, serverLabel, tabs: seededTabs, activeIndex } = parseQuery();
-    if (seededTabs.length > 0) {
-      void hydrateFromSeeds(seededTabs, activeIndex);
-      return;
-    }
-    if (path) {
-      void openPath(path, mode, sessionId, serverLabel);
-    }
-  }, [hydrateFromSeeds]);
-
-  const openPath = async (
+  const openPath = useCallback(async (
     path: string,
     mode: "preview" | "edit",
     sessionId?: string,
@@ -171,7 +167,39 @@ export function EditorWorkspace() {
       ]);
       setActiveTabId(id);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const { path, mode, sessionId, serverLabel, tabs: seededTabs, activeIndex } = parseQuery();
+    if (seededTabs.length > 0) {
+      void hydrateFromSeeds(seededTabs, activeIndex);
+      return;
+    }
+    if (path) {
+      void openPath(path, mode, sessionId, serverLabel);
+    }
+  }, [hydrateFromSeeds, openPath]);
+
+  useEffect(() => {
+    markEditorPopoutLive();
+    const heartbeat = window.setInterval(markEditorPopoutLive, 1500);
+    const unlistenPromise = listen<EditorWindowOpenFilePayload>(EDITOR_OPEN_FILE_EVENT, (event) => {
+      const payload = event.payload;
+      void openPath(payload.path, payload.mode, payload.sessionId, payload.serverLabel);
+    });
+
+    const onBeforeUnload = () => {
+      clearEditorPopoutLive();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      clearEditorPopoutLive();
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [openPath]);
 
   const closeTab = (tabId: string) => {
     const target = tabsRef.current.find((tab) => tab.id === tabId);

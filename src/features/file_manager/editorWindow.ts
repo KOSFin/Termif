@@ -1,4 +1,8 @@
+import { emit } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+export const EDITOR_OPEN_FILE_EVENT = "termif://editor-open-file";
+export const EDITOR_POPOUT_HEARTBEAT_KEY = "termif.editorPopoutHeartbeat";
 
 export interface EditorWindowTabSeed {
   path: string;
@@ -10,8 +14,33 @@ export interface EditorWindowTabSeed {
   error?: string;
 }
 
+export interface EditorWindowOpenFilePayload {
+  path: string;
+  mode: "preview" | "edit";
+  sessionId?: string;
+  serverLabel?: string;
+}
+
+export function markEditorPopoutLive() {
+  localStorage.setItem(EDITOR_POPOUT_HEARTBEAT_KEY, String(Date.now()));
+}
+
+export function clearEditorPopoutLive() {
+  localStorage.removeItem(EDITOR_POPOUT_HEARTBEAT_KEY);
+}
+
+export function isEditorPopoutLive() {
+  const raw = Number(localStorage.getItem(EDITOR_POPOUT_HEARTBEAT_KEY) ?? "0");
+  return Number.isFinite(raw) && Date.now() - raw < 5000;
+}
+
+export async function requestOpenFileInEditorWindow(payload: EditorWindowOpenFilePayload) {
+  await emit(EDITOR_OPEN_FILE_EVENT, payload);
+}
+
 function createEditorWebviewWindow(params: URLSearchParams, title: string) {
   const label = `editor-${Date.now()}-${Math.round(Math.random() * 9999)}`;
+  markEditorPopoutLive();
   const win = new WebviewWindow(label, {
     url: `/#/editor?${params.toString()}`,
     title,
@@ -23,6 +52,7 @@ function createEditorWebviewWindow(params: URLSearchParams, title: string) {
 
   win.once("tauri://error", (event) => {
     console.error("Editor window failed to open:", event);
+    clearEditorPopoutLive();
   });
 }
 

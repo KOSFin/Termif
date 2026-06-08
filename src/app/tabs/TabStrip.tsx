@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ElementRef, type ReactNode } from "react";
 import { X, ChevronDown, Plus, Terminal, Globe, Monitor } from "lucide-react";
 import { getShellProfileOptions } from "@/platform/platform";
 import type { AppTab } from "@/types/models";
@@ -52,11 +52,13 @@ export function TabStrip(props: TabStripProps) {
   const [contextPosition, setContextPosition] = useState<{ x: number; y: number }>();
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const [scrollLimited, setScrollLimited] = useState(false);
+  const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<ElementRef<"input">>(null);
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),
@@ -67,6 +69,18 @@ export function TabStrip(props: TabStripProps) {
   const closeContext = () => {
     setContextTabId(undefined);
     setContextPosition(undefined);
+  };
+
+  const startRename = (tab: AppTab) => {
+    setRenamingTab({ id: tab.id, value: tab.title });
+    closeContext();
+  };
+
+  const commitRename = () => {
+    if (!renamingTab) return;
+    const next = renamingTab.value.trim();
+    if (next) props.onRename(renamingTab.id, next);
+    setRenamingTab(undefined);
   };
 
   const clampMenuPosition = useCallback((x: number, y: number) => {
@@ -112,6 +126,14 @@ export function TabStrip(props: TabStripProps) {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [newTabMenuOpen]);
 
+  useEffect(() => {
+    if (!renamingTab) return;
+    requestAnimationFrame(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    });
+  }, [renamingTab]);
+
   return (
     <div className="tabstrip" ref={stripRef}>
       <div
@@ -143,7 +165,28 @@ export function TabStrip(props: TabStripProps) {
               }}
             >
               <span className="tab-icon">{resolveTabIcon(tab)}</span>
-              <span className="tab-title">{tab.title}</span>
+              {renamingTab?.id === tab.id ? (
+                <input
+                  ref={renameInputRef}
+                  className="tab-rename-input"
+                  value={renamingTab.value}
+                  onClick={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onChange={(event) => setRenamingTab({ id: tab.id, value: event.target.value })}
+                  onBlur={commitRename}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitRename();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      setRenamingTab(undefined);
+                    }
+                  }}
+                />
+              ) : (
+                <span className="tab-title">{tab.title}</span>
+              )}
               <span
                 className="tab-close"
                 role="button"
@@ -192,13 +235,7 @@ export function TabStrip(props: TabStripProps) {
             onClick={(event) => event.stopPropagation()}
           >
             <button
-              onClick={() => {
-                const nextName = window.prompt("Rename tab", contextTab.title)?.trim();
-                if (nextName) {
-                  props.onRename(contextTab.id, nextName);
-                }
-                closeContext();
-              }}
+              onClick={() => startRename(contextTab)}
             >
               Rename
             </button>

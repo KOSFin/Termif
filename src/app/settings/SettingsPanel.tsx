@@ -46,7 +46,11 @@ const themes = [
   { id: "charcoal", name: "Charcoal", preview: "#1a1d23" },
   { id: "midnight", name: "Midnight", preview: "#0a0e14" },
   { id: "nord", name: "Nord", preview: "#2e3440" },
-  { id: "monokai", name: "Monokai", preview: "#272822" }
+  { id: "monokai", name: "Monokai", preview: "#272822" },
+  { id: "amethyst", name: "Amethyst", preview: "#21192f" },
+  { id: "ember", name: "Ember", preview: "#211d1a" },
+  { id: "lagoon", name: "Lagoon", preview: "#172529" },
+  { id: "paper", name: "Paper", preview: "#fffdf7" }
 ];
 
 export const hotkeyCatalog: Array<{ id: string; description: string; defaults: string[]; section?: string }> = [
@@ -65,6 +69,9 @@ export const hotkeyCatalog: Array<{ id: string; description: string; defaults: s
   { id: "zoom.in", description: "Zoom in", defaults: ["Ctrl+=", "Ctrl+Num+"], section: "View" },
   { id: "zoom.out", description: "Zoom out", defaults: ["Ctrl+-", "Ctrl+Num-"], section: "View" },
   { id: "zoom.reset", description: "Reset zoom", defaults: ["Ctrl+0"], section: "View" },
+  { id: "terminal.text_in", description: "Increase terminal text size", defaults: ["Ctrl+Shift+="], section: "Terminal" },
+  { id: "terminal.text_out", description: "Decrease terminal text size", defaults: ["Ctrl+Shift+-"], section: "Terminal" },
+  { id: "terminal.text_reset", description: "Reset terminal text size", defaults: ["Ctrl+Shift+0"], section: "Terminal" },
   { id: "fullscreen.toggle", description: "Toggle fullscreen", defaults: ["F11"], section: "View" },
   { id: "terminal.copy", description: "Copy from terminal", defaults: ["Ctrl+Shift+C", "Ctrl+Insert"], section: "Terminal" },
   { id: "terminal.paste", description: "Paste to terminal", defaults: ["Ctrl+Shift+V", "Shift+Insert"], section: "Terminal" },
@@ -398,6 +405,78 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
+              <div id="setting-panel-opacity" className="settings-row" style={{ display: matches("panel opacity", "transparency", "appearance") ? undefined : "none" }}>
+                <label>Panel Opacity</label>
+                <input
+                  type="range"
+                  min="0.65"
+                  max="1"
+                  step="0.01"
+                  value={draft.appearance.panel_opacity ?? 1}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, panel_opacity: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-topbar-opacity" className="settings-row" style={{ display: matches("topbar opacity", "titlebar", "transparency", "appearance") ? undefined : "none" }}>
+                <label>Topbar Opacity</label>
+                <input
+                  type="range"
+                  min="0.55"
+                  max="1"
+                  step="0.01"
+                  value={draft.appearance.topbar_opacity ?? 0.88}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, topbar_opacity: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-terminal-opacity" className="settings-row" style={{ display: matches("terminal opacity", "terminal transparency", "console transparency", "background image") ? undefined : "none" }}>
+                <label>Terminal Opacity</label>
+                <input
+                  type="range"
+                  min="0.35"
+                  max="1"
+                  step="0.01"
+                  value={draft.appearance.terminal_opacity ?? 1}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, terminal_opacity: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-terminal-background-image" className="settings-row" style={{ display: matches("terminal background image", "wallpaper", "background image", "terminal personalization") ? undefined : "none" }}>
+                <label>Terminal Background Image</label>
+                <input
+                  value={draft.appearance.terminal_background_image ?? ""}
+                  placeholder="/path/to/image.png"
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, terminal_background_image: e.target.value } } : p
+                    )
+                  }
+                />
+              </div>
+              <div id="setting-terminal-background-dim" className="settings-row" style={{ display: matches("terminal background dim", "wallpaper dim", "background image", "terminal personalization") ? undefined : "none" }}>
+                <label>Terminal Background Dimming</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.9"
+                  step="0.01"
+                  value={draft.appearance.terminal_background_dim ?? 0.35}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, terminal_background_dim: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
               <div className="settings-row" style={{ display: matches("tab switching", "ctrl+tab", "mru", "positional") ? undefined : "none" }}>
                 <label>Tab Switching Order (Ctrl+Tab)</label>
                 <select
@@ -454,10 +533,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div id="setting-font-size" className="settings-row" style={{ display: matches("font size", "terminal font") ? undefined : "none" }}>
-                <label>Font Size</label>
+              <div id="setting-font-size" className="settings-row" style={{ display: matches("font size", "terminal font", "console text size") ? undefined : "none" }}>
+                <label>Terminal Text Size</label>
                 <input
                   type="number"
+                  min="8"
+                  max="40"
                   value={draft.terminal.font_size}
                   onChange={(e) =>
                     setDraft((p) =>

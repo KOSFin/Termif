@@ -159,8 +159,23 @@ export const TerminalPane = memo(function TerminalPane({
     const onNativePaste = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
     el.addEventListener("paste", onNativePaste, true);
 
+    const onWheel = (e: WheelEvent) => {
+      const activeBuffer = xterm.buffer.active as unknown as { type?: string };
+      if (activeBuffer.type !== "alternate") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    el.addEventListener("wheel", onWheel, { capture: true, passive: false });
+
     // ── Custom key handler for copy/paste ────────────────────────────────────
     xterm.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      const navigation = getPlainNavigationSequence(e);
+      if (navigation && e.type === "keydown") {
+        queueInput(navigation);
+        return false;
+      }
+
       if (e.type === "keydown" && e.code === "Backspace" && !e.metaKey && !e.altKey) {
         queueInput("\x7f");
         return false;
@@ -236,11 +251,12 @@ export const TerminalPane = memo(function TerminalPane({
         setConnecting(false);
       }
 
-      xtermRef.current?.write(chunk);
+      const displayChunk = preserveScrollbackOnClear(chunk);
+      xtermRef.current?.write(displayChunk);
 
       // Buffer first 4000 chars for OS detection
       if (isSSH && sshAlias && !osDetectedRef.current) {
-        outputBufferRef.current += chunk;
+        outputBufferRef.current += displayChunk;
         if (outputBufferRef.current.length > 4000) {
           outputBufferRef.current = outputBufferRef.current.slice(0, 4000);
         }
@@ -274,6 +290,7 @@ export const TerminalPane = memo(function TerminalPane({
 
     return () => {
       el.removeEventListener("paste", onNativePaste, true);
+      el.removeEventListener("wheel", onWheel, true);
       dataListener.dispose();
       resizeObserver.disconnect();
       if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
@@ -399,6 +416,33 @@ function asCursorStyle(value?: string): "bar" | "block" | "underline" {
   return "bar";
 }
 
+function getPlainNavigationSequence(e: KeyboardEvent): string | null {
+  if (e.metaKey || e.ctrlKey || e.altKey) return null;
+
+  if (e.code === "Tab") {
+    return e.shiftKey ? "\x1b[Z" : "\t";
+  }
+
+  if (e.shiftKey) return null;
+
+  const sequences: Record<string, string> = {
+    ArrowLeft: "\x1b[D",
+    ArrowRight: "\x1b[C",
+    ArrowUp: "\x1b[A",
+    ArrowDown: "\x1b[B",
+    Home: "\x1b[H",
+    End: "\x1b[F",
+    PageUp: "\x1b[5~",
+    PageDown: "\x1b[6~",
+  };
+
+  return sequences[e.code] ?? null;
+}
+
+function preserveScrollbackOnClear(chunk: string): string {
+  return chunk.split("\x1b[3J").join("");
+}
+
 async function sendTerminalInput(
   sessionId: string,
   data: string,
@@ -460,13 +504,15 @@ function getTerminalBackground(colorSchemeId?: string, customColors?: Record<str
 
 function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, string>) {
   const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
+  const opacity = clamp01(Number(readCssVar("--terminal-opacity", "1")));
   if (scheme) {
     const c = { ...scheme.colors, ...(customColors ?? {}) };
+    const background = withOpacity(c.background, opacity);
     return {
-      background: c.background,
+      background,
       foreground: c.foreground,
       cursor: c.cursor,
-      cursorAccent: c.background,
+      cursorAccent: background,
       selectionBackground: c.selection,
       black: c.black,
       brightBlack: c.brightBlack,
@@ -499,12 +545,13 @@ function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, s
   const danger = readCssVar("--danger", "#e06c75");
   const warning = readCssVar("--warning", "#e5c07b");
   const c = customColors ?? {};
+  const background = withOpacity(c.background ?? bg, opacity);
 
   return {
-    background: c.background ?? bg,
+    background,
     foreground: c.foreground ?? text,
     cursor: c.cursor ?? accent,
-    cursorAccent: c.background ?? bg,
+    cursorAccent: background,
     selectionBackground: c.selection ?? bgHover,
     black: c.black ?? bg,
     brightBlack: c.brightBlack ?? textMuted,
@@ -524,4 +571,28 @@ function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, s
     brightWhite: c.brightWhite ?? textBright,
     extendedAnsi: [bgElev],
   };
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value));
+}
+
+function withOpacity(color: string, opacity: number): string {
+  if (opacity >= 0.995) return color;
+  const hex = color.trim();
+  const short = /^#([0-9a-f]{3})$/i.exec(hex);
+  if (short) {
+    const [r, g, b] = short[1].split("").map((part) => Number.parseInt(part + part, 16));
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+
+  const full = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!full) return color;
+
+  const int = Number.parseInt(full[1], 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }

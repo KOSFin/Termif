@@ -206,6 +206,30 @@ export function AppShell() {
     setSettingsOpen(true);
   }, [setSettingsOpen]);
 
+  const setTerminalTextSize = useCallback((size: number) => {
+    if (!settings) return;
+    const fontSize = Math.max(8, Math.min(40, Math.round(size)));
+    void saveSettings({
+      ...settings,
+      terminal: {
+        ...settings.terminal,
+        font_size: fontSize,
+      },
+    });
+  }, [saveSettings, settings]);
+
+  const terminalTextIn = useCallback(() => {
+    setTerminalTextSize((settings?.terminal.font_size ?? 13) + 1);
+  }, [setTerminalTextSize, settings?.terminal.font_size]);
+
+  const terminalTextOut = useCallback(() => {
+    setTerminalTextSize((settings?.terminal.font_size ?? 13) - 1);
+  }, [setTerminalTextSize, settings?.terminal.font_size]);
+
+  const terminalTextReset = useCallback(() => {
+    setTerminalTextSize(13);
+  }, [setTerminalTextSize]);
+
   // ── Tab switcher state (Windows Alt+Tab style) ────────────────────
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
   const [tabSwitcherIndex, setTabSwitcherIndex] = useState(0);
@@ -381,6 +405,9 @@ export function AppShell() {
     onZoomIn: () => zoomIn(),
     onZoomOut: () => zoomOut(),
     onZoomReset: () => zoomReset(),
+    onTerminalTextIn: () => terminalTextIn(),
+    onTerminalTextOut: () => terminalTextOut(),
+    onTerminalTextReset: () => terminalTextReset(),
     onToggleEditor: () => setEditorVisible(!editorVisible),
     onTabSwitcherOpen: (direction: 1 | -1) => {
       if (tabs.length < 2) return;
@@ -451,7 +478,7 @@ export function AppShell() {
     setPaletteOpen, toggleSidebar, createLocalTab, setSettingsOpen,
     closeTab, activateNextTab, activatePrevTab, activateTabByIndex,
     loadCurrentFiles, setActiveTab, tabSwitcherIndex, tabMruOrder,
-    zoomIn, zoomOut, zoomReset, editorVisible, setEditorVisible
+    zoomIn, zoomOut, zoomReset, terminalTextIn, terminalTextOut, terminalTextReset, editorVisible, setEditorVisible
   ]);
 
   useHotkeys(hotkeyHandlers(), settings?.hotkeys);
@@ -697,6 +724,9 @@ export function AppShell() {
     setTabColor,
     toast,
     toggleSidebar,
+    terminalTextIn,
+    terminalTextOut,
+    terminalTextReset,
     zoomIn,
     zoomOut,
     zoomReset,

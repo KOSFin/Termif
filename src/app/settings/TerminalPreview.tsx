@@ -54,6 +54,26 @@ export const TERMINAL_COLOR_SCHEMES: TerminalColorScheme[] = [
     },
   },
   {
+    id: "amethyst_term", name: "Amethyst",
+    colors: {
+      black: "#171221", red: "#ff6f91", green: "#47d6b4", yellow: "#f3c96b",
+      blue: "#8ab4ff", magenta: "#b98cff", cyan: "#66e1d2", white: "#d8d0e8",
+      brightBlack: "#706085", brightRed: "#ff91aa", brightGreen: "#69ead0", brightYellow: "#ffd98a",
+      brightBlue: "#a8c8ff", brightMagenta: "#d1b2ff", brightCyan: "#90f4e7", brightWhite: "#fff7ff",
+      background: "#171221", foreground: "#d8d0e8", cursor: "#b98cff", selection: "#453160",
+    },
+  },
+  {
+    id: "rose_pine", name: "Rosé Pine",
+    colors: {
+      black: "#191724", red: "#eb6f92", green: "#9ccfd8", yellow: "#f6c177",
+      blue: "#31748f", magenta: "#c4a7e7", cyan: "#ebbcba", white: "#e0def4",
+      brightBlack: "#6e6a86", brightRed: "#eb6f92", brightGreen: "#9ccfd8", brightYellow: "#f6c177",
+      brightBlue: "#31748f", brightMagenta: "#c4a7e7", brightCyan: "#ebbcba", brightWhite: "#e0def4",
+      background: "#191724", foreground: "#e0def4", cursor: "#c4a7e7", selection: "#403d52",
+    },
+  },
+  {
     id: "gruvbox", name: "Gruvbox Dark",
     colors: {
       black: "#282828", red: "#cc241d", green: "#98971a", yellow: "#d79921",

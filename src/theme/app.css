@@ -14,6 +14,18 @@ body,
   background: var(--bg);
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--terminal-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 1;
+}
+
 /* == Scrollbar ================================================ */
 
 ::-webkit-scrollbar {
@@ -131,7 +143,7 @@ textarea:focus {
   height: 38px;
   min-height: 38px;
   border-bottom: 1px solid var(--stroke);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
   padding: 0;
   gap: 0;
 }
@@ -141,12 +153,12 @@ textarea:focus {
   min-height: 44px;
   padding-left: 78px;
   border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
-  background: color-mix(in srgb, var(--bg-elev-1) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
   backdrop-filter: blur(20px) saturate(1.25);
 }
 
 .platform-linux .topbar {
-  background: color-mix(in srgb, var(--bg-elev-1) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
   backdrop-filter: blur(18px) saturate(1.25);
 }
 
@@ -256,6 +268,17 @@ textarea:focus {
   padding: 0 12px;
 }
 
+.tab-rename-input {
+  width: 128px;
+  height: 24px;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-bright);
+  background: var(--bg-panel);
+}
+
 .topbar-divider {
   width: 1px;
   height: 18px;
@@ -337,7 +360,7 @@ textarea:focus {
   width: 280px;
   min-width: 0;
   border-right: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 100%), transparent);
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 0;
@@ -929,23 +952,41 @@ textarea:focus {
 }
 
 .terminal-pane {
+  position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   padding: 14px 16px;
   overflow: hidden;
-  background: var(--terminal-bg, var(--bg));
+  background: transparent;
 }
 
 .terminal-pane-inner {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   font-variant-ligatures: none;
-  background: var(--terminal-bg, var(--bg));
+  background: transparent;
+}
+
+.terminal-pane::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
+    ),
+    var(--terminal-bg-image),
+    color-mix(in srgb, var(--terminal-bg, var(--bg)) calc(var(--terminal-opacity, 1) * 100%), transparent);
+  background-size: cover;
+  background-position: center;
 }
 
 .terminal-pane .xterm {
@@ -959,12 +1000,29 @@ textarea:focus {
 }
 
 .terminal-pane .xterm-viewport {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background-clip: content-box;
+}
+
+.terminal-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  background-clip: content-box;
 }
 
 /* == SSH Connecting overlay ==================================== */
@@ -2052,11 +2110,11 @@ textarea:focus {
 }
 
 .palette-panel {
-  width: min(720px, calc(100vw - 40px));
-  max-height: min(620px, calc(100vh - 96px));
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(480px, calc(100vh - 112px));
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 100%), transparent);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2065,13 +2123,13 @@ textarea:focus {
 }
 
 .palette-panel > input {
-  height: 58px;
+  height: 66px;
   border: 0;
   border-bottom: 1px solid var(--stroke);
   border-radius: 0;
   padding: 0 18px;
   background: var(--bg-elev-2);
-  font-size: 18px;
+  font-size: 19px;
   color: var(--text-bright);
 }
 
@@ -2086,8 +2144,8 @@ textarea:focus {
   border-radius: 0;
   background: transparent;
   text-align: left;
-  min-height: 46px;
-  padding: 10px 18px;
+  min-height: 42px;
+  padding: 8px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2135,7 +2193,7 @@ textarea:focus {
   max-height: calc(100vh - 60px);
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 100%), transparent);
   overflow: hidden;
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -2514,7 +2572,7 @@ textarea:focus {
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
   gap: 8px;
 }
 

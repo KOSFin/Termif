@@ -70,6 +70,11 @@ export interface AppSettings {
     modal_blur?: number;
     modal_dimming?: number;
     border_radius?: number;
+    panel_opacity?: number;
+    topbar_opacity?: number;
+    terminal_opacity?: number;
+    terminal_background_image?: string;
+    terminal_background_dim?: number;
     animations_enabled?: boolean;
   };
   terminal: {

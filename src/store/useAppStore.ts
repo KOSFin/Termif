@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
+import {
+  isEditorPopoutLive,
+  requestOpenFileInEditorWindow
+} from "@/features/file_manager/editorWindow";
 import type {
   AppSettings,
   AppTab,
@@ -817,8 +821,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const currentPath = get().tabPaths[activeTab.id] ?? (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
     const normalized = currentPath.replace(/\\/g, "/").replace(/\/+$/, "");
+    if (!normalized || normalized === "/") return;
+
+    const driveMatch = /^[A-Za-z]:$/.exec(normalized);
+    if (driveMatch) return;
+
     const idx = normalized.lastIndexOf("/");
-    if (idx <= 0) return;
+    if (idx < 0) return;
+
+    if (idx === 0) {
+      await get().navigatePath("/");
+      return;
+    }
+
+    if (idx === 2 && normalized[1] === ":") {
+      await get().navigatePath(`${normalized.slice(0, 2)}/`);
+      return;
+    }
 
     await get().navigatePath(normalized.slice(0, idx));
   },
@@ -847,6 +866,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Editor actions ─────────────────────────────────────────────────
 
   openFile: async (path, mode, sessionId) => {
+    if (isEditorPopoutLive()) {
+      await requestOpenFileInEditorWindow({ path, mode, sessionId });
+      set({ editorVisible: false });
+      return;
+    }
+
     const existing = get().editorFiles.find(
       (f) => f.path === path && f.sessionId === sessionId
     );
