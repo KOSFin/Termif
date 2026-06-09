@@ -112,11 +112,17 @@ pub fn reveal_path(path: &str) -> Result<(), TermifError> {
     let reveal_target = if target.exists() {
         target
     } else {
-        target.parent().unwrap_or_else(|| Path::new(path)).to_path_buf()
+        target
+            .parent()
+            .unwrap_or_else(|| Path::new(path))
+            .to_path_buf()
     };
 
     #[cfg(target_os = "macos")]
-    let status = Command::new("open").arg("-R").arg(&reveal_target).status()?;
+    let status = Command::new("open")
+        .arg("-R")
+        .arg(&reveal_target)
+        .status()?;
 
     #[cfg(target_os = "windows")]
     let status = Command::new("explorer")
