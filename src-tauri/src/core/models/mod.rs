@@ -87,6 +87,9 @@ impl Default for AppSettings {
         Self {
             appearance: AppearanceSettings {
                 theme: "charcoal".to_string(),
+                theme_mode: ThemeMode::Manual,
+                light_theme: "paper".to_string(),
+                dark_theme: "charcoal".to_string(),
                 accent_color: "#61a0ff".to_string(),
                 ui_density: "comfortable".to_string(),
                 tab_switching_mode: "mru".to_string(),
@@ -143,6 +146,12 @@ impl Default for AppSettings {
 pub struct AppearanceSettings {
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default)]
+    pub theme_mode: ThemeMode,
+    #[serde(default = "default_light_theme")]
+    pub light_theme: String,
+    #[serde(default = "default_dark_theme")]
+    pub dark_theme: String,
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
     #[serde(default = "default_ui_density")]
@@ -171,7 +180,23 @@ pub struct AppearanceSettings {
     pub terminal_background_dim: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    #[default]
+    Manual,
+    System,
+}
+
 fn default_theme() -> String {
+    "charcoal".to_string()
+}
+
+fn default_light_theme() -> String {
+    "paper".to_string()
+}
+
+fn default_dark_theme() -> String {
     "charcoal".to_string()
 }
 

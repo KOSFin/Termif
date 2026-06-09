@@ -220,30 +220,18 @@ export function FileManagerPane(props: FileManagerPaneProps) {
         <button onClick={() => void onCreateEntry(true)} title="New folder">
           <FolderPlus size={14} strokeWidth={2} />
         </button>
-      </div>
-
-      <div className="breadcrumbs">
-        {breadcrumbs.map((crumb, index) => (
-          <button
-            key={`${crumb.path}-${index}`}
-            onClick={() => void navigatePath(crumb.path)}
-            disabled={fileTransitioning}
-          >
-            {index > 0 ? "/ " : ""}{crumb.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="file-scope-bar">
         <span className="file-scope-source">{sourceLabel}</span>
-        <button
-          className="file-scope-path"
-          type="button"
-          title="Copy path"
-          onClick={() => void onCopy(displayPath, "path")}
-        >
-          {displayPath}
-        </button>
+        <div className="breadcrumbs" aria-label="Current path">
+          {breadcrumbs.map((crumb, index) => (
+            <button
+              key={`${crumb.path}-${index}`}
+              onClick={() => void navigatePath(crumb.path)}
+              disabled={fileTransitioning}
+            >
+              {index > 0 ? "/ " : ""}{crumb.label}
+            </button>
+          ))}
+        </div>
         <button
           className="file-scope-action"
           type="button"

@@ -2,6 +2,7 @@ mod parsers;
 
 use std::{
     collections::HashMap,
+    fs,
     io::{Read, Write},
     path::PathBuf,
     sync::{mpsc, Arc, Mutex},
@@ -35,6 +36,7 @@ pub struct SshConnectOptions {
     pub identity_file: Option<String>,
     pub password: Option<String>,
     pub connect_timeout_seconds: u16,
+    pub strict_host_key_checking: bool,
 }
 
 #[derive(Clone, Default)]
@@ -93,16 +95,28 @@ struct ExecOutput {
 }
 
 #[derive(Clone)]
-struct SshHandler;
+struct SshHandler {
+    host: String,
+    port: u16,
+    strict_host_key_checking: bool,
+}
 
 impl client::Handler for SshHandler {
     type Error = russh::Error;
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh::keys::ssh_key::PublicKey,
+        server_public_key: &russh::keys::ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        Ok(true)
+        if !self.strict_host_key_checking {
+            return Ok(true);
+        }
+
+        Ok(verify_or_record_host_key(
+            &self.host,
+            self.port,
+            server_public_key,
+        ))
     }
 }
 
@@ -492,16 +506,29 @@ impl SshClientRuntime {
     }
 
     async fn connect(options: &SshConnectOptions) -> Result<Self, TermifError> {
+        let timeout = Duration::from_secs(u64::from(options.connect_timeout_seconds.max(1)));
         let config = Arc::new(client::Config {
-            inactivity_timeout: Some(Duration::from_secs(u64::from(
-                options.connect_timeout_seconds.max(10),
-            ))),
+            inactivity_timeout: Some(timeout),
             ..Default::default()
         });
 
-        let mut handle = client::connect(config, (options.host.as_str(), options.port), SshHandler)
-            .await
-            .map_err(|e| TermifError::Internal(e.to_string()))?;
+        let handler = SshHandler {
+            host: options.host.clone(),
+            port: options.port,
+            strict_host_key_checking: options.strict_host_key_checking,
+        };
+        let mut handle = tokio::time::timeout(
+            timeout,
+            client::connect(config, (options.host.as_str(), options.port), handler),
+        )
+        .await
+        .map_err(|_| {
+            TermifError::Internal(format!(
+                "ssh connection timed out after {}s",
+                options.connect_timeout_seconds.max(1)
+            ))
+        })?
+        .map_err(|e| TermifError::Internal(e.to_string()))?;
 
         let user = resolve_ssh_user(options);
         if let Some(password) = options
@@ -848,6 +875,157 @@ fn flush_pending_to_channel(pending: &Arc<Mutex<Vec<u8>>>, ch: &FrontendChannel<
     if let Some(data) = buffered {
         let _ = ch.send(data);
     }
+}
+
+fn verify_or_record_host_key(
+    host: &str,
+    port: u16,
+    server_public_key: &russh::keys::ssh_key::PublicKey,
+) -> bool {
+    let key_line = match server_public_key.to_openssh() {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    let key_fields = key_identity_fields(&key_line);
+    let Some((key_type, key_blob)) = key_fields else {
+        return false;
+    };
+
+    let path = match known_hosts_path() {
+        Ok(path) => path,
+        Err(_) => return false,
+    };
+
+    let content = fs::read_to_string(&path).unwrap_or_default();
+    let mut saw_host = false;
+
+    for raw_line in content.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let mut fields = line.split_whitespace();
+        let first = fields.next().unwrap_or_default();
+        let hosts_field = if first.starts_with('@') {
+            fields.next().unwrap_or_default()
+        } else {
+            first
+        };
+        let known_type = fields.next().unwrap_or_default();
+        let known_blob = fields.next().unwrap_or_default();
+
+        if hosts_field.is_empty() || hosts_field.starts_with("|1|") {
+            continue;
+        }
+
+        if hosts_field
+            .split(',')
+            .any(|pattern| known_host_pattern_matches(pattern, host, port))
+        {
+            saw_host = true;
+            if known_type == key_type && known_blob == key_blob {
+                return true;
+            }
+        }
+    }
+
+    if saw_host {
+        return false;
+    }
+
+    append_known_host(&path, host, port, &key_line).is_ok()
+}
+
+fn key_identity_fields(key_line: &str) -> Option<(&str, &str)> {
+    let mut fields = key_line.split_whitespace();
+    Some((fields.next()?, fields.next()?))
+}
+
+fn known_hosts_path() -> Result<PathBuf, TermifError> {
+    let ssh_dir = platform::home_dir()?.join(".ssh");
+    if !ssh_dir.exists() {
+        fs::create_dir_all(&ssh_dir)?;
+    }
+    Ok(ssh_dir.join("known_hosts"))
+}
+
+fn append_known_host(
+    path: &PathBuf,
+    host: &str,
+    port: u16,
+    key_line: &str,
+) -> Result<(), TermifError> {
+    let marker = if port == 22 {
+        host.to_string()
+    } else {
+        format!("[{}]:{}", host, port)
+    };
+    let prefix = if path.exists() {
+        let content = fs::read_to_string(path).unwrap_or_default();
+        if content.is_empty() || content.ends_with('\n') {
+            String::new()
+        } else {
+            "\n".to_string()
+        }
+    } else {
+        String::new()
+    };
+
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?
+        .write_all(format!("{}{} {}\n", prefix, marker, key_line).as_bytes())?;
+    Ok(())
+}
+
+fn known_host_pattern_matches(pattern: &str, host: &str, port: u16) -> bool {
+    let bracketed = format!("[{}]:{}", host, port);
+    if pattern == bracketed {
+        return true;
+    }
+
+    if port == 22 && wildcard_match(pattern, host) {
+        return true;
+    }
+
+    false
+}
+
+fn wildcard_match(pattern: &str, text: &str) -> bool {
+    if !pattern.contains('*') && !pattern.contains('?') {
+        return pattern == text;
+    }
+
+    let p = pattern.as_bytes();
+    let t = text.as_bytes();
+    let (mut pi, mut ti) = (0usize, 0usize);
+    let mut star: Option<usize> = None;
+    let mut match_i = 0usize;
+
+    while ti < t.len() {
+        if pi < p.len() && (p[pi] == b'?' || p[pi] == t[ti]) {
+            pi += 1;
+            ti += 1;
+        } else if pi < p.len() && p[pi] == b'*' {
+            star = Some(pi);
+            match_i = ti;
+            pi += 1;
+        } else if let Some(star_i) = star {
+            pi = star_i + 1;
+            match_i += 1;
+            ti = match_i;
+        } else {
+            return false;
+        }
+    }
+
+    while pi < p.len() && p[pi] == b'*' {
+        pi += 1;
+    }
+
+    pi == p.len()
 }
 
 fn resolve_local_shell(shell_profile: Option<String>) -> (String, Vec<String>, String) {

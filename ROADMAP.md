@@ -6,7 +6,7 @@ Termif is evolving from a technically complete desktop MVP into an operationally
 
 ## Current Product Baseline
 
-The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows/macOS/Linux CI artifact generation.
+The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows/macOS/Linux CI artifact generation. Recent hardening added system-aware theme switching, native macOS window transparency configuration, release landing-page automation, and SSH host-key pinning against `known_hosts`.
 
 This means roadmap work now targets depth over breadth.
 
@@ -14,11 +14,11 @@ This means roadmap work now targets depth over breadth.
 
 ### 1) Connection Trust and SSH Hardening
 
-The product must close trust gaps in SSH validation and provide explicit host-key policy behavior that matches user expectations. Settings currently expose strict_host_key_checking semantics; runtime enforcement and UX feedback should align with that contract.
+The product must continue improving SSH validation and provide explicit host-key policy behavior that matches user expectations. Runtime now verifies or records host keys; the next step is a richer fingerprint confirmation UI, visible key metadata, and better remediation when a host key changes.
 
 ### 2) Session Reliability and Recovery
 
-Reconnect behavior, stale session cleanup, and background wake-up handling need further stabilization under unstable networks. The objective is predictable terminal continuity without hidden reconnect loops.
+Reconnect behavior, stale session cleanup, timeout handling, and background wake-up behavior need further stabilization under unstable networks. The objective is predictable terminal continuity without hidden reconnect loops or long opaque waits.
 
 ### 3) Editor and Filesystem Maturity
 
@@ -26,7 +26,7 @@ Inline and popout editing are functional, but large-file behavior, remote latenc
 
 ### 4) Cross-Platform Release Confidence
 
-Artifact generation is active for Windows, macOS, and Linux, but release lifecycle improvements are still needed around signing, notarization, checksum publication policy, and release metadata quality. This is essential for enterprise adoption where provenance and reproducibility are mandatory.
+Artifact generation and a GitHub Pages download surface are active for Windows, macOS, and Linux, but release lifecycle improvements are still needed around signing, notarization, checksum publication policy, and release metadata quality. This is essential for enterprise adoption where provenance and reproducibility are mandatory.
 
 ## Mid-Term Objectives
 
@@ -40,7 +40,7 @@ Plugin architecture remains a strategic investment. Runtime enablement should oc
 
 ### Platform UX Depth
 
-Platform UX should keep one shared design language while respecting OS conventions: Command-key shortcuts and left-side window controls on macOS, Ctrl-first workflows on Windows/Linux, POSIX shell defaults on Unix, and restrained transparency based on platform capability.
+Platform UX should keep one shared design language while respecting OS conventions: Command-key shortcuts and left-side window controls on macOS, Ctrl-first workflows on Windows/Linux, POSIX shell defaults on Unix, native transparency where supported, and automatic light/dark adaptation based on platform capability.
 
 ## Delivery Principles
 
@@ -48,4 +48,4 @@ Roadmap execution follows three rules. First, reliability work has priority over
 
 ## Exit Criteria for the Next Major Milestone
 
-The next milestone is considered complete when SSH trust behavior matches settings semantics, reconnect workflows are stable under real network failures, editor/file operations present deterministic error recovery, and Windows releases ship with stronger integrity guarantees.
+The next milestone is considered complete when SSH trust behavior includes a clear fingerprint confirmation flow, reconnect workflows are stable under real network failures, editor/file operations present deterministic error recovery, and Windows/macOS/Linux releases ship with stronger integrity guarantees.

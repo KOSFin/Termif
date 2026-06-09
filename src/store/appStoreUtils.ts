@@ -2,12 +2,12 @@ import type { AppTab, SessionDto } from "@/types/models";
 
 const defaultTabColor = "#4a8fe7";
 
-export function buildDirCacheKey(tab: AppTab, path: string): string {
+export function buildDirCacheKey(tab: AppTab, path: string, options?: { showHidden?: boolean }): string {
   if (tab.kind === "ssh") {
     const hostKey = tab.sshAlias ?? tab.sessionId ?? "ssh";
     return `ssh:${hostKey}:${path}`;
   }
-  return `local:${path}`;
+  return `local:${options?.showHidden ? "all" : "visible"}:${path}`;
 }
 
 export function normalizeLineEndings(value: string): string {

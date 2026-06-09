@@ -113,6 +113,7 @@ async fn create_ssh_session_with_options(
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty()),
         connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
+        strict_host_key_checking: settings.ssh.strict_host_key_checking,
     };
 
     if connect_options.alias.is_empty() {
@@ -562,6 +563,7 @@ fn resolve_ssh_connect_options(
             identity_file: host.identity_file,
             password: host.password,
             connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
+            strict_host_key_checking: settings.ssh.strict_host_key_checking,
         };
     }
 
@@ -573,5 +575,6 @@ fn resolve_ssh_connect_options(
         identity_file: None,
         password: None,
         connect_timeout_seconds: settings.ssh.connect_timeout_seconds,
+        strict_host_key_checking: settings.ssh.strict_host_key_checking,
     }
 }

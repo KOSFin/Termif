@@ -117,6 +117,11 @@ export function clearCustomOverrides(): void {
 }
 
 export function applyAppearanceOverrides(appearance?: {
+  theme?: string;
+  theme_mode?: "manual" | "system";
+  light_theme?: string;
+  dark_theme?: string;
+  custom_themes?: CustomTheme[];
   modal_blur?: number;
   modal_dimming?: number;
   border_radius?: number;
@@ -166,16 +171,64 @@ export function applyAppearanceOverrides(appearance?: {
   }
 }
 
+let systemThemeCleanup: (() => void) | undefined;
+
+export function resolveEffectiveThemeId(appearance?: {
+  theme?: string;
+  theme_mode?: "manual" | "system";
+  light_theme?: string;
+  dark_theme?: string;
+}): string {
+  if (appearance?.theme_mode !== "system") {
+    return appearance?.theme ?? "charcoal";
+  }
+
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
+  return prefersDark
+    ? appearance.dark_theme ?? appearance.theme ?? "charcoal"
+    : appearance.light_theme ?? "paper";
+}
+
+export function applyAppearanceTheme(appearance?: {
+  theme?: string;
+  theme_mode?: "manual" | "system";
+  light_theme?: string;
+  dark_theme?: string;
+  custom_themes?: CustomTheme[];
+}): void {
+  applyTheme(resolveEffectiveThemeId(appearance), appearance?.custom_themes ?? []);
+}
+
+export function watchSystemTheme(appearance?: {
+  theme?: string;
+  theme_mode?: "manual" | "system";
+  light_theme?: string;
+  dark_theme?: string;
+  custom_themes?: CustomTheme[];
+}): void {
+  systemThemeCleanup?.();
+  systemThemeCleanup = undefined;
+
+  if (appearance?.theme_mode !== "system" || !window.matchMedia) return;
+
+  const query = window.matchMedia("(prefers-color-scheme: dark)");
+  const onChange = () => applyAppearanceTheme(appearance);
+  query.addEventListener("change", onChange);
+  systemThemeCleanup = () => query.removeEventListener("change", onChange);
+}
+
 function setNumberVar(name: string, value: number | undefined, fallback: number): void {
   const next = value ?? fallback;
   document.documentElement.style.setProperty(name, String(next));
 }
 
 function toCssImageUrl(value: string): string {
-  const escaped = value.replace(/\\/g, "/").replace(/"/g, "%22");
-  if (/^(file|https?|data|asset):/i.test(escaped)) return escaped;
-  if (escaped.startsWith("/")) return `file://${escaped}`;
-  return escaped;
+  const normalized = value.replace(/\\/g, "/").replace(/"/g, "%22");
+  if (/^(https?|data|asset):/i.test(normalized)) return normalized;
+  if (/^file:/i.test(normalized)) return encodeURI(normalized);
+  if (/^[A-Za-z]:\//.test(normalized)) return encodeURI(`file:///${normalized}`);
+  if (normalized.startsWith("/")) return encodeURI(`file://${normalized}`);
+  return encodeURI(normalized);
 }
 
 export function applyTheme(themeId: string, customThemes: CustomTheme[] = []): void {

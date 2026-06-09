@@ -24,7 +24,8 @@ describe("app store utils", () => {
       sshAlias: "prod",
     };
 
-    expect(buildDirCacheKey(local, "C:/")).toBe("local:C:/");
+    expect(buildDirCacheKey(local, "C:/")).toBe("local:visible:C:/");
+    expect(buildDirCacheKey(local, "C:/", { showHidden: true })).toBe("local:all:C:/");
     expect(buildDirCacheKey(ssh, "/var/www")).toBe("ssh:prod:/var/www");
   });
 

@@ -47,7 +47,7 @@ export function TabStrip(props: TabStripProps) {
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const [scrollLimited, setScrollLimited] = useState(false);
   const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
-  const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; currentX: number }>();
+  const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; startY: number; currentX: number; active: boolean }>();
   const [dragOverTabId, setDragOverTabId] = useState<string>();
 
   const stripRef = useRef<HTMLDivElement>(null);
@@ -164,14 +164,22 @@ export function TabStrip(props: TabStripProps) {
     };
 
     const onMove = (event: MouseEvent) => {
-      setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX } : prev);
+      const moved =
+        Math.abs(event.clientX - draggingTab.startX) > 5 ||
+        Math.abs(event.clientY - draggingTab.startY) > 5;
+      setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX, active: prev.active || moved } : prev);
+      if (!draggingTab.active && !moved) return;
       const overId = findTabUnderPointer(event.clientX, event.clientY);
       setDragOverTabId(overId && overId !== draggingTab.id ? overId : undefined);
     };
 
     const onUp = (event: MouseEvent) => {
       const overId = findTabUnderPointer(event.clientX, event.clientY);
-      if (overId && overId !== draggingTab.id) {
+      const moved =
+        draggingTab.active ||
+        Math.abs(event.clientX - draggingTab.startX) > 5 ||
+        Math.abs(event.clientY - draggingTab.startY) > 5;
+      if (moved && overId && overId !== draggingTab.id) {
         onReorderRef.current(draggingTab.id, overId);
       }
       setDraggingTab(undefined);
@@ -211,11 +219,11 @@ export function TabStrip(props: TabStripProps) {
           return (
             <div
               key={tab.id}
-              className={`tab ${active ? "active" : ""}${draggingTab?.id === tab.id ? " dragging" : ""}${dragOverTabId === tab.id && draggingTab?.id !== tab.id ? " drag-over" : ""}`}
+              className={`tab ${active ? "active" : ""}${draggingTab?.id === tab.id && draggingTab.active ? " dragging" : ""}${dragOverTabId === tab.id && draggingTab?.id !== tab.id ? " drag-over" : ""}`}
               data-tab-id={tab.id}
               style={{
                 "--tab-color": tab.color,
-                transform: draggingTab?.id === tab.id ? `translateX(${draggingTab.currentX - draggingTab.startX}px)` : undefined,
+                transform: draggingTab?.id === tab.id && draggingTab.active ? `translateX(${draggingTab.currentX - draggingTab.startX}px)` : undefined,
               } as CSSProperties}
               role="tab"
               tabIndex={0}
@@ -225,7 +233,7 @@ export function TabStrip(props: TabStripProps) {
                 if (event.button !== 0 || renamingTab) return;
                 const target = event.target as HTMLElement;
                 if (target.closest("button, input")) return;
-                setDraggingTab({ id: tab.id, startX: event.clientX, currentX: event.clientX });
+                setDraggingTab({ id: tab.id, startX: event.clientX, startY: event.clientY, currentX: event.clientX, active: false });
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {

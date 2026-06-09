@@ -63,6 +63,9 @@ export interface CustomTheme {
 export interface AppSettings {
   appearance: {
     theme?: string;
+    theme_mode?: "manual" | "system";
+    light_theme?: string;
+    dark_theme?: string;
     accent_color: string;
     ui_density: string;
     tab_switching_mode: string;

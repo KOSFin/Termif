@@ -18,7 +18,7 @@ import {
 import type { AppSettings, CustomTheme } from "@/types/models";
 import { getShellProfileOptions, platformDefaultShortcut } from "@/platform/platform";
 import { ThemeEditor } from "./ThemeEditor";
-import { applyTheme as applyThemeEngine, applyAppearanceOverrides } from "@/theme/themeEngine";
+import { applyTheme as applyThemeEngine, applyAppearanceOverrides, applyAppearanceTheme } from "@/theme/themeEngine";
 import { HotkeyRecorder, buildConflictMap, getProtectedCombos } from "./HotkeyRecorder";
 
 interface SettingsPanelProps {
@@ -161,6 +161,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   useEffect(() => {
     if (draft?.appearance) {
+      applyAppearanceTheme(draft.appearance);
       applyAppearanceOverrides(draft.appearance);
     }
   }, [draft?.appearance]);
@@ -201,12 +202,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   const currentTheme = draft.appearance?.theme ?? "charcoal";
   const customThemes = draft.appearance?.custom_themes ?? [];
+  const themeOptions = [
+    ...themes.map((theme) => ({ id: theme.id, name: theme.name })),
+    ...customThemes.map((theme) => ({ id: theme.id, name: theme.name })),
+  ];
   const shellOptions = getShellProfileOptions();
 
   const handleApplyTheme = (themeId: string) => {
     applyThemeEngine(themeId, customThemes);
     setDraft((p) =>
-      p ? { ...p, appearance: { ...p.appearance, theme: themeId } } : p
+      p ? { ...p, appearance: { ...p.appearance, theme: themeId, theme_mode: "manual" } } : p
     );
   };
 
@@ -300,6 +305,55 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           {showSection("appearance") && (
             <div className="settings-section">
+              <div id="setting-theme-mode" className="settings-row" style={{ display: matches("appearance", "theme", "system theme", "automatic theme") ? undefined : "none" }}>
+                <label>Theme Mode</label>
+                <select
+                  value={draft.appearance.theme_mode ?? "manual"}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, theme_mode: e.target.value as "manual" | "system" } } : p
+                    )
+                  }
+                >
+                  <option value="manual">Manual</option>
+                  <option value="system">System</option>
+                </select>
+              </div>
+
+              {(draft.appearance.theme_mode ?? "manual") === "system" ? (
+                <div className="settings-row theme-system-row" style={{ display: matches("appearance", "theme", "system theme", "light theme", "dark theme") ? undefined : "none" }}>
+                  <label>System Theme Pair</label>
+                  <div className="theme-system-selects">
+                    <select
+                      value={draft.appearance.light_theme ?? "paper"}
+                      aria-label="Light theme"
+                      onChange={(e) =>
+                        setDraft((p) =>
+                          p ? { ...p, appearance: { ...p.appearance, light_theme: e.target.value } } : p
+                        )
+                      }
+                    >
+                      {themeOptions.map((theme) => (
+                        <option key={theme.id} value={theme.id}>Light: {theme.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={draft.appearance.dark_theme ?? "charcoal"}
+                      aria-label="Dark theme"
+                      onChange={(e) =>
+                        setDraft((p) =>
+                          p ? { ...p, appearance: { ...p.appearance, dark_theme: e.target.value } } : p
+                        )
+                      }
+                    >
+                      {themeOptions.map((theme) => (
+                        <option key={theme.id} value={theme.id}>Dark: {theme.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+
               <div id="setting-color-theme" className="settings-row" style={{ display: matches("appearance", "theme", "color theme") ? undefined : "none" }}>
                 <label>Color Theme</label>
                 <div className="theme-grid">
@@ -639,6 +693,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 <label>Connect Timeout (seconds)</label>
                 <input
                   type="number"
+                  min={1}
+                  max={120}
                   value={draft.ssh.connect_timeout_seconds}
                   onChange={(e) =>
                     setDraft((p) =>

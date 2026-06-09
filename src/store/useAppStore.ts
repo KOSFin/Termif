@@ -29,7 +29,7 @@ import {
   makeTabFromSession,
   normalizeLineEndings,
 } from "@/store/appStoreUtils";
-import { applyTheme, applyAppearanceOverrides } from "@/theme/themeEngine";
+import { applyAppearanceOverrides, applyAppearanceTheme, watchSystemTheme } from "@/theme/themeEngine";
 
 export interface EditorFile {
   id: string;
@@ -236,8 +236,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     // Apply persisted theme on startup
-    const themeId = platformSettings?.appearance?.theme ?? "charcoal";
-    applyTheme(themeId, platformSettings?.appearance?.custom_themes ?? []);
+    applyAppearanceTheme(platformSettings?.appearance);
+    watchSystemTheme(platformSettings?.appearance);
     applyAppearanceOverrides(platformSettings?.appearance);
 
     const restoredTabs: AppTab[] = [];
@@ -673,7 +673,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const requestSeq = ++fileLoadRequestSeq;
 
     // Show cached data instantly — only show loading spinner if no cache exists
-    const cacheKey = buildDirCacheKey(activeTab, currentPath);
+    const showHidden = get().settings?.file_manager.show_hidden ?? false;
+    const cacheKey = buildDirCacheKey(activeTab, currentPath, { showHidden });
     const cached = get().dirCache[cacheKey];
     const isFresh = Date.now() - (dirCacheFreshAt[cacheKey] ?? 0) < FILE_CACHE_FRESH_MS;
 
@@ -713,7 +714,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             })
           : await invoke<FileEntryDto[]>("list_local_entries", {
               path: currentPath,
-              showHidden: get().settings?.file_manager.show_hidden ?? false
+              showHidden
             });
 
       const live = get();
@@ -773,7 +774,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().tabPaths[activeTab.id] ??
       (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
 
-    const cacheKey = buildDirCacheKey(activeTab, currentPath);
+    const showHidden = get().settings?.file_manager.show_hidden ?? false;
+    const cacheKey = buildDirCacheKey(activeTab, currentPath, { showHidden });
     const cached = get().dirCache[cacheKey];
 
     if (cached) {
@@ -810,7 +812,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Show cached immediately if available
-    const cacheKey = buildDirCacheKey(activeTab, path);
+    const showHidden = get().settings?.file_manager.show_hidden ?? false;
+    const cacheKey = buildDirCacheKey(activeTab, path, { showHidden });
     const cached = get().dirCache[cacheKey];
     if (cached) {
       set({
@@ -864,10 +867,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedFile: (file) => set({ selectedFile: file }),
 
   saveSettings: async (settings) => {
+    const previousShowHidden = get().settings?.file_manager.show_hidden;
     await invoke("save_settings", { settings });
-    applyTheme(settings.appearance?.theme ?? "charcoal", settings.appearance?.custom_themes ?? []);
+    applyAppearanceTheme(settings.appearance);
+    watchSystemTheme(settings.appearance);
     applyAppearanceOverrides(settings.appearance);
-    set({ settings });
+    set((state) => ({
+      settings,
+      dirCache: previousShowHidden !== settings.file_manager.show_hidden ? {} : state.dirCache,
+    }));
+    if (previousShowHidden !== undefined && previousShowHidden !== settings.file_manager.show_hidden) {
+      get().loadCurrentFiles({ force: true }).catch(() => {});
+    }
   },
 
   toast: (message) => {
