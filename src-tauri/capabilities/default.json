@@ -12,7 +12,7 @@
     "core:window:allow-start-dragging",
     "core:webview:allow-create-webview-window",
     "dialog:default",
-    "process:allow-relaunch",
+    "process:allow-restart",
     "updater:default"
   ]
 }
