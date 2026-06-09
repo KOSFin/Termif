@@ -16,7 +16,8 @@
     "tauri:build:windows": "tauri build --ci --bundles msi,nsis",
     "tauri:build:macos": "tauri build --ci --bundles dmg,app",
     "tauri:build:linux": "tauri build --ci --bundles deb,appimage",
-    "icons:check": "node scripts/check-icon.mjs"
+    "icons:check": "node scripts/check-icon.mjs",
+    "site:dev": "node scripts/site-dev-server.mjs"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",

@@ -24,6 +24,10 @@
         <a href="#features">Features</a>
         <a href="#downloads">Downloads</a>
         <a href="https://github.com/KOSFin/Termif" data-github-link>GitHub</a>
+        <div id="language-switch" class="language-switch" aria-label="Language">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="ru">RU</button>
+        </div>
       </nav>
     </header>
 
@@ -81,9 +85,12 @@ status ready</code></pre>
 
       <section id="downloads" class="downloads">
         <div class="section-head">
-          <p class="eyebrow">GitHub Releases</p>
+          <div class="section-head-top">
+            <p class="eyebrow">GitHub Releases</p>
+            <span id="release-mode" class="mode-pill" hidden></span>
+          </div>
           <h2>Downloads</h2>
-          <p>Installers are grouped by platform, version, CPU, and package type. Older versions stay collapsed until needed.</p>
+          <p>Each release appears once, with platform-specific installers grouped inside the same card. Older releases stay collapsed until needed.</p>
         </div>
         <div id="download-grid" class="download-grid" aria-live="polite"></div>
       </section>
