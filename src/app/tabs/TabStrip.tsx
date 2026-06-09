@@ -47,20 +47,26 @@ export function TabStrip(props: TabStripProps) {
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const [scrollLimited, setScrollLimited] = useState(false);
   const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
-  const [draggingTabId, setDraggingTabId] = useState<string>();
+  const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; currentX: number }>();
   const [dragOverTabId, setDragOverTabId] = useState<string>();
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<ElementRef<"input">>(null);
+  const onReorderRef = useRef(props.onReorder);
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),
     [contextTabId, props.tabs]
   );
   const shellOptions = useMemo(() => getShellProfileOptions(), []);
+
+  useEffect(() => {
+    onReorderRef.current = props.onReorder;
+  }, [props.onReorder]);
 
   const closeContext = () => {
     setContextTabId(undefined);
@@ -123,12 +129,67 @@ export function TabStrip(props: TabStripProps) {
   }, [newTabMenuOpen]);
 
   useEffect(() => {
+    if (!contextTabId) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (contextMenuRef.current?.contains(event.target as Node)) return;
+      closeContext();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeContext();
+    };
+
+    document.addEventListener("mousedown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [contextTabId]);
+
+  useEffect(() => {
     if (!renamingTab) return;
     requestAnimationFrame(() => {
       renameInputRef.current?.focus();
       renameInputRef.current?.select();
     });
   }, [renamingTab]);
+
+  useEffect(() => {
+    if (!draggingTab) return;
+
+    const findTabUnderPointer = (clientX: number, clientY: number) => {
+      const element = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-tab-id]");
+      return element?.dataset.tabId;
+    };
+
+    const onMove = (event: MouseEvent) => {
+      setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX } : prev);
+      const overId = findTabUnderPointer(event.clientX, event.clientY);
+      setDragOverTabId(overId && overId !== draggingTab.id ? overId : undefined);
+    };
+
+    const onUp = (event: MouseEvent) => {
+      const overId = findTabUnderPointer(event.clientX, event.clientY);
+      if (overId && overId !== draggingTab.id) {
+        onReorderRef.current(draggingTab.id, overId);
+      }
+      setDraggingTab(undefined);
+      setDragOverTabId(undefined);
+      document.body.classList.remove("tab-drag-active");
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+    };
+
+    document.body.classList.add("tab-drag-active");
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mouseup", onUp, true);
+    return () => {
+      document.body.classList.remove("tab-drag-active");
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+    };
+  }, [draggingTab?.id]);
 
   return (
     <div className="tabstrip" ref={stripRef}>
@@ -150,13 +211,22 @@ export function TabStrip(props: TabStripProps) {
           return (
             <div
               key={tab.id}
-              className={`tab ${active ? "active" : ""}${draggingTabId === tab.id ? " dragging" : ""}${dragOverTabId === tab.id && draggingTabId !== tab.id ? " drag-over" : ""}`}
-              style={{ "--tab-color": tab.color } as CSSProperties}
+              className={`tab ${active ? "active" : ""}${draggingTab?.id === tab.id ? " dragging" : ""}${dragOverTabId === tab.id && draggingTab?.id !== tab.id ? " drag-over" : ""}`}
+              data-tab-id={tab.id}
+              style={{
+                "--tab-color": tab.color,
+                transform: draggingTab?.id === tab.id ? `translateX(${draggingTab.currentX - draggingTab.startX}px)` : undefined,
+              } as CSSProperties}
               role="tab"
               tabIndex={0}
               aria-selected={active}
-              draggable={!renamingTab}
               onClick={() => props.onSelectTab(tab.id)}
+              onMouseDown={(event) => {
+                if (event.button !== 0 || renamingTab) return;
+                const target = event.target as HTMLElement;
+                if (target.closest("button, input")) return;
+                setDraggingTab({ id: tab.id, startX: event.clientX, currentX: event.clientX });
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
@@ -168,33 +238,6 @@ export function TabStrip(props: TabStripProps) {
                 const pos = clampMenuPosition(event.clientX, event.clientY);
                 setContextTabId(tab.id);
                 setContextPosition(pos);
-              }}
-              onDragStart={(event) => {
-                setDraggingTabId(tab.id);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", tab.id);
-              }}
-              onDragOver={(event) => {
-                if (!draggingTabId || draggingTabId === tab.id) return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                setDragOverTabId(tab.id);
-              }}
-              onDragLeave={(event) => {
-                if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
-                  setDragOverTabId((prev) => (prev === tab.id ? undefined : prev));
-                }
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                const from = draggingTabId ?? event.dataTransfer.getData("text/plain");
-                if (from) props.onReorder(from, tab.id);
-                setDraggingTabId(undefined);
-                setDragOverTabId(undefined);
-              }}
-              onDragEnd={() => {
-                setDraggingTabId(undefined);
-                setDragOverTabId(undefined);
               }}
             >
               <span className="tab-icon">{resolveTabIcon(tab)}</span>
@@ -209,6 +252,7 @@ export function TabStrip(props: TabStripProps) {
                   onChange={(event) => setRenamingTab({ id: tab.id, value: event.target.value })}
                   onBlur={commitRename}
                   onKeyDown={(event) => {
+                    event.stopPropagation();
                     if (event.key === "Enter") {
                       event.preventDefault();
                       commitRename();
@@ -263,8 +307,9 @@ export function TabStrip(props: TabStripProps) {
       </div>
 
       {contextTab && contextPosition ? (
-        <div className="context-anchor" onClick={closeContext}>
+        <div className="context-anchor">
           <div
+            ref={contextMenuRef}
             className="tab-context-menu"
             style={{ left: contextPosition.x, top: contextPosition.y }}
             onClick={(event) => event.stopPropagation()}

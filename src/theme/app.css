@@ -181,12 +181,22 @@ input[type="range"]::-moz-range-thumb {
 /* == App root ================================================= */
 
 .app-root {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* == Topbar =================================================== */
@@ -199,7 +209,7 @@ input[type="range"]::-moz-range-thumb {
   height: 38px;
   min-height: 38px;
   border-bottom: 1px solid var(--stroke);
-  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
   padding: 0;
   gap: 0;
 }
@@ -209,12 +219,12 @@ input[type="range"]::-moz-range-thumb {
   min-height: 44px;
   padding-left: 78px;
   border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
-  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(20px) saturate(1.25);
 }
 
 .platform-linux .topbar {
-  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(18px) saturate(1.25);
 }
 
@@ -416,7 +426,7 @@ input[type="range"]::-moz-range-thumb {
   width: 280px;
   min-width: 0;
   border-right: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
-  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 100%), transparent);
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 0;
@@ -428,7 +438,7 @@ input[type="range"]::-moz-range-thumb {
 .platform-linux .sidebar,
 .platform-macos .statusbar,
 .platform-linux .statusbar {
-  background: color-mix(in srgb, var(--bg-elev-1) 86%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 86%), transparent);
   backdrop-filter: blur(14px) saturate(1.15);
 }
 
@@ -572,7 +582,7 @@ input[type="range"]::-moz-range-thumb {
   height: 38px;
   color: var(--text);
   position: relative;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.1s, color 0.1s, transform 0.12s ease;
   background: color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
   cursor: default;
   user-select: none;
@@ -607,6 +617,14 @@ input[type="range"]::-moz-range-thumb {
 
 .tab.dragging {
   opacity: 0.62;
+  z-index: 4;
+  pointer-events: none;
+  transition: none;
+}
+
+.tab-drag-active {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .tab.drag-over {
@@ -974,7 +992,7 @@ input[type="range"]::-moz-range-thumb {
 .file-scope-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 5px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--stroke) 42%, transparent);
   min-height: 24px;
@@ -993,11 +1011,48 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .file-scope-path {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  height: 22px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   font-size: 11px;
   color: var(--text-muted);
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.file-scope-path:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+}
+
+.file-scope-action {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.file-scope-action:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.file-scope-action:disabled {
+  opacity: 0.34;
+  cursor: default;
 }
 
 .file-loading-overlay {
@@ -1067,15 +1122,7 @@ input[type="range"]::-moz-range-thumb {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
-      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
-    ),
-    var(--terminal-bg-image),
-    color-mix(in srgb, var(--terminal-bg, var(--bg)) calc(var(--terminal-opacity, 1) * 100%), transparent);
-  background-size: cover;
-  background-position: center;
+  background: transparent;
 }
 
 .terminal-pane .xterm {
@@ -1086,16 +1133,18 @@ input[type="range"]::-moz-range-thumb {
 .terminal-pane .xterm-screen,
 .terminal-pane .xterm-helpers {
   overflow: hidden;
+  background: transparent !important;
 }
 
 .terminal-pane .xterm-viewport {
+  background: transparent !important;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 70%, var(--text-muted) 18%) transparent;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-track {
@@ -1104,24 +1153,14 @@ input[type="range"]::-moz-range-thumb {
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-thumb {
   min-height: 48px;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--accent) 86%, var(--text-bright) 10%),
-      color-mix(in srgb, var(--accent-2) 58%, var(--accent))
-    );
+  background: color-mix(in srgb, var(--accent) 68%, var(--text-muted) 16%);
   background-clip: content-box;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--accent) 95%, var(--text-bright) 14%),
-      color-mix(in srgb, var(--accent-2) 70%, var(--accent))
-    );
+  background: color-mix(in srgb, var(--accent) 82%, var(--text-bright) 10%);
   background-clip: content-box;
 }
 
@@ -1231,8 +1270,8 @@ input[type="range"]::-moz-range-thumb {
   height: 100%;
   padding: 24px 28px;
   overflow: auto;
-  max-width: 960px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .ssh-header {
@@ -2275,13 +2314,17 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .palette-panel > input {
-  height: 66px;
+  flex: 0 0 56px;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
   border: 0;
   border-bottom: 1px solid var(--stroke);
   border-radius: 0;
   padding: 0 18px;
   background: var(--bg-elev-2);
-  font-size: 19px;
+  font-size: 18px;
+  line-height: 24px;
   color: var(--text-bright);
 }
 
@@ -2397,7 +2440,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .settings-content {
-  padding: 20px;
+  padding: 0 20px 20px;
   overflow-y: auto;
 }
 
@@ -2405,12 +2448,12 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   position: sticky;
   top: 0;
   z-index: 5;
   background: var(--bg-elev-1);
-  padding: 20px 0 12px 0;
+  padding: 14px 0 12px 0;
 }
 
 .settings-content-header h2 {

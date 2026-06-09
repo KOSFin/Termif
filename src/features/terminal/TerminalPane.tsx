@@ -1,10 +1,9 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { memo, useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import { memo, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
-import { TERMINAL_COLOR_SCHEMES } from "@/app/settings/TerminalPreview";
 import { getDefaultTerminalFont, isMacLike } from "@/platform/platform";
 
 interface TerminalVisualSettings {
@@ -121,9 +120,10 @@ export const TerminalPane = memo(function TerminalPane({
       fontSize: terminalSettings?.font_size ?? 13,
       letterSpacing: 0,
       lineHeight: 1.3,
-      theme: buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors),
+      theme: buildXtermTheme(terminalSettings?.custom_colors),
       scrollback: terminalSettings?.scrollback_lines ?? 20_000,
       allowProposedApi: true,
+      ignoreBracketedPasteMode: false,
     });
 
     const fitAddon = new FitAddon();
@@ -162,8 +162,16 @@ export const TerminalPane = memo(function TerminalPane({
     // Initial fit — defer one frame so the element dimensions are ready.
     requestAnimationFrame(resizeBackend);
 
-    // ── Block native paste so xterm.onData doesn't double-fire ────────────
-    const onNativePaste = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    // Route browser paste through xterm so bracketed paste mode is respected.
+    const onNativePaste = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const clipboardData = "clipboardData" in e
+        ? (e as { clipboardData?: { getData: (format: string) => string } }).clipboardData
+        : undefined;
+      const text = clipboardData?.getData("text/plain") ?? "";
+      if (text) xterm.paste(text);
+    };
     el.addEventListener("paste", onNativePaste, true);
 
     const onWheel = (e: WheelEvent) => {
@@ -200,12 +208,10 @@ export const TerminalPane = memo(function TerminalPane({
         return false;
       }
 
-      // macOS: Cmd+V pastes from the system clipboard.
+      // macOS: let the native paste event fire; it carries clipboard data
+      // without triggering the WebView clipboard permission popover.
       if (isMacLike && e.type === "keydown" && e.metaKey && e.code === "KeyV") {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) queueInput(text);
-        }).catch(() => {});
-        return false;
+        return true;
       }
 
       // Ctrl+Shift+C → copy selected text
@@ -215,20 +221,14 @@ export const TerminalPane = memo(function TerminalPane({
         return false;
       }
 
-      // Ctrl+V → paste from clipboard
+      // Ctrl+V → let the native paste event fire.
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && !e.shiftKey && e.code === "KeyV") {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) queueInput(text);
-        }).catch(() => {});
-        return false;
+        return true;
       }
 
-      // Ctrl+Shift+V → paste from clipboard (alternative shortcut)
+      // Ctrl+Shift+V → let the native paste event fire.
       if (!isMacLike && e.type === "keydown" && e.ctrlKey && e.shiftKey && e.code === "KeyV") {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) queueInput(text);
-        }).catch(() => {});
-        return false;
+        return true;
       }
 
       // Ctrl+C with selection → copy, clear selection, don't send ^C interrupt
@@ -320,20 +320,20 @@ export const TerminalPane = memo(function TerminalPane({
     xterm.options.fontSize = terminalSettings?.font_size ?? 13;
     xterm.options.letterSpacing = 0;
     xterm.options.scrollback = terminalSettings?.scrollback_lines ?? 20_000;
-    xterm.options.theme = buildXtermTheme(terminalSettings?.color_scheme, terminalSettings?.custom_colors);
+    xterm.options.theme = buildXtermTheme(terminalSettings?.custom_colors);
 
     const fit = fitRef.current;
     if (fit) safeFit(fit);
   }, [terminalSettings]);
 
-  const colorSchemeRef = useRef(terminalSettings?.color_scheme);
-  colorSchemeRef.current = terminalSettings?.color_scheme;
+  const customColorsRef = useRef(terminalSettings?.custom_colors);
+  customColorsRef.current = terminalSettings?.custom_colors;
 
   useEffect(() => {
     const applyTheme = () => {
       const xterm = xtermRef.current;
       if (!xterm) return;
-        xterm.options.theme = buildXtermTheme(colorSchemeRef.current, terminalSettings?.custom_colors);
+      xterm.options.theme = buildXtermTheme(customColorsRef.current);
     };
 
     const observer = new MutationObserver((mutations) => {
@@ -348,7 +348,7 @@ export const TerminalPane = memo(function TerminalPane({
     });
 
     return () => observer.disconnect();
-  }, [terminalSettings?.custom_colors]);
+  }, []);
 
   // ── Visibility-change effect ─────────────────────────────────────────────
   useEffect(() => {
@@ -372,7 +372,6 @@ export const TerminalPane = memo(function TerminalPane({
   return (
     <div
       className={`terminal-pane-wrap${isVisible ? " active" : ""}`}
-      style={{ "--terminal-bg": getTerminalBackground(terminalSettings?.color_scheme, terminalSettings?.custom_colors) } as CSSProperties}
     >
       <div className="terminal-pane">
         <div className="terminal-pane-inner" ref={containerRef} />
@@ -541,43 +540,7 @@ function flushTerminalInput(
   void sendTerminalInput(sessionId, data, onConnectionError);
 }
 
-function getTerminalBackground(colorSchemeId?: string, customColors?: Record<string, string>) {
-  const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
-  return customColors?.background ?? scheme?.colors.background ?? readCssVar("--bg", "#1a1d23");
-}
-
-function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, string>) {
-  const scheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
-  const opacity = clamp01(Number(readCssVar("--terminal-opacity", "1")));
-  if (scheme) {
-    const c = { ...scheme.colors, ...(customColors ?? {}) };
-    const background = withOpacity(c.background, opacity);
-    return {
-      background,
-      foreground: c.foreground,
-      cursor: c.cursor,
-      cursorAccent: background,
-      selectionBackground: c.selection,
-      black: c.black,
-      brightBlack: c.brightBlack,
-      red: c.red,
-      brightRed: c.brightRed,
-      green: c.green,
-      brightGreen: c.brightGreen,
-      yellow: c.yellow,
-      brightYellow: c.brightYellow,
-      blue: c.blue,
-      brightBlue: c.brightBlue,
-      magenta: c.magenta,
-      brightMagenta: c.brightMagenta,
-      cyan: c.cyan,
-      brightCyan: c.brightCyan,
-      white: c.white,
-      brightWhite: c.brightWhite,
-    };
-  }
-
-  // Fallback: derive from CSS variables
+function buildXtermTheme(customColors?: Record<string, string>) {
   const bg = readCssVar("--bg", "#1a1d23");
   const bgElev = readCssVar("--bg-elev-1", "#21252b");
   const bgHover = readCssVar("--bg-hover", "#2c313a");
@@ -589,13 +552,13 @@ function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, s
   const danger = readCssVar("--danger", "#e06c75");
   const warning = readCssVar("--warning", "#e5c07b");
   const c = customColors ?? {};
-  const background = withOpacity(c.background ?? bg, opacity);
+  const transparentBackground = "rgba(0, 0, 0, 0)";
 
   return {
-    background,
+    background: transparentBackground,
     foreground: c.foreground ?? text,
     cursor: c.cursor ?? accent,
-    cursorAccent: background,
+    cursorAccent: bg,
     selectionBackground: c.selection ?? bgHover,
     black: c.black ?? bg,
     brightBlack: c.brightBlack ?? textMuted,
@@ -615,28 +578,4 @@ function buildXtermTheme(colorSchemeId?: string, customColors?: Record<string, s
     brightWhite: c.brightWhite ?? textBright,
     extendedAnsi: [bgElev],
   };
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.max(0, Math.min(1, value));
-}
-
-function withOpacity(color: string, opacity: number): string {
-  if (opacity >= 0.995) return color;
-  const hex = color.trim();
-  const short = /^#([0-9a-f]{3})$/i.exec(hex);
-  if (short) {
-    const [r, g, b] = short[1].split("").map((part) => Number.parseInt(part + part, 16));
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  }
-
-  const full = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!full) return color;
-
-  const int = Number.parseInt(full[1], 16);
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }

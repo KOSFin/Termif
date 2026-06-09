@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, time::UNIX_EPOCH};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    time::UNIX_EPOCH,
+};
 
 use crate::core::{errors::TermifError, models::FileEntryDto};
 
@@ -100,4 +105,32 @@ pub fn copy_entry(from: &str, to: &str) -> Result<(), TermifError> {
     }
     fs::copy(from, to)?;
     Ok(())
+}
+
+pub fn reveal_path(path: &str) -> Result<(), TermifError> {
+    let target = PathBuf::from(path);
+    let reveal_target = if target.exists() {
+        target
+    } else {
+        target.parent().unwrap_or_else(|| Path::new(path)).to_path_buf()
+    };
+
+    #[cfg(target_os = "macos")]
+    let status = Command::new("open").arg("-R").arg(&reveal_target).status()?;
+
+    #[cfg(target_os = "windows")]
+    let status = Command::new("explorer")
+        .arg(format!("/select,{}", reveal_target.to_string_lossy()))
+        .status()?;
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let status = Command::new("xdg-open").arg(&reveal_target).status()?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(TermifError::Unsupported(format!(
+            "file manager exited with status {status}"
+        )))
+    }
 }

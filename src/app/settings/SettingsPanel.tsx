@@ -20,7 +20,6 @@ import { getShellProfileOptions, platformDefaultShortcut } from "@/platform/plat
 import { ThemeEditor } from "./ThemeEditor";
 import { applyTheme as applyThemeEngine, applyAppearanceOverrides } from "@/theme/themeEngine";
 import { HotkeyRecorder, buildConflictMap, getProtectedCombos } from "./HotkeyRecorder";
-import { TerminalPreview, TERMINAL_COLOR_SCHEMES, type TerminalColorScheme } from "./TerminalPreview";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -202,17 +201,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   const currentTheme = draft.appearance?.theme ?? "charcoal";
   const customThemes = draft.appearance?.custom_themes ?? [];
-  const selectedScheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === draft.terminal.color_scheme) ?? TERMINAL_COLOR_SCHEMES[0];
   const shellOptions = getShellProfileOptions();
-  const previewColors = {
-    ...selectedScheme.colors,
-    ...(draft.terminal.custom_colors ?? {}),
-  };
-  const previewScheme: TerminalColorScheme = {
-    id: "preview",
-    name: "Preview",
-    colors: previewColors,
-  };
 
   const handleApplyTheme = (themeId: string) => {
     applyThemeEngine(themeId, customThemes);
@@ -427,15 +416,15 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div id="setting-window-opacity" className="settings-row" style={{ display: matches("window opacity", "glass", "transparency", "desktop") ? undefined : "none" }}>
-                <label>Window Opacity</label>
+              <div id="setting-app-opacity" className="settings-row" style={{ display: matches("app opacity", "window opacity", "glass", "transparency", "desktop") ? undefined : "none" }}>
+                <label>App Opacity</label>
                 <input
                   type="range"
-                  min="0.55"
+                  min="0.35"
                   max="1"
                   step="0.01"
                   value={draft.appearance.window_opacity ?? 1}
-                  style={rangeProgressStyle(draft.appearance.window_opacity ?? 1, 0.55, 1)}
+                  style={rangeProgressStyle(draft.appearance.window_opacity ?? 1, 0.35, 1)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, window_opacity: Number(e.target.value) } } : p
@@ -443,56 +432,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
-              <div id="setting-panel-opacity" className="settings-row" style={{ display: matches("panel opacity", "transparency", "appearance") ? undefined : "none" }}>
-                <label>Panel Opacity</label>
-                <input
-                  type="range"
-                  min="0.65"
-                  max="1"
-                  step="0.01"
-                  value={draft.appearance.panel_opacity ?? 1}
-                  style={rangeProgressStyle(draft.appearance.panel_opacity ?? 1, 0.65, 1)}
-                  onChange={(e) =>
-                    setDraft((p) =>
-                      p ? { ...p, appearance: { ...p.appearance, panel_opacity: Number(e.target.value) } } : p
-                    )
-                  }
-                />
-              </div>
-              <div id="setting-topbar-opacity" className="settings-row" style={{ display: matches("topbar opacity", "titlebar", "transparency", "appearance") ? undefined : "none" }}>
-                <label>Topbar Opacity</label>
-                <input
-                  type="range"
-                  min="0.55"
-                  max="1"
-                  step="0.01"
-                  value={draft.appearance.topbar_opacity ?? 0.88}
-                  style={rangeProgressStyle(draft.appearance.topbar_opacity ?? 0.88, 0.55, 1)}
-                  onChange={(e) =>
-                    setDraft((p) =>
-                      p ? { ...p, appearance: { ...p.appearance, topbar_opacity: Number(e.target.value) } } : p
-                    )
-                  }
-                />
-              </div>
-              <div id="setting-terminal-opacity" className="settings-row" style={{ display: matches("terminal opacity", "terminal transparency", "console transparency", "background image") ? undefined : "none" }}>
-                <label>Terminal Opacity</label>
-                <input
-                  type="range"
-                  min="0.35"
-                  max="1"
-                  step="0.01"
-                  value={draft.appearance.terminal_opacity ?? 1}
-                  style={rangeProgressStyle(draft.appearance.terminal_opacity ?? 1, 0.35, 1)}
-                  onChange={(e) =>
-                    setDraft((p) =>
-                      p ? { ...p, appearance: { ...p.appearance, terminal_opacity: Number(e.target.value) } } : p
-                    )
-                  }
-                />
-              </div>
-              <div id="setting-terminal-background-image" className="settings-row" style={{ display: matches("terminal background image", "wallpaper", "background image", "terminal personalization") ? undefined : "none" }}>
-                <label>Terminal Background Image</label>
+              <div id="setting-app-background-image" className="settings-row" style={{ display: matches("app background image", "wallpaper", "background image", "terminal personalization") ? undefined : "none" }}>
+                <label>App Background Image</label>
                 <div className="settings-file-picker-row">
                   <input
                     value={draft.appearance.terminal_background_image ?? ""}
@@ -521,8 +462,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   ) : null}
                 </div>
               </div>
-              <div id="setting-terminal-background-dim" className="settings-row" style={{ display: matches("terminal background dim", "wallpaper dim", "background image", "terminal personalization") ? undefined : "none" }}>
-                <label>Terminal Background Dimming</label>
+              <div id="setting-app-background-dimming" className="settings-row" style={{ display: matches("app background dim", "wallpaper dim", "background image", "terminal personalization") ? undefined : "none" }}>
+                <label>App Background Dimming</label>
                 <input
                   type="range"
                   min="0"
@@ -635,66 +576,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
                     )
                   }
                 />
-              </div>
-              <div id="setting-color-scheme" className="settings-row" style={{ display: matches("color scheme", "theme", "ansi", "terminal colors") ? undefined : "none" }}>
-                <label>Terminal Color Scheme</label>
-                <select
-                  value={draft.terminal.color_scheme ?? selectedScheme.id}
-                  onChange={(e) => {
-                    const nextScheme = TERMINAL_COLOR_SCHEMES.find((s) => s.id === e.target.value) ?? TERMINAL_COLOR_SCHEMES[0];
-                    setDraft((p) =>
-                      p
-                        ? {
-                            ...p,
-                            terminal: {
-                              ...p.terminal,
-                              color_scheme: nextScheme.id,
-                              custom_colors: { ...nextScheme.colors },
-                            }
-                          }
-                        : p
-                    );
-                  }}
-                >
-                  {TERMINAL_COLOR_SCHEMES.map((scheme) => (
-                    <option key={scheme.id} value={scheme.id}>{scheme.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="settings-terminal-preview-wrap" style={{ display: matches("preview", "terminal preview", "ansi", "syntax") ? undefined : "none" }}>
-                <label style={{ fontSize: 12, color: "var(--text-muted)" }}>Live Preview</label>
-                <TerminalPreview
-                  scheme={previewScheme}
-                  fontFamily={draft.terminal.font_family}
-                  fontSize={Math.max(10, (draft.terminal.font_size ?? 13) - 1)}
-                />
-                <div className="settings-terminal-colors-grid">
-                  {Object.entries(previewScheme.colors).map(([key, value]) => (
-                    <label key={key} className="terminal-color-cell">
-                      <input
-                        type="color"
-                        value={value}
-                        onChange={(e) =>
-                          setDraft((p) =>
-                            p
-                              ? {
-                                  ...p,
-                                  terminal: {
-                                    ...p.terminal,
-                                    custom_colors: {
-                                      ...(p.terminal.custom_colors ?? selectedScheme.colors),
-                                      [key]: e.target.value,
-                                    }
-                                  }
-                                }
-                              : p
-                          )
-                        }
-                      />
-                      <span>{key}</span>
-                    </label>
-                  ))}
-                </div>
               </div>
               <div id="setting-syntax-highlighting" className="settings-row-toggle">
                 <span>Enable Shell Syntax Highlighting</span>

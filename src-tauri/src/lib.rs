@@ -345,6 +345,11 @@ fn copy_fs_entry(from: String, to: String) -> Result<(), String> {
     fs_ops::copy_entry(&from, &to).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn reveal_path(path: String) -> Result<(), String> {
+    fs_ops::reveal_path(&path).map_err(|e| e.to_string())
+}
+
 // ── SSH host management ───────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -516,6 +521,7 @@ pub fn run() {
             delete_fs_entry,
             delete_remote_fs_entry,
             copy_fs_entry,
+            reveal_path,
             load_ssh_hosts,
             save_managed_ssh_host,
             delete_managed_ssh_host,

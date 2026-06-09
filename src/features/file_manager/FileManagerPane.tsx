@@ -13,7 +13,8 @@ import {
   Type,
   Pencil,
   Trash2,
-  Terminal
+  Terminal,
+  ExternalLink
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { getDefaultLocalPath } from "@/platform/platform";
@@ -193,6 +194,14 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     toast(mode === "path" ? "Path copied" : "Name copied");
   };
 
+  const onRevealPath = async () => {
+    if (props.isRemote) {
+      toast("Reveal is available for local paths");
+      return;
+    }
+    await invoke("reveal_path", { path: displayPath });
+  };
+
   return (
     <div className="file-manager" onClick={() => setContextMenu(undefined)}>
       <div className="file-toolbar">
@@ -227,7 +236,31 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
       <div className="file-scope-bar">
         <span className="file-scope-source">{sourceLabel}</span>
-        <span className="file-scope-path" title={displayPath}>{displayPath}</span>
+        <button
+          className="file-scope-path"
+          type="button"
+          title="Copy path"
+          onClick={() => void onCopy(displayPath, "path")}
+        >
+          {displayPath}
+        </button>
+        <button
+          className="file-scope-action"
+          type="button"
+          title="Copy path"
+          onClick={() => void onCopy(displayPath, "path")}
+        >
+          <Copy size={12} strokeWidth={2} />
+        </button>
+        <button
+          className="file-scope-action"
+          type="button"
+          title="Reveal in Finder/Explorer"
+          disabled={props.isRemote}
+          onClick={() => void onRevealPath()}
+        >
+          <ExternalLink size={12} strokeWidth={2} />
+        </button>
       </div>
 
       {fileError ? <div className="file-status error">{fileError}</div> : null}
