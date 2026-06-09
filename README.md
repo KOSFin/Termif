@@ -44,6 +44,8 @@ Local sessions run through portable PTY integration and stream output to xterm.j
 
 The sidebar is contextual. For local tabs, it operates on local filesystem paths. For SSH tabs, it resolves the remote path via the active session and performs remote listing, read, and write operations. The editor layer supports preview and edit modes, tracks dirty state, opens in docked mode or separate windows, and keeps remote versus local provenance visible per file tab.
 
+Snippets provide lightweight command storage in the sidebar with collapsible text sections and one-click execution into the active terminal. They are intentionally local to the client environment.
+
 The status bar supplies SSH runtime telemetry with CPU, RAM, disk, user counts, and server clock snapshots, while local clock and visibility controls remain configurable from settings.
 
 ## Runtime Architecture
@@ -58,9 +60,9 @@ For architectural deep dive, read [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Persistence and Data Behavior
 
-Termif persists operational state in JSON artifacts that are explicitly scoped by concern: settings.json for runtime preferences, hosts.json for managed hosts/groups/import overrides, and ui_state.json for tab presentation metadata and active tab restoration. Snippets are currently persisted in frontend localStorage and bound to the client environment.
+Termif persists operational state in JSON artifacts that are explicitly scoped by concern: settings.json for runtime preferences, hosts.json for managed hosts/groups/import overrides, and ui_state.json for tab presentation metadata and active tab restoration. Snippets and bounded per-tab terminal logs are currently persisted in frontend localStorage and bound to the client environment.
 
-On startup, Termif attempts to recover saved tab metadata and reconstruct local or SSH-picker tabs. If restoration is missing or invalid, the product falls back to creating a default local tab to preserve a bootable workspace.
+On startup, Termif attempts to recover saved tab metadata and reconstruct local or SSH-picker tabs. Local shells start as fresh processes while their previous visible scrollback can be replayed from the saved tab log. SSH tabs restore as detached tabs that can reconnect explicitly. If restoration is missing or invalid, the product falls back to creating a default local tab to preserve a bootable workspace.
 
 Detailed model and compatibility rules are documented in [docs/persistence-model.md](docs/persistence-model.md) and [docs/settings-model.md](docs/settings-model.md).
 
@@ -72,6 +74,8 @@ Local shell defaults follow the host platform: PowerShell on Windows, zsh on mac
 
 ## Screenshots
 
+![Main workspace Mac](docs/screenshots/mac-main-screen.png)
+![Main workspace Mac](docs/screenshots/mac-mainscreen-wtht-sidebar.png)
 ![Main workspace](docs/screenshots/main-workspace.png)
 ![Settings and command palette](docs/screenshots/settings-and-palette.png)
 

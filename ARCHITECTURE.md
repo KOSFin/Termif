@@ -34,7 +34,7 @@ Backend platform behavior is centralized in `src-tauri/src/platform.rs`. It reso
 
 ## Session and Context Lifecycle
 
-Termif supports three tab kinds: local shell tabs, SSH picker tabs, and SSH terminal tabs. Startup attempts to restore saved tab metadata from persisted UI state. Local tabs are rehydrated by spawning fresh local sessions. Saved SSH tabs are restored as SSH picker placeholders and converted to live SSH sessions once the user reconnects.
+Termif supports three tab kinds: local shell tabs, SSH picker tabs, and SSH terminal tabs. Startup attempts to restore saved tab metadata from persisted UI state. Local tabs are rehydrated by spawning fresh local sessions and may replay bounded frontend scrollback for the same restored tab id. Saved SSH tabs are restored as detached SSH tabs and converted to live SSH sessions once the user reconnects.
 
 When active tab changes, file context is rebound immediately. Cached directory snapshots are displayed optimistically for responsiveness, then refreshed from backend unless cache freshness windows suppress redundant fetches.
 
@@ -48,7 +48,7 @@ settings.json stores appearance, terminal, hotkeys, ssh, file_manager, experimen
 
 hosts.json stores managed SSH hosts, host groups, and override mappings for imported ~/.ssh/config aliases and group assignments.
 
-ui_state.json stores tab presentation metadata and active tab selection.
+ui_state.json stores tab presentation metadata and active tab selection. Frontend localStorage stores snippets and bounded per-tab terminal scrollback logs.
 
 This model currently favors transparent, inspectable state over opaque binary formats. It also allows pragmatic backward compatibility handling via defaulting and tolerant deserialization.
 
@@ -72,7 +72,7 @@ Remote telemetry is polled in backend loops and emitted as per-session events. T
 
 SSH host metadata may include optional passwords in managed host records. This is a usability feature and should be treated as sensitive state in downstream hardening work.
 
-SSH strict host key checking is represented in settings, but current SSH handler behavior accepts server keys by default. This is a known trust gap and must remain visible in documentation and roadmap.
+SSH strict host key checking is represented in settings. When enabled, the SSH handler verifies the server key against `known_hosts`, records first-seen keys, and rejects changed keys. The remaining roadmap gap is a richer fingerprint confirmation and remediation UI.
 
 Plugin runtime is intentionally disabled. No third-party execution sandbox is active in the current release line.
 

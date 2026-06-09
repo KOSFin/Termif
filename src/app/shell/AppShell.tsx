@@ -683,6 +683,7 @@ export function AppShell() {
           .map((t) => (
             <TerminalPane
               key={t.sessionId}
+              tabId={t.id}
               sessionId={t.sessionId!}
               isVisible={t.id === activeTabId}
               sshAlias={t.sshAlias}

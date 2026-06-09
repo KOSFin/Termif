@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document describes the persistence behavior currently implemented in Termif. It supersedes earlier SQLite and TOML proposals. The active model is JSON-file persistence in the Tauri app data directory, plus localStorage for frontend snippets.
+This document describes the persistence behavior currently implemented in Termif. It supersedes earlier SQLite and TOML proposals. The active model is JSON-file persistence in the Tauri app data directory, plus localStorage for frontend snippets and bounded terminal tab logs.
 
 ## Persisted Artifacts
 
@@ -20,7 +20,7 @@ hosts.json stores SSH groups, managed hosts, and override maps for imported host
 
 ui_state.json stores tab presentation metadata and active tab identity used for startup restoration.
 
-On the frontend, command snippets are stored in localStorage under termif.snippets.v1.
+On the frontend, command snippets are stored in localStorage under termif.snippets.v1. Terminal scrollback snapshots are stored per tab under termif.terminal.log.\*, capped by the frontend to avoid unbounded growth.
 
 ## Write Strategy and Crash Behavior
 
@@ -30,13 +30,13 @@ If a file is missing, the backend falls back to model defaults. If UI state is i
 
 ## Session Restoration Semantics
 
-Termif restores tab metadata, not live process memory. Local tabs are recreated by spawning fresh local shell sessions. Persisted SSH tabs are restored as SSH picker placeholders unless and until users reconnect, which prevents silent credential or trust assumptions during boot.
+Termif restores tab metadata, not live process memory. Local tabs are recreated by spawning fresh local shell sessions. When a saved terminal log exists for the restored tab id, the frontend replays that log into xterm before live output resumes, so users can still inspect the previous scrollback after an app restart. Persisted SSH tabs are restored as detached SSH tabs unless and until users reconnect, which prevents silent credential or trust assumptions during boot.
 
 This approach favors deterministic startup and explicit reconnection over hidden remote side effects.
 
 ## Runtime Caches vs Persistence
 
-Directory listings are cached in memory with short freshness windows for responsive navigation, but these caches are not persisted. Terminal output buffering exists for channel attach/replay behavior and is also ephemeral.
+Directory listings are cached in memory with short freshness windows for responsive navigation, but these caches are not persisted. Runtime terminal channel buffering remains ephemeral; the per-tab localStorage log is a bounded UI transcript for user recall rather than a backend session replay contract.
 
 The product therefore distinguishes between durable workspace state and transient runtime acceleration structures.
 
@@ -48,4 +48,4 @@ Imported host data from ~/.ssh/config is not duplicated into managed host arrays
 
 ## Non-Persisted Domains
 
-Termif does not currently persist complete terminal transcripts, command history databases, or plugin state stores in the active implementation. Earlier plans describing SQLite transcript and history tables are not yet shipped behavior.
+Termif does not currently persist complete terminal transcripts, command history databases, or plugin state stores in the active implementation. The saved terminal tab log is capped frontend scrollback, not an audit-grade transcript store. Earlier plans describing SQLite transcript and history tables are not yet shipped behavior.

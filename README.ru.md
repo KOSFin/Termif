@@ -45,11 +45,15 @@ Termif - это продуктовый терминальный workspace для
 
 Файловый менеджер контекстный: в локальных вкладках работает с локальной ФС, в SSH-вкладках - с удаленной. Редактор поддерживает preview/edit режимы, dirty-state, докинг, popout-окна и сохранение как локальных, так и удаленных файлов.
 
+Сниппеты хранят часто используемые команды в боковой панели: группы раскрываются как компактные текстовые списки, а команда отправляется в активный терминал одним действием.
+
 В статус-баре для SSH отображаются метрики CPU/RAM/Disk, количество пользователей и серверное время.
 
 ## Архитектура И Данные
 
-Фронтенд построен на React + TypeScript + Zustand, backend - на Rust внутри Tauri v2. Поток терминала идет через Tauri Channel, а не через постоянный polling. Основные persist-артефакты: settings.json, hosts.json и ui_state.json в app data директории. Сниппеты сейчас сохраняются в localStorage клиента.
+Фронтенд построен на React + TypeScript + Zustand, backend - на Rust внутри Tauri v2. Поток терминала идет через Tauri Channel, а не через постоянный polling. Основные persist-артефакты: settings.json, hosts.json и ui_state.json в app data директории. Сниппеты и ограниченные по размеру журналы терминала для вкладок сейчас сохраняются в localStorage клиента.
+
+При старте Termif восстанавливает метаданные вкладок. Локальные shell-вкладки запускаются как новые процессы, но прежний видимый scrollback может быть показан из сохраненного журнала вкладки. SSH-вкладки восстанавливаются как detached-состояние с явным reconnect.
 
 Детали:
 
@@ -65,8 +69,10 @@ Termif - это продуктовый терминальный workspace для
 
 ## Скриншоты
 
-![Основной workspace](docs/screenshots/main-workspace.png)
-![Настройки и палитра команд](docs/screenshots/settings-and-palette.png)
+![Main workspace Mac](docs/screenshots/mac-main-screen.png)
+![Main workspace Mac](docs/screenshots/mac-mainscreen-wtht-sidebar.png)
+![Main workspace](docs/screenshots/main-workspace.png)
+![Settings and command palette](docs/screenshots/settings-and-palette.png)
 
 ## Ошибки И Восстановление
 

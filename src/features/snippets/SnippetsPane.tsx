@@ -50,7 +50,7 @@ function loadState(): SnippetState {
 export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
   const toast = useAppStore((s) => s.toast);
   const [state, setState] = useState<SnippetState>(() => loadState());
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["ungrouped"]));
   const [modal, setModal] = useState<ModalMode | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftCommand, setDraftCommand] = useState("");
@@ -310,20 +310,43 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
           onDrop={(e) => { e.preventDefault(); onDropOnGroup(null); }}
           onDragLeave={() => { if (dragOverGroupId === "ungrouped") setDragOverGroupId(undefined); }}
         >
-          {ungrouped.map((snippet) => (
-            <SnippetCard
-              key={snippet.id}
-              snippet={snippet}
-              isDragOver={dragOverId === snippet.id}
-              onRun={() => void runSnippet(snippet)}
-              onEdit={() => openEditSnippet(snippet.id)}
-              onDelete={() => deleteSnippet(snippet.id)}
-              onDragStart={(e) => onDragStart(snippet.id, e)}
-              onDragEnd={onDragEnd}
-              onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
-              onDrop={() => onDropOnSnippet(snippet.id)}
-            />
-          ))}
+          <div className="snippet-group-head" onClick={() => toggleGroup("ungrouped")}>
+            <div className="snippet-group-chevron">
+              {expandedGroups.has("ungrouped")
+                ? <ChevronDown size={12} strokeWidth={2} />
+                : <ChevronRight size={12} strokeWidth={2} />}
+            </div>
+            <div className="snippet-group-title">Ungrouped</div>
+            <div className="snippet-group-count">{ungrouped.length}</div>
+            <div className="snippet-group-actions" onClick={(e) => e.stopPropagation()}>
+              <button className="ghost icon-btn" onClick={() => openCreateSnippet(null)} title="Add snippet">
+                <Plus size={12} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+
+          {expandedGroups.has("ungrouped") ? (
+            <div className="snippet-group-body">
+              {ungrouped.length === 0 ? (
+                <div className="snippet-empty">No ungrouped snippets</div>
+              ) : (
+                ungrouped.map((snippet) => (
+                  <SnippetCard
+                    key={snippet.id}
+                    snippet={snippet}
+                    isDragOver={dragOverId === snippet.id}
+                    onRun={() => void runSnippet(snippet)}
+                    onEdit={() => openEditSnippet(snippet.id)}
+                    onDelete={() => deleteSnippet(snippet.id)}
+                    onDragStart={(e) => onDragStart(snippet.id, e)}
+                    onDragEnd={onDragEnd}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
+                    onDrop={() => onDropOnSnippet(snippet.id)}
+                  />
+                ))
+              )}
+            </div>
+          ) : null}
         </div>
 
         {state.snippets.length === 0 && state.groups.length === 0 ? (

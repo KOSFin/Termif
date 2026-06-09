@@ -5,6 +5,7 @@ import { memo, useEffect, useRef, useState, type MutableRefObject } from "react"
 import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
 import type { OsInfo } from "@/features/ssh/SshHostPicker";
 import { getDefaultTerminalFont, isMacLike } from "@/platform/platform";
+import { appendTerminalLog, loadTerminalLog } from "@/features/terminal/terminalLogStore";
 
 interface TerminalVisualSettings {
   font_family: string;
@@ -17,6 +18,7 @@ interface TerminalVisualSettings {
 }
 
 interface TerminalPaneProps {
+  tabId: string;
   sessionId: string;
   isVisible: boolean;
   /** SSH alias — when set, shows a "Connecting…" overlay until first output. */
@@ -73,6 +75,7 @@ function saveOsToCache(alias: string, info: OsInfo) {
 }
 
 export const TerminalPane = memo(function TerminalPane({
+  tabId,
   sessionId,
   isVisible,
   sshAlias,
@@ -92,6 +95,8 @@ export const TerminalPane = memo(function TerminalPane({
   const inputFlushTimerRef = useRef<number | undefined>();
   const commandLineRef = useRef<string>("");
   const exitCloseTimerRef = useRef<number | undefined>();
+  const logBufferRef = useRef<string>("");
+  const logFlushTimerRef = useRef<number | undefined>();
 
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
@@ -133,6 +138,11 @@ export const TerminalPane = memo(function TerminalPane({
 
     xtermRef.current = xterm;
     fitRef.current = fitAddon;
+
+    const restoredLog = loadTerminalLog(tabId);
+    if (restoredLog) {
+      xterm.write(restoredLog);
+    }
 
     const resizeBackend = () => {
       if (!fitRef.current || !xtermRef.current) return;
@@ -261,6 +271,7 @@ export const TerminalPane = memo(function TerminalPane({
 
       const displayChunk = preserveScrollbackOnClear(chunk);
       xtermRef.current?.write(displayChunk);
+      queueTerminalLog(tabId, logBufferRef, logFlushTimerRef, displayChunk);
 
       // Buffer first 4000 chars for OS detection
       if (isSSH && sshAlias && !osDetectedRef.current) {
@@ -303,6 +314,7 @@ export const TerminalPane = memo(function TerminalPane({
       resizeObserver.disconnect();
       if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
       clearTimerRef(exitCloseTimerRef);
+      flushTerminalLog(tabId, logBufferRef, logFlushTimerRef);
       flushTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, onConnectionError);
       xterm.dispose();
       xtermRef.current = null;
@@ -310,7 +322,7 @@ export const TerminalPane = memo(function TerminalPane({
     };
   // sshAlias intentionally excluded — re-mounting for alias changes not needed.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, tabId]);
 
   useEffect(() => {
     const xterm = xtermRef.current;
@@ -547,6 +559,40 @@ function flushTerminalInput(
   void sendTerminalInput(sessionId, data, onConnectionError);
 }
 
+function queueTerminalLog(
+  tabId: string,
+  bufferRef: MutableRefObject<string>,
+  timerRef: MutableRefObject<number | undefined>,
+  chunk: string,
+) {
+  bufferRef.current += chunk;
+
+  if (bufferRef.current.length > 12_000) {
+    flushTerminalLog(tabId, bufferRef, timerRef);
+    return;
+  }
+
+  if (timerRef.current !== undefined) return;
+  timerRef.current = window.setTimeout(() => {
+    flushTerminalLog(tabId, bufferRef, timerRef);
+  }, 250);
+}
+
+function flushTerminalLog(
+  tabId: string,
+  bufferRef: MutableRefObject<string>,
+  timerRef: MutableRefObject<number | undefined>,
+) {
+  if (timerRef.current !== undefined) {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = undefined;
+  }
+  const data = bufferRef.current;
+  if (!data) return;
+  bufferRef.current = "";
+  appendTerminalLog(tabId, data);
+}
+
 function buildXtermTheme(customColors?: Record<string, string>) {
   const bg = readCssVar("--bg", "#1a1d23");
   const bgElev = readCssVar("--bg-elev-1", "#21252b");
@@ -560,30 +606,51 @@ function buildXtermTheme(customColors?: Record<string, string>) {
   const warning = readCssVar("--warning", "#e5c07b");
   const c = customColors ?? {};
   const transparentBackground = "rgba(0, 0, 0, 0)";
+  const lightTheme = isLightColor(bg);
+  const lightAnsi = {
+    foreground: "#1f1a16",
+    cursor: "#1f1a16",
+    black: "#201c18",
+    brightBlack: "#6f675e",
+    red: "#9f1d30",
+    brightRed: "#c5223b",
+    green: "#256f47",
+    brightGreen: "#1f8a50",
+    yellow: "#7c5f00",
+    brightYellow: "#946f00",
+    blue: "#075f91",
+    brightBlue: "#0873ad",
+    magenta: "#7a3f91",
+    brightMagenta: "#954caf",
+    cyan: "#0f6c78",
+    brightCyan: "#0d8190",
+    white: "#3f3933",
+    brightWhite: "#11100e",
+  };
 
   return {
     background: transparentBackground,
-    foreground: c.foreground ?? text,
-    cursor: c.cursor ?? accent,
+    foreground: c.foreground ?? (lightTheme ? lightAnsi.foreground : text),
+    cursor: c.cursor ?? (lightTheme ? lightAnsi.cursor : accent),
     cursorAccent: c.cursorAccent ?? bg,
     selectionBackground: c.selectionBackground ?? c.selection ?? colorMixFallback(bgHover, accent, 0.18),
     selectionForeground: c.selectionForeground ?? textBright,
-    black: c.black ?? pickAnsiBlack(bg),
-    brightBlack: c.brightBlack ?? pickAnsiBrightBlack(textMuted),
-    red: c.red ?? danger,
-    brightRed: c.brightRed ?? "#ff7a8c",
-    green: c.green ?? accent2,
-    brightGreen: c.brightGreen ?? "#b5e890",
-    yellow: c.yellow ?? warning,
-    brightYellow: c.brightYellow ?? "#f5c06a",
-    blue: c.blue ?? accent,
-    brightBlue: c.brightBlue ?? "#7ec8ff",
-    magenta: c.magenta ?? "#c678dd",
-    brightMagenta: c.brightMagenta ?? "#d896f0",
-    cyan: c.cyan ?? "#56b6c2",
-    brightCyan: c.brightCyan ?? "#82ccdf",
-    white: c.white ?? text,
-    brightWhite: c.brightWhite ?? textBright,
+    black: c.black ?? (lightTheme ? lightAnsi.black : pickAnsiBlack(bg)),
+    brightBlack: c.brightBlack ?? (lightTheme ? lightAnsi.brightBlack : pickAnsiBrightBlack(textMuted)),
+    red: c.red ?? (lightTheme ? lightAnsi.red : danger),
+    brightRed: c.brightRed ?? (lightTheme ? lightAnsi.brightRed : "#ff7a8c"),
+    green: c.green ?? (lightTheme ? lightAnsi.green : accent2),
+    brightGreen: c.brightGreen ?? (lightTheme ? lightAnsi.brightGreen : "#b5e890"),
+    yellow: c.yellow ?? (lightTheme ? lightAnsi.yellow : warning),
+    brightYellow: c.brightYellow ?? (lightTheme ? lightAnsi.brightYellow : "#f5c06a"),
+    blue: c.blue ?? (lightTheme ? lightAnsi.blue : accent),
+    brightBlue: c.brightBlue ?? (lightTheme ? lightAnsi.brightBlue : "#7ec8ff"),
+    magenta: c.magenta ?? (lightTheme ? lightAnsi.magenta : "#c678dd"),
+    brightMagenta: c.brightMagenta ?? (lightTheme ? lightAnsi.brightMagenta : "#d896f0"),
+    cyan: c.cyan ?? (lightTheme ? lightAnsi.cyan : "#56b6c2"),
+    brightCyan: c.brightCyan ?? (lightTheme ? lightAnsi.brightCyan : "#82ccdf"),
+    white: c.white ?? (lightTheme ? lightAnsi.white : text),
+    brightWhite: c.brightWhite ?? (lightTheme ? lightAnsi.brightWhite : textBright),
     extendedAnsi: [bgElev],
   };
 }
@@ -603,6 +670,21 @@ function isLightHex(value: string) {
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 180;
+}
+
+function isLightColor(value: string) {
+  const normalized = value.trim();
+  const hex = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+  if (hex) {
+    const full = hex.length === 3
+      ? hex.split("").map((part) => `${part}${part}`).join("")
+      : hex;
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 180;
+  }
+  return false;
 }
 
 function colorMixFallback(base: string, accent: string, alpha: number) {

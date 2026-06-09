@@ -30,6 +30,7 @@ import {
   normalizeLineEndings,
 } from "@/store/appStoreUtils";
 import { applyAppearanceOverrides, applyAppearanceTheme, watchSystemTheme } from "@/theme/themeEngine";
+import { clearTerminalLog } from "@/features/terminal/terminalLogStore";
 
 export interface EditorFile {
   id: string;
@@ -477,6 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (tab?.sessionId) {
       await invoke("close_terminal_session", { sessionId: tab.sessionId }).catch(() => undefined);
     }
+    clearTerminalLog(tabId);
 
     const tabs = get().tabs.filter((item) => item.id !== tabId);
     const mru = get().tabMruOrder.filter((id) => id !== tabId);

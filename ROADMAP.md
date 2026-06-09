@@ -10,7 +10,7 @@ Termif is evolving from a technically complete desktop MVP into an operationally
 
 ## Current Product Baseline
 
-The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows/macOS/Linux CI artifact generation. Recent hardening added system-aware theme switching, native macOS window transparency configuration, release landing-page automation, and SSH host-key pinning against `known_hosts`.
+The platform already ships custom app shell controls, local and SSH tabs, contextual file manager switching, host/group management, command palette orchestration, settings and hotkey customization, integrated editor workflows, persisted workspace metadata, and Windows/macOS/Linux CI artifact generation. Recent hardening added system-aware theme switching, native macOS window transparency configuration, release landing-page automation, SSH host-key pinning against `known_hosts`, compact snippet lists, hidden-scrollbar adaptive panels, and bounded per-tab terminal log replay after app restart.
 
 This means roadmap work now targets depth over breadth.
 
@@ -22,7 +22,7 @@ The product must continue improving SSH validation and provide explicit host-key
 
 ### 2) Session Reliability and Recovery
 
-Reconnect behavior, stale session cleanup, timeout handling, and background wake-up behavior need further stabilization under unstable networks. The objective is predictable terminal continuity without hidden reconnect loops or long opaque waits.
+Reconnect behavior, stale session cleanup, timeout handling, and background wake-up behavior need further stabilization under unstable networks. The objective is predictable terminal continuity without hidden reconnect loops or long opaque waits. The current frontend log replay helps users inspect previous scrollback after restart, but durable process/session continuity remains future work.
 
 ### 3) Editor and Filesystem Maturity
 
@@ -37,6 +37,10 @@ Artifact generation and a GitHub Pages download surface are active for Windows, 
 ### Structured Input Evolution
 
 The experimental input overlay direction remains valid, but should be implemented incrementally with strict compatibility expectations for native shell editing. Any structured input mode must remain optional and never degrade core terminal behavior.
+
+### Durable Transcript Storage
+
+Per-tab localStorage logs are useful for short-term scrollback recall, but they are not an audit log. A future transcript layer should define retention, search, export, privacy controls, and storage migration before moving beyond bounded frontend history.
 
 ### Capability-Gated Plugin Runtime
 
