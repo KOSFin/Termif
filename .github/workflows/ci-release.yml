@@ -135,7 +135,7 @@ jobs:
           - os: windows-latest
             artifact_name: termif-windows-x64
             build_script: tauri:build:windows
-          - os: macos-13
+          - os: macos-15-intel
             artifact_name: termif-macos-x64
             build_script: tauri:build:macos
           - os: macos-latest
