@@ -3,6 +3,24 @@ name: ci-release
 on:
   workflow_dispatch:
     inputs:
+      release_version:
+        description: "Release SemVer (example: 1.2.3 or 1.2.3-beta.1). Empty = parse last commit."
+        required: false
+        type: string
+        default: ""
+      release_channel:
+        description: Release channel
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - stable
+          - beta
+          - alpha
+          - rc
+          - nightly
+          - unstable
       publish_release:
         description: Publish GitHub Release
         required: false
@@ -27,8 +45,11 @@ jobs:
       app_version: ${{ steps.meta.outputs.app_version }}
       release_tag: ${{ steps.meta.outputs.release_tag }}
       release_name: ${{ steps.meta.outputs.release_name }}
+      release_channel: ${{ steps.meta.outputs.release_channel }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
+      stable_update: ${{ steps.meta.outputs.stable_update }}
       publish_release: ${{ steps.meta.outputs.publish_release }}
+      release_reason: ${{ steps.meta.outputs.release_reason }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,47 +57,14 @@ jobs:
       - name: Resolve build metadata
         id: meta
         shell: bash
+        env:
+          RELEASE_VERSION_INPUT: ${{ inputs.release_version }}
+          RELEASE_CHANNEL_INPUT: ${{ inputs.release_channel || 'auto' }}
+          PUBLISH_RELEASE_INPUT: ${{ inputs.publish_release }}
         run: |
           set -euo pipefail
-
-          base_version="$(node -p "require('./package.json').version")"
-          short_sha="${GITHUB_SHA:0:7}"
-          ref_name="${GITHUB_REF_NAME}"
-
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            raw_tag_version="${ref_name#v}"
-            if [[ ! "${raw_tag_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
-              echo "Tag version '${raw_tag_version}' must be SemVer, for example v1.2.3 or v1.2.3-rc.1" >&2
-              exit 1
-            fi
-            app_version="${raw_tag_version}"
-            release_tag="${ref_name}"
-            release_name="Termif ${app_version}"
-            prerelease="false"
-            publish_release="true"
-          else
-            if [[ ! "${base_version}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-              echo "Base version must start with X.Y.Z" >&2
-              exit 1
-            fi
-            app_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}-ci.${GITHUB_RUN_NUMBER}"
-            safe_ref="$(echo "${ref_name}" | sed -E 's/[^A-Za-z0-9._-]+/-/g')"
-            release_tag="ci-${safe_ref}-${GITHUB_RUN_NUMBER}-${short_sha}"
-            release_name="Termif CI ${safe_ref} ${short_sha}"
-            prerelease="true"
-            publish_release="true"
-            if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_release }}" == "false" ]]; then
-              publish_release="false"
-            fi
-          fi
-
-          {
-            echo "app_version=${app_version}"
-            echo "release_tag=${release_tag}"
-            echo "release_name=${release_name}"
-            echo "prerelease=${prerelease}"
-            echo "publish_release=${publish_release}"
-          } >> "${GITHUB_OUTPUT}"
+          commit_message="$(git log -1 --pretty=%B)"
+          COMMIT_MESSAGE="${commit_message}" node scripts/resolve-release-metadata.mjs
 
   quality:
     runs-on: ubuntu-latest
@@ -138,7 +126,7 @@ jobs:
 
   build:
     needs: [metadata]
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.metadata.outputs.publish_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -147,8 +135,11 @@ jobs:
           - os: windows-latest
             artifact_name: termif-windows-x64
             build_script: tauri:build:windows
+          - os: macos-13
+            artifact_name: termif-macos-x64
+            build_script: tauri:build:macos
           - os: macos-latest
-            artifact_name: termif-macos
+            artifact_name: termif-macos-arm64
             build_script: tauri:build:macos
           - os: ubuntu-latest
             artifact_name: termif-linux-x64
@@ -193,43 +184,29 @@ jobs:
         env:
           APP_VERSION: ${{ needs.metadata.outputs.app_version }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          STABLE_UPDATE: ${{ needs.metadata.outputs.stable_update }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
         run: |
-          node - <<'NODE'
-          const fs = require("fs");
-          const appVersion = process.env.APP_VERSION;
-          const runNumber = Number(process.env.GITHUB_RUN_NUMBER || "0");
+          node scripts/apply-build-metadata.mjs
 
-          const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
-          packageJson.version = appVersion;
-          fs.writeFileSync("package.json", `${JSON.stringify(packageJson, null, 2)}\n`);
-
-          const tauriPath = "src-tauri/tauri.conf.json";
-          const tauriConfig = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
-          tauriConfig.version = appVersion;
-
-          if (process.platform === "win32") {
-            const match = appVersion.match(/^(\d+)\.(\d+)\.(\d+)/);
-            if (!match) throw new Error(`Version '${appVersion}' does not start with X.Y.Z`);
-            const build = Math.max(1, runNumber % 65535 || 1);
-            tauriConfig.version = `${match[1]}.${match[2]}.${match[3]}`;
-            tauriConfig.bundle.windows = tauriConfig.bundle.windows || {};
-            tauriConfig.bundle.windows.wix = tauriConfig.bundle.windows.wix || {};
-            tauriConfig.bundle.windows.wix.version = `${match[1]}.${match[2]}.${match[3]}.${build}`;
-          }
-
-          fs.writeFileSync(tauriPath, `${JSON.stringify(tauriConfig, null, 2)}\n`);
-
-          const cargoPath = "src-tauri/Cargo.toml";
-          const cargoToml = fs.readFileSync(cargoPath, "utf8");
-          fs.writeFileSync(
-            cargoPath,
-            cargoToml.replace(/(^\[package\][\s\S]*?^version\s*=\s*")[^"]+(")/m, `$1${appVersion}$2`)
-          );
-          NODE
+      - name: Validate updater signing secrets
+        if: needs.metadata.outputs.stable_update == 'true'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY}" || -z "${TAURI_UPDATER_PUBKEY}" ]]; then
+            echo "Stable updater releases require TAURI_SIGNING_PRIVATE_KEY and TAURI_UPDATER_PUBKEY secrets." >&2
+            exit 1
+          fi
 
       - name: Build Tauri bundles
         env:
-          VITE_UPDATE_REPO: ${{ github.repository }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run ${{ matrix.build_script }}
 
       - name: Collect bundles and checksums
@@ -243,7 +220,7 @@ jobs:
           mkdir -p release-artifacts
 
           while IFS= read -r -d '' file; do
-            cp "${file}" "release-artifacts/$(basename "${file}")"
+            cp "${file}" "release-artifacts/${ARTIFACT_NAME}-$(basename "${file}")"
           done < <(find src-tauri/target/release/bundle -type f \( \
             -name '*.msi' -o \
             -name '*.exe' -o \
@@ -251,12 +228,13 @@ jobs:
             -name '*.deb' -o \
             -name '*.AppImage' -o \
             -name '*.rpm' -o \
+            -name '*.tar.gz' -o \
             -name '*.sig' \
           \) -print0)
 
           if [[ "${RUNNER_OS}" == "macOS" ]]; then
             while IFS= read -r -d '' app; do
-              ditto -c -k --sequesterRsrc --keepParent "${app}" "release-artifacts/$(basename "${app}").zip"
+              ditto -c -k --sequesterRsrc --keepParent "${app}" "release-artifacts/${ARTIFACT_NAME}-$(basename "${app}").zip"
             done < <(find src-tauri/target/release/bundle -maxdepth 3 -type d -name '*.app' -print0)
           fi
 
@@ -302,6 +280,15 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Create stable updater manifest
+        if: needs.metadata.outputs.stable_update == 'true'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.release_tag }}
+          APP_VERSION: ${{ needs.metadata.outputs.app_version }}
+          PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
+        run: node scripts/create-latest-json.mjs
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -319,5 +306,7 @@ jobs:
             release-artifacts/*.deb
             release-artifacts/*.AppImage
             release-artifacts/*.rpm
+            release-artifacts/*.tar.gz
             release-artifacts/*.sig
+            release-artifacts/latest.json
             release-artifacts/checksums-*.txt

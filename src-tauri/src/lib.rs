@@ -473,7 +473,12 @@ fn save_ui_state(ui_state: PersistedUiState, state: State<'_, AppState>) -> Resu
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             let persistence = Persistence::from_app(app.handle())?;
             let hosts = Arc::new(HostStore::new(persistence.clone())?);
             let settings = Arc::new(SettingsStore::new(persistence.clone())?);

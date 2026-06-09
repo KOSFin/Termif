@@ -24,7 +24,7 @@
 
 [macos-distribution.ru.md](macos-distribution.ru.md) объясняет, как запускать и распространять macOS-сборки без Apple Developer ID.
 
-[update-checker.ru.md](update-checker.ru.md) описывает GitHub-проверку новых версий и путь к полноценному Tauri auto-updater.
+[update-checker.ru.md](update-checker.ru.md) описывает полноценный Tauri auto-updater, stable/prerelease каналы и release secrets.
 
 ## Визуальные Материалы
 

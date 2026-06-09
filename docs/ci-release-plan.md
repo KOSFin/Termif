@@ -4,18 +4,18 @@
 
 Termif uses a single GitHub Actions workflow, `.github/workflows/ci-release.yml`, to cover quality gates, platform bundles, artifact checksums, and GitHub Release publication for Windows, macOS, and Linux.
 
-The workflow is triggered by pull requests, pushes to `main`/`develop`, version tags beginning with `v`, and manual dispatch. Pull requests run validation only. Pushes and tags additionally build downloadable installers.
+The workflow is triggered by pull requests, pushes to `main`/`develop`, version tags beginning with `v`, and manual dispatch. Pull requests run validation only. Pushes to branches publish a release only when the last commit message contains a SemVer version marker.
 
 ## Job Topology
 
-The `metadata` job computes SemVer-compatible build metadata, release tag, release name, prerelease state, and publication intent.
+The `metadata` job computes SemVer-compatible build metadata, release channel, release tag, release name, prerelease state, stable-updater eligibility, and publication intent.
 
 The `quality` job runs once on Ubuntu. It validates frontend lint, Vitest unit tests, frontend build integrity, Rust formatting, clippy warnings as errors, and Rust tests. It does not run a Tauri smoke build; native Tauri compilation is reserved for the platform `build` jobs that produce artifacts.
 
-The `build` job runs for non-PR events after metadata is resolved. It runs in parallel with quality to reduce wall-clock time, while release publication still waits for both quality and build to pass. It builds native bundles per OS:
+The `build` job runs for non-PR events only when metadata found a release version and publishing is enabled. It runs in parallel with quality to reduce wall-clock time, while release publication still waits for both quality and build to pass. It builds native bundles per OS:
 
 - Windows: MSI and NSIS EXE.
-- macOS: DMG and zipped `.app`.
+- macOS: DMG and zipped `.app` on both Intel (`macos-13`) and Apple Silicon (`macos-latest`).
 - Linux: DEB and AppImage.
 
 The `release` job downloads all platform artifacts and publishes one GitHub Release when workflow metadata allows publication.
@@ -24,11 +24,17 @@ The `release` job downloads all platform artifacts and publishes one GitHub Rele
 
 Tagged builds treat tag names as the source-of-truth release versions with SemVer validation.
 
-Non-tag builds derive CI versions from the base package version and run number, producing prerelease identifiers and deterministic CI release tags. Windows MSI still receives a numeric four-part WiX version projection during the build step.
+Non-tag builds no longer publish automatically. The last commit message or manual workflow input must contain a SemVer version such as `0.2.0`, `v0.2.0`, or `0.3.0-beta.1`. Release channel markers can be written anywhere in the commit message, for example `[stable]`, `[beta]`, `[rc]`, or `[channel: beta]`.
+
+If the version has no prerelease suffix and no channel marker, it is treated as stable. If a non-stable channel is specified without a prerelease suffix, CI appends `-<channel>.<run_number>`.
+
+Windows MSI still receives a numeric four-part WiX version projection during the build step.
 
 ## Artifact Contract
 
-Bundle artifacts are collected from `src-tauri/target/release/bundle`. Each platform upload includes installers plus a `checksums-<platform>.txt` file generated with SHA-256 hashes.
+Bundle artifacts are collected from `src-tauri/target/release/bundle`. Each platform upload includes installers, updater artifacts when enabled, signatures, and a `checksums-<platform>.txt` file generated with SHA-256 hashes.
+
+Stable releases also publish `latest.json`, generated from the signed updater artifacts. Prereleases do not publish `latest.json`, so the in-app updater installs only stable releases.
 
 Release assets are intentionally native to the host OS instead of cross-compiled. This keeps packaging behavior aligned with Tauri and platform toolchain expectations.
 
@@ -44,4 +50,10 @@ Linux validation and builds use Ubuntu with WebKitGTK, AppIndicator, SVG, OpenSS
 
 Jobs use scoped permissions and avoid unnecessary secret exposure. Release publication is isolated to the final job with `contents: write`.
 
-The pipeline is release-capable for unsigned artifacts. Planned hardening includes Windows code signing, macOS Developer ID signing/notarization, Linux repository metadata, and stronger provenance attestations.
+The updater pipeline requires Tauri updater signing secrets for stable releases:
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password-protected
+- `TAURI_UPDATER_PUBKEY`
+
+This is separate from Windows/macOS code signing. Planned hardening still includes Windows code signing, macOS Developer ID signing/notarization, Linux repository metadata, and stronger provenance attestations.

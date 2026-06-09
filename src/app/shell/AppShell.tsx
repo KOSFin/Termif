@@ -28,6 +28,7 @@ import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
 import { UpdateBanner } from "@/features/update/UpdateBanner";
+import { useAutoUpdater } from "@/features/update/useAutoUpdater";
 
 export function AppShell() {
   const {
@@ -137,6 +138,12 @@ export function AppShell() {
   }, [connectSshTab, createSshPickerTab, setActiveTab, tabs]);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
+  const {
+    updateState,
+    installUpdate,
+    restartForUpdate,
+    dismissUpdate,
+  } = useAutoUpdater();
   // ── Window controls ─────────────────────────────────────────────────
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const [isMax, setIsMax] = useState(false);
@@ -862,6 +869,9 @@ export function AppShell() {
         showResources={statusBarShowResources}
         showServerTime={statusBarShowServerTime}
         clockTick={clockTick}
+        updateState={updateState}
+        onInstallUpdate={() => void installUpdate()}
+        onRestartUpdate={() => void restartForUpdate()}
       />
 
       <TabSwitcherOverlay
@@ -897,7 +907,12 @@ export function AppShell() {
         />
       ) : null}
 
-      <UpdateBanner />
+      <UpdateBanner
+        updateState={updateState}
+        onInstall={() => void installUpdate()}
+        onRestart={() => void restartForUpdate()}
+        onDismiss={dismissUpdate}
+      />
 
       {!isInitialized ? <BootOverlay /> : null}
     </div>

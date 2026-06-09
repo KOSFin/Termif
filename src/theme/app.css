@@ -3807,6 +3807,30 @@ input[type="range"]::-moz-range-thumb {
   justify-content: flex-start;
 }
 
+.status-update {
+  height: 18px;
+  min-width: 74px;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--stroke));
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--accent-dim) 70%, var(--bg-elev-2));
+}
+
+.status-update:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 28%, var(--bg-elev-2));
+}
+
+.status-update-downloading {
+  color: var(--accent);
+  cursor: progress;
+}
+
+.status-update-installed {
+  border-color: color-mix(in srgb, var(--accent-2) 55%, var(--stroke));
+  background: color-mix(in srgb, var(--accent-2) 20%, var(--bg-elev-2));
+}
+
 /* == Update banner =========================================== */
 
 .update-banner {

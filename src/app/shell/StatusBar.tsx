@@ -1,5 +1,6 @@
 import type { AppTab, SystemStats } from "@/types/models";
 import { classifyPercent, formatClock } from "@/app/shell/shellUtils";
+import { formatUpdateProgress, type AutoUpdateState } from "@/features/update/useAutoUpdater";
 
 interface StatusBarProps {
   activeTab?: AppTab;
@@ -10,6 +11,9 @@ interface StatusBarProps {
   showResources: boolean;
   showServerTime: boolean;
   clockTick: number;
+  updateState: AutoUpdateState;
+  onInstallUpdate: () => void;
+  onRestartUpdate: () => void;
 }
 
 export function StatusBar({
@@ -21,6 +25,9 @@ export function StatusBar({
   showResources,
   showServerTime,
   clockTick,
+  updateState,
+  onInstallUpdate,
+  onRestartUpdate,
 }: StatusBarProps) {
   const remoteUsers = (remoteStatus?.user_names ?? []).filter((name) => !!name);
   const localClock = buildLocalClock(statusBarEnabled, showServerTime, clockTick);
@@ -37,6 +44,8 @@ export function StatusBar({
   const ramLevel = classifyPercent(remoteStatus?.ram ?? null);
   const diskLevel = classifyPercent(remoteStatus?.disk ?? null);
   const showSshResources = activeTab?.kind === "ssh" && statusBarEnabled && showResources;
+  const showUpdateAction = updateState.phase === "available" || updateState.phase === "downloading" || updateState.phase === "installed";
+  const updateProgress = formatUpdateProgress(updateState);
 
   return (
     <footer className="statusbar">
@@ -96,6 +105,21 @@ export function StatusBar({
         ) : null}
 
         {remoteStatusError ? <span className="status-metric status-danger">{remoteStatusError}</span> : null}
+
+        {showUpdateAction ? (
+          <button
+            className={`status-metric status-update status-update-${updateState.phase}`}
+            onClick={updateState.phase === "installed" ? onRestartUpdate : onInstallUpdate}
+            disabled={updateState.phase === "downloading"}
+            title={updateState.phase === "installed" ? "Restart to finish update" : "Install available update"}
+          >
+            {updateState.phase === "installed"
+              ? "Restart"
+              : updateState.phase === "downloading"
+                ? `Update ${updateProgress || "..."}`
+                : `Update ${updateState.latestVersion ?? ""}`}
+          </button>
+        ) : null}
       </div>
     </footer>
   );

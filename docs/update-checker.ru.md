@@ -1,33 +1,100 @@
-# Автообновления через GitHub
+# Автообновления Termif
 
-## Что уже включено
+## Что включено
 
-В интерфейсе есть легкий GitHub release checker. Он:
+Termif использует официальный Tauri updater plugin. Приложение при запуске и затем раз в 6 часов вызывает updater `check()`.
 
-- берет текущую версию приложения через Tauri API;
-- читает `https://api.github.com/repos/<owner>/<repo>/releases/latest`;
-- сравнивает SemVer версии;
-- показывает нижний баннер, если latest release новее текущей сборки;
-- открывает страницу релиза по кнопке `Update`.
+Если доступна stable-версия:
 
-В релизной GitHub Actions сборке `VITE_UPDATE_REPO` автоматически задается как `${{ github.repository }}`.
+- справа снизу появляется уведомление с кнопкой `Update`;
+- в нижнем статусбаре появляется компактная кнопка `Update <version>`;
+- кнопка скачивает и устанавливает обновление внутри приложения;
+- после установки UI предлагает `Restart`, чтобы перезапустить Termif на новую версию.
 
-Для локальной проверки:
+Prerelease-каналы (`beta`, `alpha`, `rc`, `nightly`, `unstable`) публикуются как GitHub prerelease, но не попадают в stable updater endpoint. Обычные пользователи получают только stable-обновления.
+
+## Подпись updater
+
+Это не Apple/Windows code signing. Это отдельная подпись Tauri updater:
+
+- public key вшивается в production build;
+- private key хранится только в GitHub Secrets;
+- Tauri CLI подписывает updater artifacts;
+- приложение проверяет `.sig` перед установкой.
+
+Без валидной подписи приложение не установит обновление.
+
+## GitHub Secrets
+
+Для stable updater-релизов нужны secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY` — приватный ключ Tauri signer.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — пароль ключа, если он был задан.
+- `TAURI_UPDATER_PUBKEY` — public key, который будет вшит в приложение.
+
+Сгенерировать ключи:
 
 ```bash
-VITE_UPDATE_REPO=owner/repo npm run dev
+npm run tauri signer generate -- -w ~/.termif-updater.key
 ```
 
-## Почему это пока не полноценный auto-install
+Public key из вывода положить в `TAURI_UPDATER_PUBKEY`, private key из файла/вывода положить в `TAURI_SIGNING_PRIVATE_KEY`.
 
-Полноценное “скачал, проверил подпись, установил и перезапустил” в Tauri v2 делается через официальный updater plugin. Ему нужны updater-артефакты и подписи `.sig`; проверку подписи отключить нельзя. Поэтому текущий модуль сделан как безопасный первый этап: найти новую версию и привести пользователя к релизу.
+## Как выпускать релиз
 
-## Следующий этап
+Релиз создается только если в последнем commit message или workflow input есть SemVer-версия.
 
-Когда будет готова подписанная updater-цепочка:
+Примеры commit message:
 
-1. Установить официальный Tauri updater plugin.
-2. Сгенерировать updater key pair.
-3. Включить `bundle.createUpdaterArtifacts`.
-4. Публиковать `latest.json` и подписанные artifacts в GitHub Release.
-5. Заменить кнопку `Update` в `UpdateBanner` на download/install через plugin API.
+```text
+release 0.2.0 [stable]
+```
+
+```text
+fix ssh reconnect 0.2.1
+```
+
+```text
+new terminal scroll 0.3.0-beta.1
+```
+
+```text
+try updater 0.3.0 [beta]
+```
+
+Если версии нет, CI выполнит проверки, но release/build job не запустит.
+
+## Каналы
+
+Канал можно указать через маркер:
+
+- `[stable]`
+- `[beta]`
+- `[alpha]`
+- `[rc]`
+- `[nightly]`
+- `[unstable]`
+- `[channel: beta]`
+
+Если версия уже содержит prerelease suffix (`0.3.0-beta.1`), канал определяется из него. Если suffix нет и канал не указан, релиз считается stable.
+
+Если указать `0.3.0 [beta]`, CI превратит версию в `0.3.0-beta.<run_number>`.
+
+## Что публикует CI
+
+Stable release публикует:
+
+- обычные installers/packages для ручной установки;
+- updater artifacts;
+- `.sig` подписи;
+- `latest.json` для stable updater endpoint.
+
+Prerelease публикует installers/packages и `.sig`, но не публикует `latest.json`.
+
+Stable endpoint:
+
+```text
+https://github.com/KOSFin/Termif/releases/latest/download/latest.json
+```
+
+GitHub `latest` указывает только на последний non-prerelease release, поэтому beta/nightly не попадут в автообновления stable-сборок.

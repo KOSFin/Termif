@@ -1,67 +1,62 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, X } from "lucide-react";
-import { checkForGitHubUpdate, isUpdateCheckConfigured, type UpdateInfo } from "@/features/update/updateChecker";
+import { Download, RefreshCw, RotateCw, X } from "lucide-react";
+import { formatUpdateProgress, type AutoUpdateState } from "@/features/update/useAutoUpdater";
 
-const DISMISSED_KEY = "termif.update.dismissed_version";
+interface UpdateBannerProps {
+  updateState: AutoUpdateState;
+  onInstall: () => void;
+  onRestart: () => void;
+  onDismiss: () => void;
+}
 
-export function UpdateBanner() {
-  const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [checking, setChecking] = useState(false);
+export function UpdateBanner({ updateState, onInstall, onRestart, onDismiss }: UpdateBannerProps) {
+  if (updateState.dismissed) return null;
+  if (updateState.phase !== "available" && updateState.phase !== "downloading" && updateState.phase !== "installed" && updateState.phase !== "error") {
+    return null;
+  }
 
-  useEffect(() => {
-    if (!isUpdateCheckConfigured()) return;
+  const isDownloading = updateState.phase === "downloading";
+  const isInstalled = updateState.phase === "installed";
+  const isError = updateState.phase === "error";
+  const progress = formatUpdateProgress(updateState);
 
-    let disposed = false;
-    setChecking(true);
+  const title = isInstalled
+    ? "Update installed"
+    : isDownloading
+      ? "Installing update"
+      : isError
+        ? "Update failed"
+        : "Update available";
 
-    void checkForGitHubUpdate()
-      .then((info) => {
-        if (disposed || !info) return;
-        if (localStorage.getItem(DISMISSED_KEY) === info.latestVersion) return;
-        setUpdate(info);
-      })
-      .catch(() => {
-        // Update checks should never interrupt the terminal workspace.
-      })
-      .finally(() => {
-        if (!disposed) setChecking(false);
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, []);
-
-  if (!update) return null;
-
-  const openRelease = () => {
-    const popup = window.open(update.releaseUrl, "_blank", "noopener,noreferrer");
-    if (!popup) {
-      void navigator.clipboard.writeText(update.releaseUrl).catch(() => {});
-    }
-  };
-
-  const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, update.latestVersion);
-    setUpdate(null);
-  };
+  const meta = isError
+    ? updateState.error
+    : isInstalled
+      ? "Restart Termif to finish"
+      : isDownloading
+        ? (progress ? `Downloading ${progress}` : "Downloading...")
+        : `${updateState.currentVersion ?? "current"} -> ${updateState.latestVersion ?? "latest"}`;
 
   return (
     <div className="update-banner" role="status" aria-live="polite">
       <div className="update-banner-main">
-        <span className="update-banner-title">Update available</span>
-        <span className="update-banner-meta">
-          {update.currentVersion} {"->"} {update.latestVersion}
-          {checking ? " checking..." : ""}
-        </span>
+        <span className="update-banner-title">{title}</span>
+        <span className="update-banner-meta">{meta}</span>
       </div>
-      <button className="primary update-banner-action" onClick={openRelease}>
-        <ExternalLink size={13} strokeWidth={2} />
-        <span>Update</span>
-      </button>
-      <button className="ghost icon-btn update-banner-close" onClick={dismiss} title="Dismiss">
-        <X size={13} strokeWidth={2.4} />
-      </button>
+      {isInstalled ? (
+        <button className="primary update-banner-action" onClick={onRestart}>
+          <RotateCw size={13} strokeWidth={2} />
+          <span>Restart</span>
+        </button>
+      ) : (
+        <button className="primary update-banner-action" onClick={onInstall} disabled={isDownloading}>
+          {isDownloading ? <RefreshCw size={13} strokeWidth={2} /> : <Download size={13} strokeWidth={2} />}
+          <span>{isDownloading ? "Installing" : isError ? "Retry" : "Update"}</span>
+        </button>
+      )}
+      {!isDownloading ? (
+        <button className="ghost icon-btn update-banner-close" onClick={onDismiss} title="Dismiss">
+          <X size={13} strokeWidth={2.4} />
+        </button>
+      ) : null}
     </div>
   );
 }

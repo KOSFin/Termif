@@ -11,6 +11,8 @@
     "core:window:allow-close",
     "core:window:allow-start-dragging",
     "core:webview:allow-create-webview-window",
-    "dialog:default"
+    "dialog:default",
+    "process:allow-relaunch",
+    "updater:default"
   ]
 }
