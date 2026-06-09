@@ -17,9 +17,16 @@
 	<img alt="CI Cross Platform" src="https://img.shields.io/badge/CI-Cross--Platform-green" />
 </p>
 
-English is the default documentation language.
+<p align="center">
+	<a href="https://kosfin.github.io/Termif/">
+		<img alt="Download from site" src="https://img.shields.io/badge/Download-Website-61AFEF?style=for-the-badge" />
+	</a>
+	<a href="https://github.com/KOSFin/Termif/releases">
+		<img alt="GitHub Releases" src="https://img.shields.io/badge/GitHub-Releases-98C379?style=for-the-badge&logo=github" />
+	</a>
+</p>
 
-Language navigation: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
+Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
 
 Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
 

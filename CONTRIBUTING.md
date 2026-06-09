@@ -1,5 +1,9 @@
 # Contributing to Termif
 
+Language: 🇬🇧 [English](CONTRIBUTING.md) | 🇷🇺 [Русский](CONTRIBUTING.ru.md)
+
+Project links: [README](README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
+
 Termif accepts contributions that preserve product direction, architectural coherence, and operational reliability. The repository is not maintained as a generic code dump. Every accepted change is expected to strengthen one or more of the following: execution stability, UX integrity, maintainability of subsystem boundaries, or release confidence for Windows delivery.
 
 ## Contribution Contract

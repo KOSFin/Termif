@@ -2,7 +2,9 @@
 
 This hub is the default entry point for technical documentation.
 
-For Russian navigation, open 🇷🇺 [docs/README.ru.md](README.ru.md).
+Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
+
+Project links: [Main README](../README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
 
 ## Core Product Documents
 

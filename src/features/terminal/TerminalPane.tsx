@@ -114,6 +114,7 @@ export const TerminalPane = memo(function TerminalPane({
     outputBufferRef.current = "";
 
     const xterm = new Terminal({
+      allowTransparency: true,
       cursorBlink: true,
       cursorStyle: asCursorStyle(terminalSettings?.cursor_style),
       fontFamily: terminalSettings?.font_family ?? getDefaultTerminalFont(),
@@ -558,10 +559,11 @@ function buildXtermTheme(customColors?: Record<string, string>) {
     background: transparentBackground,
     foreground: c.foreground ?? text,
     cursor: c.cursor ?? accent,
-    cursorAccent: bg,
-    selectionBackground: c.selection ?? bgHover,
-    black: c.black ?? bg,
-    brightBlack: c.brightBlack ?? textMuted,
+    cursorAccent: c.cursorAccent ?? bg,
+    selectionBackground: c.selectionBackground ?? c.selection ?? colorMixFallback(bgHover, accent, 0.18),
+    selectionForeground: c.selectionForeground ?? textBright,
+    black: c.black ?? pickAnsiBlack(bg),
+    brightBlack: c.brightBlack ?? pickAnsiBrightBlack(textMuted),
     red: c.red ?? danger,
     brightRed: c.brightRed ?? "#ff7a8c",
     green: c.green ?? accent2,
@@ -578,4 +580,25 @@ function buildXtermTheme(customColors?: Record<string, string>) {
     brightWhite: c.brightWhite ?? textBright,
     extendedAnsi: [bgElev],
   };
+}
+
+function pickAnsiBlack(bg: string) {
+  return isLightHex(bg) ? "#2f2b26" : bg;
+}
+
+function pickAnsiBrightBlack(textMuted: string) {
+  return isLightHex(readCssVar("--bg", "#1a1d23")) ? "#6e6258" : textMuted;
+}
+
+function isLightHex(value: string) {
+  const hex = value.trim().match(/^#([0-9a-f]{6})$/i)?.[1];
+  if (!hex) return false;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 180;
+}
+
+function colorMixFallback(base: string, accent: string, alpha: number) {
+  return `color-mix(in srgb, ${accent} ${Math.round(alpha * 100)}%, ${base})`;
 }

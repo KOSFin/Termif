@@ -1,5 +1,9 @@
 # Termif Product Roadmap
 
+Language: 🇬🇧 [English](ROADMAP.md) | 🇷🇺 [Русский](ROADMAP.ru.md)
+
+Project links: [README](README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
+
 ## Direction
 
 Termif is evolving from a technically complete desktop MVP into an operationally hardened cross-platform terminal workspace product. The next roadmap cycle focuses less on adding isolated features and more on improving trust, execution consistency, and release quality for users who rely on SSH and file workflows daily.

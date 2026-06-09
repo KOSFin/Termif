@@ -17,9 +17,19 @@
   <img alt="CI Cross Platform" src="https://img.shields.io/badge/CI-Cross--Platform-green" />
 </p>
 
-Язык документации по умолчанию: English.
+<p align="center">
+  <a href="https://kosfin.github.io/Termif/">
+    <img alt="Скачать с сайта" src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-%D0%A1%D0%B0%D0%B9%D1%82-61AFEF?style=for-the-badge" />
+  </a>
+  <a href="https://github.com/KOSFin/Termif/releases">
+    <img alt="GitHub Releases" src="https://img.shields.io/badge/GitHub-Releases-98C379?style=for-the-badge&logo=github" />
+  </a>
+  <a href="CONTRIBUTING.ru.md">
+    <img alt="Участие в разработке" src="https://img.shields.io/badge/%D0%A3%D1%87%D0%B0%D1%81%D1%82%D0%B8%D0%B5-%D0%93%D0%B0%D0%B9%D0%B4-E5C07B?style=for-the-badge" />
+  </a>
+</p>
 
-Навигация по языкам: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
+Язык: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
 
 Хабы документации: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
 

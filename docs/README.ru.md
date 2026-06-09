@@ -2,7 +2,9 @@
 
 Это русскоязычный вход в документацию проекта.
 
-Для основной английской навигации откройте 🇬🇧 [docs/README.md](README.md).
+Язык: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
+
+Ссылки проекта: [Основной README](../README.ru.md) | [Сайт загрузки](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
 
 ## Основные Документы Продукта
 

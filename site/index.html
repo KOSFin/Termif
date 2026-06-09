@@ -10,14 +10,14 @@
     <meta property="og:title" content="Termif" />
     <meta property="og:description" content="A quiet, capable terminal workspace for local shells, SSH sessions, files, and editing." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="assets/termif-logo.svg" />
-    <link rel="icon" href="assets/termif-logo.svg" />
+    <meta property="og:image" content="assets/termif-logo.png" />
+    <link rel="icon" href="assets/termif-logo.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="top">
       <a class="brand" href="#">
-        <img src="assets/termif-logo.svg" alt="" />
+        <img src="assets/termif-logo.png" alt="" />
         <span>Termif</span>
       </a>
       <nav>
@@ -39,16 +39,28 @@
           </div>
           <p id="release-note" class="release-note">Release data loads directly from GitHub Releases.</p>
         </div>
-        <div class="terminal-shot" aria-label="Termif terminal preview">
-          <div class="chrome"><span></span><span></span><span></span></div>
-          <pre><code>$ ssh production
-Connected with pinned host key
-
-$ termif files ./deploy
-syncing context-bound editor...
-
-CPU 18%   RAM 42%   disk 61%
-local 18:08:11</code></pre>
+        <div class="app-preview" aria-label="Termif workspace preview">
+          <div class="preview-topbar">
+            <span class="traffic red"></span>
+            <span class="traffic yellow"></span>
+            <span class="traffic green"></span>
+            <span class="preview-tab active">prod</span>
+            <span class="preview-tab">local</span>
+          </div>
+          <div class="preview-body">
+            <aside class="preview-sidebar">
+              <span class="preview-path">/srv/app</span>
+              <span>deploy.sh</span>
+              <span>release.yml</span>
+              <span>logs</span>
+            </aside>
+            <pre><code>$ ssh prod
+known_hosts verified
+$ ./deploy.sh --check
+services ok
+files synced
+status ready</code></pre>
+          </div>
         </div>
       </section>
 
@@ -70,8 +82,8 @@ local 18:08:11</code></pre>
       <section id="downloads" class="downloads">
         <div class="section-head">
           <p class="eyebrow">GitHub Releases</p>
-          <h2>All downloads</h2>
-          <p>Choose the installer for your OS and CPU. macOS Apple Silicon uses arm64/M-series builds; Intel Macs use x64 builds.</p>
+          <h2>Downloads</h2>
+          <p>Installers are grouped by platform, version, CPU, and package type. Older versions stay collapsed until needed.</p>
         </div>
         <div id="download-grid" class="download-grid" aria-live="polite"></div>
       </section>

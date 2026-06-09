@@ -1,5 +1,9 @@
 # Screenshot Slots
 
+Language: 🇬🇧 [English](README.md)
+
+Project links: [Main README](../../README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
+
 Place product screenshots in this folder using the names below so README sections can reference stable paths.
 
 Recommended files:

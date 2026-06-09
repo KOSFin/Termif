@@ -205,22 +205,24 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   return (
     <div className="file-manager" onClick={() => setContextMenu(undefined)}>
       <div className="file-toolbar">
-        <button onClick={() => void goParentPath()} title="Back">
-          <ArrowLeft size={14} strokeWidth={2} />
-        </button>
-        <button
-          onClick={() => void loadCurrentFiles({ force: true })}
-          title="Refresh"
-        >
-          <RefreshCw size={14} strokeWidth={2} className={uiBusy ? "spin-icon" : ""} />
-        </button>
-        <button onClick={() => void onCreateEntry(false)} title="New file">
-          <FilePlus size={14} strokeWidth={2} />
-        </button>
-        <button onClick={() => void onCreateEntry(true)} title="New folder">
-          <FolderPlus size={14} strokeWidth={2} />
-        </button>
-        <span className="file-scope-source">{sourceLabel}</span>
+        <div className="file-toolbar-actions">
+          <button onClick={() => void goParentPath()} title="Back">
+            <ArrowLeft size={14} strokeWidth={2} />
+          </button>
+          <button
+            onClick={() => void loadCurrentFiles({ force: true })}
+            title="Refresh"
+          >
+            <RefreshCw size={14} strokeWidth={2} className={uiBusy ? "spin-icon" : ""} />
+          </button>
+          <button onClick={() => void onCreateEntry(false)} title="New file">
+            <FilePlus size={14} strokeWidth={2} />
+          </button>
+          <button onClick={() => void onCreateEntry(true)} title="New folder">
+            <FolderPlus size={14} strokeWidth={2} />
+          </button>
+          <span className="file-scope-source">{sourceLabel}</span>
+        </div>
         <div className="breadcrumbs" aria-label="Current path">
           {breadcrumbs.map((crumb, index) => (
             <button
@@ -232,23 +234,25 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             </button>
           ))}
         </div>
-        <button
-          className="file-scope-action"
-          type="button"
-          title="Copy path"
-          onClick={() => void onCopy(displayPath, "path")}
-        >
-          <Copy size={12} strokeWidth={2} />
-        </button>
-        <button
-          className="file-scope-action"
-          type="button"
-          title="Reveal in Finder/Explorer"
-          disabled={props.isRemote}
-          onClick={() => void onRevealPath()}
-        >
-          <ExternalLink size={12} strokeWidth={2} />
-        </button>
+        <div className="file-toolbar-path-actions">
+          <button
+            className="file-scope-action"
+            type="button"
+            title="Copy path"
+            onClick={() => void onCopy(displayPath, "path")}
+          >
+            <Copy size={12} strokeWidth={2} />
+          </button>
+          <button
+            className="file-scope-action"
+            type="button"
+            title="Reveal in Finder/Explorer"
+            disabled={props.isRemote}
+            onClick={() => void onRevealPath()}
+          >
+            <ExternalLink size={12} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {fileError ? <div className="file-status error">{fileError}</div> : null}

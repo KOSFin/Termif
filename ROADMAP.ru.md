@@ -1,5 +1,9 @@
 # Дорожная карта Termif
 
+Язык: 🇬🇧 [English](ROADMAP.md) | 🇷🇺 [Русский](ROADMAP.ru.md)
+
+Ссылки проекта: [README](README.ru.md) | [Сайт загрузки](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
+
 ## Направление
 
 Termif развивается из desktop MVP в надежное кроссплатформенное терминальное рабочее пространство. Ближайший цикл сфокусирован не на количестве новых функций, а на доверии, стабильности SSH, предсказуемом файловом workflow и качестве релизов.

@@ -41,7 +41,8 @@ function classifyAsset(asset) {
         ? "linux"
         : "other";
   const cpu = name.includes("arm64") || name.includes("aarch64") ? "arm64" : "x64";
-  const format = name.endsWith(".dmg") ? "DMG"
+  const format = name.endsWith(".sha256") || name.includes("checksum") ? "Checksum"
+    : name.endsWith(".dmg") ? "DMG"
     : name.endsWith(".app.zip") || name.endsWith(".zip") ? "App ZIP"
     : name.endsWith(".msi") ? "MSI"
     : name.endsWith(".exe") ? "EXE"
@@ -59,6 +60,27 @@ function platformLabel(os, cpu) {
   return "Other";
 }
 
+function osLabel(os) {
+  if (os === "macos") return "macOS";
+  if (os === "windows") return "Windows";
+  if (os === "linux") return "Linux";
+  return "Other";
+}
+
+function cpuLabel(os, cpu) {
+  if (os === "macos") return cpu === "arm64" ? "Apple Silicon" : "Intel";
+  if (cpu === "arm64") return "arm64";
+  return "x64";
+}
+
+function isInstaller(format) {
+  return ["DMG", "MSI", "EXE", "AppImage", "DEB", "RPM", "App ZIP"].includes(format);
+}
+
+function assetSortValue(format) {
+  return ["DMG", "MSI", "AppImage", "DEB", "EXE", "RPM", "App ZIP", "Checksum", "Artifact"].indexOf(format);
+}
+
 function findBestAsset(releases) {
   for (const release of releases) {
     const assets = (release.assets || []).map((asset) => ({ asset, meta: classifyAsset(asset) }));
@@ -69,37 +91,89 @@ function findBestAsset(releases) {
   return null;
 }
 
+function groupReleasesByOs(releases) {
+  const byOs = new Map(["windows", "macos", "linux", "other"].map((os) => [os, []]));
+
+  releases.forEach((release) => {
+    const assets = (release.assets || []).map((asset) => ({ asset, meta: classifyAsset(asset) }));
+    const groupsByOs = new Map();
+    assets.forEach(({ asset, meta }) => {
+      if (!groupsByOs.has(meta.os)) groupsByOs.set(meta.os, new Map());
+      const cpuGroups = groupsByOs.get(meta.os);
+      if (!cpuGroups.has(meta.cpu)) cpuGroups.set(meta.cpu, []);
+      cpuGroups.get(meta.cpu).push({ asset, meta });
+    });
+
+    for (const [os, cpuGroups] of groupsByOs.entries()) {
+      const versions = byOs.get(os) || byOs.get("other");
+      versions.push({ release, cpuGroups });
+    }
+  });
+
+  return byOs;
+}
+
+function renderVersion(version, os) {
+  const title = cleanCommitTitle(version.release.name || version.release.tag_name);
+  const cpuSections = [...version.cpuGroups.entries()].map(([cpu, items]) => {
+    const sortedItems = items.slice().sort((a, b) => assetSortValue(a.meta.format) - assetSortValue(b.meta.format));
+    const links = sortedItems.map(({ asset, meta }) => {
+      const primary = isInstaller(meta.format) ? " primary-asset" : "";
+      return `<a class="asset-link${primary}" href="${asset.browser_download_url}">${meta.format}</a>`;
+    }).join("");
+    return `
+      <div class="cpu-row">
+        <span>${cpuLabel(os, cpu)}</span>
+        <div class="asset-links">${links}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="version-row">
+      <div class="version-meta">
+        <strong>${version.release.tag_name}</strong>
+        <span>${title}</span>
+      </div>
+      ${cpuSections}
+    </div>
+  `;
+}
+
 function renderDownloads(releases) {
   const grid = document.getElementById("download-grid");
   grid.innerHTML = "";
 
   if (!releases.length) {
-    grid.innerHTML = `<div class="download-card"><h3>No public releases yet</h3><p>Build artifacts will appear here after the first GitHub Release is published.</p><a href="https://github.com/${REPO}/releases">Open releases</a></div>`;
+    grid.innerHTML = `<article class="download-card empty"><h3>No public releases yet</h3><p>Build artifacts will appear here after the first GitHub Release is published.</p><a class="asset-link primary-asset" href="https://github.com/${REPO}/releases">Open releases</a></article>`;
     return;
   }
 
-  releases.slice(0, 8).forEach((release) => {
-    const assets = (release.assets || []).map((asset) => ({ asset, meta: classifyAsset(asset) }));
-    const groups = new Map();
-    assets.forEach(({ asset, meta }) => {
-      const key = `${meta.os}-${meta.cpu}`;
-      if (!groups.has(key)) groups.set(key, { meta, assets: [] });
-      groups.get(key).assets.push({ asset, meta });
-    });
+  const grouped = groupReleasesByOs(releases.slice(0, 18));
 
-    for (const { meta, assets: groupAssets } of groups.values()) {
-      const preferred = groupAssets.find(({ meta: item }) => ["DMG", "MSI", "AppImage", "DEB"].includes(item.format)) || groupAssets[0];
-      const card = document.createElement("article");
-      card.className = "download-card";
-      card.innerHTML = `
-        <h3>${platformLabel(meta.os, meta.cpu)}</h3>
-        <p><strong>${release.tag_name}</strong> · ${cleanCommitTitle(release.name || release.tag_name)}</p>
-        <div class="assets">${groupAssets.map(({ meta: item }) => `<span class="asset-pill">${item.format}</span>`).join("")}</div>
-        <a href="${preferred.asset.browser_download_url}">Download ${preferred.meta.format}</a>
-      `;
-      grid.appendChild(card);
-    }
-  });
+  for (const os of ["windows", "macos", "linux", "other"]) {
+    const versions = grouped.get(os) || [];
+    if (!versions.length) continue;
+
+    const latest = versions[0];
+    const older = versions.slice(1);
+    const card = document.createElement("article");
+    card.className = `download-card os-${os}`;
+    card.innerHTML = `
+      <div class="download-card-head">
+        <h3>${osLabel(os)}</h3>
+        <span>${older.length ? `${older.length} older` : "latest only"}</span>
+      </div>
+      ${renderVersion(latest, os)}
+      ${older.length ? `
+        <details class="older-versions">
+          <summary>Older versions</summary>
+          ${older.map((version) => renderVersion(version, os)).join("")}
+        </details>
+      ` : ""}
+    `;
+    grid.appendChild(card);
+  }
 }
 
 async function init() {

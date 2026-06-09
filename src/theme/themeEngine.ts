@@ -1,3 +1,4 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CustomTheme } from "@/types/models";
 
 export interface ThemeVariable {
@@ -223,12 +224,12 @@ function setNumberVar(name: string, value: number | undefined, fallback: number)
 }
 
 function toCssImageUrl(value: string): string {
-  const normalized = value.replace(/\\/g, "/").replace(/"/g, "%22");
+  const normalized = value.replace(/\\/g, "/").trim();
+  const escaped = normalized.replace(/"/g, "%22");
   if (/^(https?|data|asset):/i.test(normalized)) return normalized;
-  if (/^file:/i.test(normalized)) return encodeURI(normalized);
-  if (/^[A-Za-z]:\//.test(normalized)) return encodeURI(`file:///${normalized}`);
-  if (normalized.startsWith("/")) return encodeURI(`file://${normalized}`);
-  return encodeURI(normalized);
+  if (/^file:/i.test(normalized)) return convertFileSrc(normalized);
+  if (/^[A-Za-z]:\//.test(normalized) || normalized.startsWith("/")) return convertFileSrc(normalized);
+  return encodeURI(escaped);
 }
 
 export function applyTheme(themeId: string, customThemes: CustomTheme[] = []): void {
