@@ -302,7 +302,7 @@ export const TerminalPane = memo(function TerminalPane({
       dataListener.dispose();
       resizeObserver.disconnect();
       if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
-      if (exitCloseTimerRef.current !== undefined) window.clearTimeout(exitCloseTimerRef.current);
+      clearTimerRef(exitCloseTimerRef);
       flushTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, onConnectionError);
       xterm.dispose();
       xtermRef.current = null;
@@ -414,6 +414,12 @@ function safeFit(fit: FitAddon) {
   }
 }
 
+function clearTimerRef(timerRef: MutableRefObject<number | undefined>) {
+  if (timerRef.current === undefined) return;
+  window.clearTimeout(timerRef.current);
+  timerRef.current = undefined;
+}
+
 function trackSshCommandForExit(
   data: string,
   commandLineRef: MutableRefObject<string>,
@@ -425,7 +431,7 @@ function trackSshCommandForExit(
       const command = commandLineRef.current.trim();
       commandLineRef.current = "";
       if (command === "exit" || command === "logout") {
-        if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
+        clearTimerRef(timerRef);
         timerRef.current = window.setTimeout(() => {
           timerRef.current = undefined;
           onExitRequested?.();

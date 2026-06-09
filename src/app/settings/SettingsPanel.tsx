@@ -119,7 +119,8 @@ function rangeProgressStyle(value: number, min: number, max: number): CSSPropert
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
-  const [draft, setDraft] = useState<AppSettings | null>(props.settings);
+  const { open, settings, onClose, onSave, initialSection, highlightSetting } = props;
+  const [draft, setDraft] = useState<AppSettings | null>(settings);
   const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
   const [themeEditorOpen, setThemeEditorOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | null>(null);
@@ -136,19 +137,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
   };
 
   useEffect(() => {
-    Promise.resolve().then(() => setDraft(props.settings));
-  }, [props.settings]);
+    Promise.resolve().then(() => setDraft(settings));
+  }, [settings]);
 
   useEffect(() => {
-    if (props.open) {
-      setActiveSection(props.initialSection ?? "appearance");
+    if (open) {
+      setActiveSection(initialSection ?? "appearance");
       setThemeEditorOpen(false);
       setEditingTheme(null);
       setSearchQuery("");
 
-      if (props.highlightSetting) {
+      if (highlightSetting) {
         window.setTimeout(() => {
-          const targetId = `setting-${props.highlightSetting?.replace(/\s+/g, "-").toLowerCase()}`;
+          const targetId = `setting-${highlightSetting.replace(/\s+/g, "-").toLowerCase()}`;
           const element = document.getElementById(targetId);
           if (!element) return;
           element.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -157,7 +158,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
         }, 120);
       }
     }
-  }, [props.open, props.initialSection, props.highlightSetting]);
+  }, [open, initialSection, highlightSetting]);
 
   useEffect(() => {
     if (draft?.appearance) {
@@ -167,28 +168,28 @@ export function SettingsPanel(props: SettingsPanelProps) {
   }, [draft?.appearance]);
 
   useEffect(() => {
-    if (!props.open || !draft || draft === props.settings) return;
+    if (!open || !draft || draft === settings) return;
     const timer = window.setTimeout(() => {
-      void props.onSave(draft);
+      void onSave(draft);
       setSavedPulse(true);
       window.setTimeout(() => setSavedPulse(false), 1200);
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [draft, props.open, props.onSave, props.settings]);
+  }, [draft, open, onSave, settings]);
 
   useEffect(() => {
-    if (!props.open || themeEditorOpen) return;
+    if (!open || themeEditorOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        props.onClose();
+        onClose();
       }
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [props.open, props.onClose, themeEditorOpen]);
+  }, [open, onClose, themeEditorOpen]);
 
-  if (!props.open || !draft) return null;
+  if (!open || !draft) return null;
 
   const hotkeyRows = getHotkeyRows(draft.hotkeys);
   const conflicts = buildConflictMap(
@@ -259,7 +260,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   };
 
   return (
-    <div className="settings-overlay" onClick={props.onClose}>
+    <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <nav className="settings-nav">
           <div className="settings-nav-header">Settings</div>
@@ -297,7 +298,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <Check size={12} strokeWidth={2} /> Saved
                 </div>
               ) : null}
-              <button onClick={props.onClose} className="ghost">
+              <button onClick={onClose} className="ghost">
                 <X size={14} strokeWidth={2} />
               </button>
             </div>

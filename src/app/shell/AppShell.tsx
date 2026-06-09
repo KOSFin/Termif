@@ -707,6 +707,7 @@ export function AppShell() {
   ), [
     activeTab,
     activeTabId,
+    closeTab,
     isInitialized,
     markTabDisconnected,
     reconnectTab,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { CustomTheme } from "@/types/models";
 import {
@@ -84,7 +84,7 @@ export function ThemeEditor({ existingTheme, customThemes, currentThemeId, onSav
     setVariables({ ...baseVals });
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
@@ -104,13 +104,13 @@ export function ThemeEditor({ existingTheme, customThemes, currentThemeId, onSav
       variables: overrides,
     };
     onSave(theme);
-  };
+  }, [baseTheme, existingTheme?.id, name, onSave, variables]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     // Revert to the theme that was active before editing
     applyTheme(currentThemeId, customThemes);
     onClose();
-  };
+  }, [currentThemeId, customThemes, onClose]);
 
   const setVar = (key: string, value: string) => {
     setVariables((prev) => ({ ...prev, [key]: value }));

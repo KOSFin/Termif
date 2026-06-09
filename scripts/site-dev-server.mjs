@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { URL } from "node:url";
 
 const root = path.resolve("site");
 const defaultPort = Number(process.env.PORT || process.env.SITE_PORT || 4173);

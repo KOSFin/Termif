@@ -54,17 +54,17 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     importedHosts, managedHosts, sshGroups,
     connectSshTab, connectSshTabWithOptions,
     saveManagedHost, deleteManagedHost, refreshHosts,
-    createHostGroup, renameHostGroup, deleteHostGroup, toast
+    createHostGroup, renameHostGroup, toast
   } = useAppStore((s) => ({
     tabs: s.tabs,
     importedHosts: s.importedHosts, managedHosts: s.managedHosts, sshGroups: s.sshGroups,
     connectSshTab: s.connectSshTab, connectSshTabWithOptions: s.connectSshTabWithOptions,
     saveManagedHost: s.saveManagedHost, deleteManagedHost: s.deleteManagedHost, 
     refreshHosts: s.refreshHosts, createHostGroup: s.createHostGroup,
-    renameHostGroup: s.renameHostGroup, deleteHostGroup: s.deleteHostGroup, toast: s.toast
+    renameHostGroup: s.renameHostGroup, toast: s.toast
   }));
 
-  const [sortMode, setSortMode] = useState<HostSortMode>("alias_asc");
+  const [sortMode] = useState<HostSortMode>("alias_asc");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set()); 
   const [connectingAlias, setConnectingAlias] = useState<string>();
   const [draggingHostId, setDraggingHostId] = useState<string>();
@@ -166,12 +166,12 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     await onConfirmConnect(alias);
   };
 
-  const onConfirmConnect = async (alias: string) => {
+  const onConfirmConnect = useCallback(async (alias: string) => {
     setConnectingAlias(alias);
     try { await connectSshTab(tabId, alias); }
     catch (e) { toast(`Connection failed: ${e instanceof Error ? e.message : String(e)}`); }
     finally { setConnectingAlias(undefined); setAlreadyConnectedModal(null); }
-  };
+  }, [connectSshTab, tabId, toast]);
 
   const handleGoToTab = (alias: string) => {
     const existingTab = tabs.find(t => t.sshAlias === alias);
@@ -186,7 +186,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     setSettingsTab(tab);
   };
 
-  const saveSettings = async () => {
+  const saveSettings = useCallback(async () => {
     if (!settingsDraft) return;
     if (!settingsDraft.alias.trim() || !settingsDraft.host_name.trim()) {       
       toast("Alias and hostname are required"); return;
@@ -194,7 +194,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     await saveManagedHost({ ...settingsDraft, alias: settingsDraft.alias.trim(), host_name: settingsDraft.host_name.trim(), source: "managed" });
     setSettingsDraft(null);
     toast("Host saved");
-  };
+  }, [saveManagedHost, settingsDraft, toast]);
 
   const deleteHost = async () => {
     if (!settingsDraft?.id || !window.confirm(`Delete "${settingsDraft.alias}"?`)) return;
@@ -236,7 +236,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     setImportModalOpen(true);
   };
 
-  const importHosts = async () => {
+  const importHosts = useCallback(async () => {
     const toImport = importedHosts.filter((h) => importSelected.has(h.alias) && !importedAliasSet.has(h.alias));
     for (const host of toImport) {
       await saveManagedHost({ ...host, id: "", source: "managed", original_alias: host.alias });
@@ -244,9 +244,9 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     setImportModalOpen(false);
     toast(`Imported ${toImport.length} host(s)`);
     await refreshHosts();
-  };
+  }, [importSelected, importedAliasSet, importedHosts, refreshHosts, saveManagedHost, toast]);
 
-  const runQuickConnect = async () => {
+  const runQuickConnect = useCallback(async () => {
     const host = qcDraft.host.trim();
     if (!host) { toast("Host is required"); return; }
     const alias = qcDraft.alias?.trim() || host;
@@ -255,7 +255,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       setQuickConnectOpen(false);
       setQcPopoverOpen(false);
     } catch (e) { toast(`Failed: ${e instanceof Error ? e.message : String(e)}`); }
-  };
+  }, [connectSshTabWithOptions, qcDraft, qcSave, tabId, toast]);
 
   const chooseIdentityFile = async (target: "settings" | "quickConnect") => {
     try {
@@ -277,13 +277,13 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     setGroupModalOpen(true);
   };
 
-  const saveGroupModal = async () => {
+  const saveGroupModal = useCallback(async () => {
     const name = groupModalName.trim();
     if (!name) return;
     if (renameGroupId) { await renameHostGroup(renameGroupId, name); toast("Group renamed"); }
     else { await createHostGroup(name); toast("Group created"); }
     setGroupModalOpen(false);
-  };
+  }, [createHostGroup, groupModalName, renameGroupId, renameHostGroup, toast]);
 
   const dragProps = (host: SshHostEntry) => ({
     draggable: true,
@@ -372,9 +372,14 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   }, [
     alreadyConnectedModal,
     groupModalOpen,
+    importHosts,
     importModalOpen,
     importSelected.size,
+    onConfirmConnect,
     quickConnectOpen,
+    runQuickConnect,
+    saveGroupModal,
+    saveSettings,
     settingsDraft,
   ]);
 
