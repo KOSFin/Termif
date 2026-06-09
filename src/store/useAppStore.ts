@@ -150,7 +150,14 @@ const FILE_LOAD_DEBOUNCE_MS = 40;
 const FILE_CACHE_FRESH_MS = 60_000;
 const dirCacheFreshAt: Record<string, number> = {};
 
-async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId">): Promise<void> {
+type SidebarTool = AppState["selectedSidebarTool"];
+
+function coerceSidebarTool(value?: string | null): SidebarTool {
+  if (value === "files" || value === "snippets" || value === "clipboard") return value;
+  return "files";
+}
+
+async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId" | "sidebarVisible" | "selectedSidebarTool">): Promise<void> {
   const payload: PersistedUiState = {
     tabs: state.tabs.map((tab) => ({
       id: tab.id,
@@ -161,7 +168,9 @@ async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId">): Pr
       session_id: tab.sessionId ?? null,
       ssh_alias: tab.sshAlias ?? null
     })),
-    active_tab_id: state.activeTabId ?? null
+    active_tab_id: state.activeTabId ?? null,
+    sidebar_visible: state.sidebarVisible,
+    selected_sidebar_tool: state.selectedSidebarTool
   };
   await invoke("save_ui_state", { uiState: payload });
 }
@@ -207,7 +216,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const [settings, persisted, hosts] = await Promise.all([
       invoke<AppSettings>("load_settings").catch(() => null),
-      invoke<PersistedUiState>("load_ui_state").catch(() => ({ tabs: [], active_tab_id: null })),
+      invoke<PersistedUiState>("load_ui_state").catch(() => ({ tabs: [], active_tab_id: null, sidebar_visible: true, selected_sidebar_tool: "files" })),
       invoke<SshHostsPayload>("load_ssh_hosts")
     ]);
 
@@ -233,7 +242,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       settings: platformSettings,
       importedHosts: hosts.imported,
       managedHosts: hosts.managed,
-      sshGroups: hosts.groups
+      sshGroups: hosts.groups,
+      sidebarVisible: persisted.sidebar_visible ?? true,
+      selectedSidebarTool: coerceSidebarTool(persisted.selected_sidebar_tool)
     });
 
     // Apply persisted theme on startup
@@ -611,13 +622,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
+  toggleSidebar: () => {
+    set((state) => ({ sidebarVisible: !state.sidebarVisible }));
+    void persistUiState(get());
+  },
 
   setPaletteOpen: (open) => set({ paletteOpen: open }),
 
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
-  setSelectedSidebarTool: (tool) => set({ selectedSidebarTool: tool }),
+  setSelectedSidebarTool: (tool) => {
+    set({ selectedSidebarTool: tool });
+    void persistUiState(get());
+  },
 
   refreshHosts: async () => {
     const payload = await invoke<SshHostsPayload>("load_ssh_hosts");

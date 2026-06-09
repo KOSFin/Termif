@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { Play, FolderPlus, Plus, Pencil, Trash2, ChevronRight, ChevronDown, GripVertical } from "lucide-react";
+import { Play, Plus, Pencil, Trash2, ChevronRight, ChevronDown, GripVertical } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 
 interface SnippetsPaneProps {
@@ -113,11 +114,6 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
     setDraftDesc(s.description);
     setDraftGroupId(s.groupId ?? "");
     setModal({ type: "edit_snippet", snippetId });
-  };
-
-  const openCreateGroup = () => {
-    setDraftGroupName("");
-    setModal({ type: "create_group" });
   };
 
   const openRenameGroup = (groupId: string) => {
@@ -238,9 +234,6 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
       <div className="snippets-header">
         <h3>Snippets</h3>
         <div className="snippets-actions">
-          <button className="ghost icon-btn" onClick={openCreateGroup} title="New group">
-            <FolderPlus size={14} strokeWidth={2} />
-          </button>
           <button className="ghost icon-btn" onClick={() => openCreateSnippet(null)} title="New snippet">
             <Plus size={14} strokeWidth={2} />
           </button>
@@ -357,7 +350,7 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
       </div>
 
       {/* ── Snippet Create/Edit Modal ── */}
-      {isSnippetModal && (
+      {isSnippetModal ? createPortal(
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -398,11 +391,12 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      ) : null}
 
       {/* ── Group Create/Rename Modal ── */}
-      {isGroupModal && (
+      {isGroupModal ? createPortal(
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -428,8 +422,9 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      ) : null}
     </div>
   );
 }

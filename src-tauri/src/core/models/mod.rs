@@ -336,10 +336,29 @@ impl Default for StatusBarSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedUiState {
     pub tabs: Vec<PersistedTab>,
     pub active_tab_id: Option<String>,
+    #[serde(default = "default_sidebar_visible")]
+    pub sidebar_visible: bool,
+    #[serde(default)]
+    pub selected_sidebar_tool: Option<String>,
+}
+
+fn default_sidebar_visible() -> bool {
+    true
+}
+
+impl Default for PersistedUiState {
+    fn default() -> Self {
+        Self {
+            tabs: Vec::new(),
+            active_tab_id: None,
+            sidebar_visible: true,
+            selected_sidebar_tool: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

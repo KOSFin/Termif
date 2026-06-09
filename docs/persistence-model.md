@@ -18,7 +18,7 @@ settings.json stores runtime preferences and interaction policy such as appearan
 
 hosts.json stores SSH groups, managed hosts, and override maps for imported host aliases/group assignments derived from ~/.ssh/config.
 
-ui_state.json stores tab presentation metadata and active tab identity used for startup restoration.
+ui_state.json stores tab presentation metadata, active tab identity, sidebar visibility, and the selected sidebar tool used for startup restoration.
 
 On the frontend, command snippets are stored in localStorage under termif.snippets.v1. Terminal scrollback snapshots are stored per tab under termif.terminal.log.\*, capped by the frontend to avoid unbounded growth.
 

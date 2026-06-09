@@ -61,8 +61,6 @@ export function TabStrip(props: TabStripProps) {
   const renameFocusedTabIdRef = useRef<string>();
   const draggingTabRef = useRef<typeof draggingTab>();
   const onReorderRef = useRef(props.onReorder);
-  const wheelDeltaRef = useRef(0);
-  const wheelFrameRef = useRef<number>();
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),
@@ -138,12 +136,6 @@ export function TabStrip(props: TabStripProps) {
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [newTabMenuOpen]);
-
-  useEffect(() => () => {
-    if (wheelFrameRef.current !== undefined) {
-      window.cancelAnimationFrame(wheelFrameRef.current);
-    }
-  }, []);
 
   useEffect(() => {
     if (!contextTabId) return;
@@ -231,20 +223,9 @@ export function TabStrip(props: TabStripProps) {
         aria-label="Terminal tabs"
         onWheel={(e) => {
           const el = scrollRef.current;
-          if (!el || el.scrollWidth <= el.clientWidth + 1) return;
-
-          const dominantDelta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-          if (dominantDelta === 0) return;
-
-          e.preventDefault();
-          wheelDeltaRef.current += dominantDelta;
-
-          if (wheelFrameRef.current === undefined) {
-            wheelFrameRef.current = window.requestAnimationFrame(() => {
-              el.scrollLeft += wheelDeltaRef.current;
-              wheelDeltaRef.current = 0;
-              wheelFrameRef.current = undefined;
-            });
+          if (el && e.deltaY !== 0) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
           }
         }}
       >

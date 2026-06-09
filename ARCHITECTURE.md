@@ -48,7 +48,7 @@ settings.json stores appearance, terminal, hotkeys, ssh, file_manager, experimen
 
 hosts.json stores managed SSH hosts, host groups, and override mappings for imported ~/.ssh/config aliases and group assignments.
 
-ui_state.json stores tab presentation metadata and active tab selection. Frontend localStorage stores snippets and bounded per-tab terminal scrollback logs.
+ui_state.json stores tab presentation metadata, active tab selection, sidebar visibility, and selected sidebar tool. Frontend localStorage stores snippets and bounded per-tab terminal scrollback logs.
 
 This model currently favors transparent, inspectable state over opaque binary formats. It also allows pragmatic backward compatibility handling via defaulting and tolerant deserialization.
 

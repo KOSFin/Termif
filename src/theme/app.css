@@ -541,28 +541,26 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   gap: 0;
   max-width: none;
-  overflow: hidden;
 }
 
 .tabstrip-scroll {
   display: flex;
   gap: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   max-width: 100%;
   min-width: 0;
-  overscroll-behavior-x: contain;
-  scroll-behavior: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
 .tabstrip-scroll.limited {
+  overflow-x: auto;
   flex: 1 1 auto;
   border-right: 1px solid var(--stroke);
 }

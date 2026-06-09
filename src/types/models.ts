@@ -134,6 +134,8 @@ export interface PersistedTab {
 export interface PersistedUiState {
   tabs: PersistedTab[];
   active_tab_id?: string | null;
+  sidebar_visible?: boolean | null;
+  selected_sidebar_tool?: "files" | "snippets" | "clipboard" | null;
 }
 
 export interface AppTab {
