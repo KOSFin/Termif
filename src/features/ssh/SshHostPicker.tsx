@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderPlus, Download, RefreshCw, ArrowRight, Paperclip, Server, Search, ChevronUp, Database, Zap, X } from "lucide-react";
+import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderOpen, Paperclip, Server, Search, ChevronUp, Zap, X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshConnectOptions, SshHostEntry } from "@/types/models";
 import { OS_LOGO_META, OsLogoBadge } from "@/features/ssh/OsLogo";
@@ -254,6 +255,20 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
       setQuickConnectOpen(false);
       setQcPopoverOpen(false);
     } catch (e) { toast(`Failed: ${e instanceof Error ? e.message : String(e)}`); }
+  };
+
+  const chooseIdentityFile = async (target: "settings" | "quickConnect") => {
+    try {
+      const selected = await openDialog({ multiple: false, directory: false });
+      if (typeof selected !== "string") return;
+      if (target === "settings") {
+        setSettingsDraft((p) => p ? { ...p, identity_file: selected } : p);
+        return;
+      }
+      setQcDraft((p) => ({ ...p, identity_file: selected }));
+    } catch (e) {
+      toast(`File picker failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   const openGroupModal = (groupId?: string) => {
@@ -562,7 +577,12 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
                   </label>
                 </div>
                 <label>Identity File
-                  <input value={settingsDraft.identity_file ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, identity_file: e.target.value } : p)} placeholder="~/.ssh/id_ed25519" />
+                  <div className="ssh-key-picker-row">
+                    <input value={settingsDraft.identity_file ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, identity_file: e.target.value } : p)} placeholder="~/.ssh/id_ed25519" />
+                    <button type="button" title="Choose identity file" onClick={() => void chooseIdentityFile("settings")}>
+                      <FolderOpen size={14} strokeWidth={2} />
+                    </button>
+                  </div>
                 </label>
                 <label>Password (optional)
                   <input type="password" value={settingsDraft.password ?? ""} onChange={(e) => setSettingsDraft((p) => p ? { ...p, password: e.target.value } : p)} placeholder="leave empty to use key" />
@@ -679,7 +699,12 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
                 </label>
               </div>
               <label>Identity File (optional)
-                <input value={qcDraft.identity_file ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, identity_file: e.target.value }))} placeholder="~/.ssh/id_ed25519" />
+                <div className="ssh-key-picker-row">
+                  <input value={qcDraft.identity_file ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, identity_file: e.target.value }))} placeholder="~/.ssh/id_ed25519" />
+                  <button type="button" title="Choose identity file" onClick={() => void chooseIdentityFile("quickConnect")}>
+                    <FolderOpen size={14} strokeWidth={2} />
+                  </button>
+                </div>
               </label>
               <label>Password (optional)
                 <input type="password" value={qcDraft.password ?? ""} onChange={(e) => setQcDraft((p) => ({ ...p, password: e.target.value }))} placeholder="leave empty to use key" />

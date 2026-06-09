@@ -133,9 +133,10 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     };
   };
 
-  const sourceLabel = displayTab?.kind === "ssh"
-    ? `SSH: ${displayTab.sshAlias ?? "unknown host"}`
-    : "Local";
+  const sourceLabel = displayTab?.kind === "ssh" ? "SSH" : "Local";
+  const sourceTitle = displayTab?.kind === "ssh" && displayTab.sshAlias
+    ? `SSH: ${displayTab.sshAlias}`
+    : sourceLabel;
 
   const uiBusy = fileLoading || fileTransitioning;
 
@@ -205,23 +206,44 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   return (
     <div className="file-manager" onClick={() => setContextMenu(undefined)}>
       <div className="file-toolbar">
-        <div className="file-toolbar-actions">
-          <button onClick={() => void goParentPath()} title="Back">
-            <ArrowLeft size={14} strokeWidth={2} />
-          </button>
-          <button
-            onClick={() => void loadCurrentFiles({ force: true })}
-            title="Refresh"
-          >
-            <RefreshCw size={14} strokeWidth={2} className={uiBusy ? "spin-icon" : ""} />
-          </button>
-          <button onClick={() => void onCreateEntry(false)} title="New file">
-            <FilePlus size={14} strokeWidth={2} />
-          </button>
-          <button onClick={() => void onCreateEntry(true)} title="New folder">
-            <FolderPlus size={14} strokeWidth={2} />
-          </button>
-          <span className="file-scope-source">{sourceLabel}</span>
+        <div className="file-toolbar-main">
+          <div className="file-toolbar-actions">
+            <button onClick={() => void goParentPath()} title="Back">
+              <ArrowLeft size={14} strokeWidth={2} />
+            </button>
+            <button
+              onClick={() => void loadCurrentFiles({ force: true })}
+              title="Refresh"
+            >
+              <RefreshCw size={14} strokeWidth={2} className={uiBusy ? "spin-icon" : ""} />
+            </button>
+            <button onClick={() => void onCreateEntry(false)} title="New file">
+              <FilePlus size={14} strokeWidth={2} />
+            </button>
+            <button onClick={() => void onCreateEntry(true)} title="New folder">
+              <FolderPlus size={14} strokeWidth={2} />
+            </button>
+            <span className="file-scope-source" title={sourceTitle}>{sourceLabel}</span>
+          </div>
+          <div className="file-toolbar-path-actions">
+            <button
+              className="file-scope-action"
+              type="button"
+              title="Copy path"
+              onClick={() => void onCopy(displayPath, "path")}
+            >
+              <Copy size={12} strokeWidth={2} />
+            </button>
+            <button
+              className="file-scope-action"
+              type="button"
+              title="Reveal in Finder/Explorer"
+              disabled={props.isRemote}
+              onClick={() => void onRevealPath()}
+            >
+              <ExternalLink size={12} strokeWidth={2} />
+            </button>
+          </div>
         </div>
         <div className="breadcrumbs" aria-label="Current path">
           {breadcrumbs.map((crumb, index) => (
@@ -233,25 +255,6 @@ export function FileManagerPane(props: FileManagerPaneProps) {
               {index > 0 ? "/ " : ""}{crumb.label}
             </button>
           ))}
-        </div>
-        <div className="file-toolbar-path-actions">
-          <button
-            className="file-scope-action"
-            type="button"
-            title="Copy path"
-            onClick={() => void onCopy(displayPath, "path")}
-          >
-            <Copy size={12} strokeWidth={2} />
-          </button>
-          <button
-            className="file-scope-action"
-            type="button"
-            title="Reveal in Finder/Explorer"
-            disabled={props.isRemote}
-            onClick={() => void onRevealPath()}
-          >
-            <ExternalLink size={12} strokeWidth={2} />
-          </button>
         </div>
       </div>
 

@@ -49,6 +49,8 @@ export function TabStrip(props: TabStripProps) {
   const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
   const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; startY: number; currentX: number; active: boolean }>();
   const [dragOverTabId, setDragOverTabId] = useState<string>();
+  const renamingTabId = renamingTab?.id;
+  const draggingTabId = draggingTab?.id;
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -56,6 +58,8 @@ export function TabStrip(props: TabStripProps) {
   const newTabMenuRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<ElementRef<"input">>(null);
+  const renameFocusedTabIdRef = useRef<string>();
+  const draggingTabRef = useRef<typeof draggingTab>();
   const onReorderRef = useRef(props.onReorder);
 
   const contextTab = useMemo(
@@ -68,12 +72,17 @@ export function TabStrip(props: TabStripProps) {
     onReorderRef.current = props.onReorder;
   }, [props.onReorder]);
 
+  useEffect(() => {
+    draggingTabRef.current = draggingTab;
+  }, [draggingTab]);
+
   const closeContext = () => {
     setContextTabId(undefined);
     setContextPosition(undefined);
   };
 
   const startRename = (tab: AppTab) => {
+    renameFocusedTabIdRef.current = undefined;
     setRenamingTab({ id: tab.id, value: tab.title });
     closeContext();
   };
@@ -148,15 +157,21 @@ export function TabStrip(props: TabStripProps) {
   }, [contextTabId]);
 
   useEffect(() => {
-    if (!renamingTab) return;
+    if (!renamingTabId) {
+      renameFocusedTabIdRef.current = undefined;
+      return;
+    }
+    if (renameFocusedTabIdRef.current === renamingTabId) return;
+    renameFocusedTabIdRef.current = renamingTabId;
     requestAnimationFrame(() => {
       renameInputRef.current?.focus();
       renameInputRef.current?.select();
     });
-  }, [renamingTab]);
+  }, [renamingTabId]);
 
   useEffect(() => {
-    if (!draggingTab) return;
+    const draggingState = draggingTabRef.current;
+    if (!draggingState) return;
 
     const findTabUnderPointer = (clientX: number, clientY: number) => {
       const element = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-tab-id]");
@@ -165,22 +180,22 @@ export function TabStrip(props: TabStripProps) {
 
     const onMove = (event: MouseEvent) => {
       const moved =
-        Math.abs(event.clientX - draggingTab.startX) > 5 ||
-        Math.abs(event.clientY - draggingTab.startY) > 5;
+        Math.abs(event.clientX - draggingState.startX) > 5 ||
+        Math.abs(event.clientY - draggingState.startY) > 5;
       setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX, active: prev.active || moved } : prev);
-      if (!draggingTab.active && !moved) return;
+      if (!draggingState.active && !moved) return;
       const overId = findTabUnderPointer(event.clientX, event.clientY);
-      setDragOverTabId(overId && overId !== draggingTab.id ? overId : undefined);
+      setDragOverTabId(overId && overId !== draggingState.id ? overId : undefined);
     };
 
     const onUp = (event: MouseEvent) => {
       const overId = findTabUnderPointer(event.clientX, event.clientY);
       const moved =
-        draggingTab.active ||
-        Math.abs(event.clientX - draggingTab.startX) > 5 ||
-        Math.abs(event.clientY - draggingTab.startY) > 5;
-      if (moved && overId && overId !== draggingTab.id) {
-        onReorderRef.current(draggingTab.id, overId);
+        draggingState.active ||
+        Math.abs(event.clientX - draggingState.startX) > 5 ||
+        Math.abs(event.clientY - draggingState.startY) > 5;
+      if (moved && overId && overId !== draggingState.id) {
+        onReorderRef.current(draggingState.id, overId);
       }
       setDraggingTab(undefined);
       setDragOverTabId(undefined);
@@ -197,7 +212,7 @@ export function TabStrip(props: TabStripProps) {
       document.removeEventListener("mousemove", onMove, true);
       document.removeEventListener("mouseup", onUp, true);
     };
-  }, [draggingTab?.id]);
+  }, [draggingTabId]);
 
   return (
     <div className="tabstrip" ref={stripRef}>

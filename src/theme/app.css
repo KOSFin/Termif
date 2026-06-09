@@ -841,11 +841,19 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .file-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 7px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--stroke) 45%, transparent);
+  min-width: 0;
+}
+
+.file-toolbar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -858,12 +866,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .file-toolbar-actions {
-  grid-column: 1 / 2;
+  flex: 1 1 auto;
 }
 
 .file-toolbar-path-actions {
-  grid-column: 2 / 3;
-  justify-self: end;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .file-toolbar button {
@@ -901,8 +909,7 @@ input[type="range"]::-moz-range-thumb {
 .breadcrumbs {
   display: flex;
   gap: 2px;
-  grid-column: 1 / -1;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
   width: 100%;
   padding: 0 2px;
@@ -910,6 +917,8 @@ input[type="range"]::-moz-range-thumb {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
 }
 
 .breadcrumbs::-webkit-scrollbar {
@@ -917,6 +926,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .breadcrumbs button {
+  flex: 0 0 auto;
   width: auto;
   height: 24px;
   padding: 3px 6px;
@@ -1126,7 +1136,8 @@ input[type="range"]::-moz-range-thumb {
   content: "";
   position: absolute;
   inset: 0;
-  background: transparent;
+  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 58%), transparent);
+  pointer-events: none;
 }
 
 .terminal-pane .xterm {
@@ -1142,35 +1153,12 @@ input[type="range"]::-moz-range-thumb {
 
 .terminal-pane .xterm-viewport {
   background: transparent !important;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 52%, var(--text-muted) 28%) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.terminal-pane .xterm-viewport::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-.terminal-pane .xterm-viewport::-webkit-scrollbar-thumb {
-  min-height: 44px;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-color: color-mix(in srgb, var(--accent) 52%, var(--text-muted) 28%);
-  background-clip: content-box;
-}
-
-.terminal-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in srgb, var(--accent) 76%, var(--text) 12%);
-}
-
-.terminal-pane .xterm-viewport::-webkit-scrollbar-button,
-.terminal-pane .xterm-viewport::-webkit-scrollbar-corner {
   display: none;
-  background-color: transparent;
 }
 
 /* == SSH Connecting overlay ==================================== */
@@ -2516,6 +2504,21 @@ input[type="range"]::-moz-range-thumb {
   height: 34px;
   padding: 0 12px;
   white-space: nowrap;
+}
+
+.ssh-key-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.ssh-key-picker-row button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 
 .theme-system-selects {
