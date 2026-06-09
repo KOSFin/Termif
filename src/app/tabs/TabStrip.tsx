@@ -3,13 +3,7 @@ import { X, ChevronDown, Plus, Terminal, Globe, Monitor } from "lucide-react";
 import { getShellProfileOptions } from "@/platform/platform";
 import type { AppTab } from "@/types/models";
 import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/SshHostPicker";
-
-const OS_ICON_COLORS: Record<string, string> = {
-  ubuntu: "#E95420", debian: "#A80030", centos: "#932279",
-  fedora: "#294172", arch: "#1793D1", alpine: "#0D597F",
-  rhel: "#EE0000", rocky: "#10B981", freebsd: "#AB2B28",
-  windows: "#0078D4", macos: "#A2AAAD",
-};
+import { OsLogoBadge } from "@/features/ssh/OsLogo";
 
 function resolveTabIcon(tab: AppTab): ReactNode {
   if (tab.kind === "ssh" || tab.kind === "ssh_picker") {
@@ -20,8 +14,7 @@ function resolveTabIcon(tab: AppTab): ReactNode {
           const cache = JSON.parse(raw) as Record<string, OsInfo>;
           const osInfo = cache[tab.sshAlias];
           if (osInfo?.os) {
-            const color = OS_ICON_COLORS[osInfo.os];
-            if (color) return <span className="tab-icon-dot" style={{ background: color }} />;
+            return <OsLogoBadge os={osInfo.os} version={osInfo.version} className="tab-os-logo" />;
           }
         }
       } catch { /* ignore */ }
@@ -41,6 +34,7 @@ interface TabStripProps {
   onNewSsh: () => void;
   onRename: (tabId: string, name: string) => void;
   onColor: (tabId: string, color: string) => void;
+  onReorder: (fromTabId: string, toTabId: string) => void;
   onDuplicate: (tabId: string) => void;
   onClose: (tabId: string) => void;
 }
@@ -53,6 +47,8 @@ export function TabStrip(props: TabStripProps) {
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const [scrollLimited, setScrollLimited] = useState(false);
   const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
+  const [draggingTabId, setDraggingTabId] = useState<string>();
+  const [dragOverTabId, setDragOverTabId] = useState<string>();
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -152,16 +148,53 @@ export function TabStrip(props: TabStripProps) {
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
           return (
-            <button
+            <div
               key={tab.id}
-              className={`tab ${active ? "active" : ""}`}
+              className={`tab ${active ? "active" : ""}${draggingTabId === tab.id ? " dragging" : ""}${dragOverTabId === tab.id && draggingTabId !== tab.id ? " drag-over" : ""}`}
               style={{ "--tab-color": tab.color } as CSSProperties}
+              role="tab"
+              tabIndex={0}
+              aria-selected={active}
+              draggable={!renamingTab}
               onClick={() => props.onSelectTab(tab.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  props.onSelectTab(tab.id);
+                }
+              }}
               onContextMenu={(event) => {
                 event.preventDefault();
                 const pos = clampMenuPosition(event.clientX, event.clientY);
                 setContextTabId(tab.id);
                 setContextPosition(pos);
+              }}
+              onDragStart={(event) => {
+                setDraggingTabId(tab.id);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", tab.id);
+              }}
+              onDragOver={(event) => {
+                if (!draggingTabId || draggingTabId === tab.id) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setDragOverTabId(tab.id);
+              }}
+              onDragLeave={(event) => {
+                if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
+                  setDragOverTabId((prev) => (prev === tab.id ? undefined : prev));
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const from = draggingTabId ?? event.dataTransfer.getData("text/plain");
+                if (from) props.onReorder(from, tab.id);
+                setDraggingTabId(undefined);
+                setDragOverTabId(undefined);
+              }}
+              onDragEnd={() => {
+                setDraggingTabId(undefined);
+                setDragOverTabId(undefined);
               }}
             >
               <span className="tab-icon">{resolveTabIcon(tab)}</span>
@@ -172,6 +205,7 @@ export function TabStrip(props: TabStripProps) {
                   value={renamingTab.value}
                   onClick={(event) => event.stopPropagation()}
                   onMouseDown={(event) => event.stopPropagation()}
+                  onKeyUp={(event) => event.stopPropagation()}
                   onChange={(event) => setRenamingTab({ id: tab.id, value: event.target.value })}
                   onBlur={commitRename}
                   onKeyDown={(event) => {
@@ -187,17 +221,18 @@ export function TabStrip(props: TabStripProps) {
               ) : (
                 <span className="tab-title">{tab.title}</span>
               )}
-              <span
+              <button
                 className="tab-close"
-                role="button"
+                type="button"
+                title="Close tab"
                 onClick={(e) => {
                   e.stopPropagation();
                   props.onClose(tab.id);
                 }}
               >
                 <X size={11} strokeWidth={2.5} />
-              </span>
-            </button>
+              </button>
+            </div>
           );
         })}
       </div>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderPlus, Download, RefreshCw, ArrowRight, Paperclip, Server, Search, ChevronUp, Database, Zap, X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshConnectOptions, SshHostEntry } from "@/types/models";
+import { OS_LOGO_META, OsLogoBadge } from "@/features/ssh/OsLogo";
 
 interface SshHostPickerProps {
   tabId: string;
@@ -17,21 +18,6 @@ export interface OsInfo {
   os: string;
   version?: string;
 }
-
-const OS_META: Record<string, { bg: string; label: string; name: string }> = {
-  ubuntu:  { bg: "#E95420", label: "U",  name: "Ubuntu" },
-  debian:  { bg: "#A80030", label: "D",  name: "Debian" },
-  centos:  { bg: "#932279", label: "C",  name: "CentOS" },
-  fedora:  { bg: "#294172", label: "F",  name: "Fedora" },
-  arch:    { bg: "#1793D1", label: "A",  name: "Arch" },
-  alpine:  { bg: "#0D597F", label: "α",  name: "Alpine" },
-  rhel:    { bg: "#CC0000", label: "R",  name: "RHEL" },
-  rocky:   { bg: "#10B981", label: "R",  name: "Rocky" },
-  freebsd: { bg: "#AB2B28", label: "B",  name: "FreeBSD" },
-  windows: { bg: "#0078D4", label: "W",  name: "Windows" },
-  macos:   { bg: "#555555", label: "M",  name: "macOS" },
-  linux:   { bg: "#F7C220", label: "L",  name: "Linux" },
-};
 
 const HOST_COLORS = [
   "#4a8fe7", "#3dba84", "#e0a84a", "#e05468",
@@ -86,7 +72,12 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
   // Connected state
   const connectedHostAliases = useMemo(() => {
-    return new Set(tabs.map(t => t.sshAlias).filter(Boolean));
+    return new Set(
+      tabs
+        .filter((tab) => tab.kind === "ssh" && !!tab.sessionId)
+        .map((tab) => tab.sshAlias)
+        .filter(Boolean)
+    );
   }, [tabs]);
 
   // Tab Filter
@@ -779,7 +770,7 @@ interface HostCardProps {
 }
 
 function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings, draggable, onDragStart, onDragEnd }: HostCardProps) {
-  const osMeta = osInfo?.os ? OS_META[osInfo.os] : null;
+  const osMeta = osInfo?.os ? OS_LOGO_META[osInfo.os] : null;
   const subtitle = [host.user ? `${host.user}@` : "", host.host_name, host.port && host.port !== 22 ? `:${host.port}` : ""].join("");
   const color = getHostColor(host.alias);
 
@@ -807,9 +798,7 @@ function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings
 
       <div className="host-card-new-core">
         {osMeta ? (
-          <div className="host-card-new-icon os-icon" style={{ background: osMeta.bg }}>
-            {osMeta.label}
-          </div>
+          <OsLogoBadge os={osInfo!.os} version={osInfo?.version} className="host-card-new-icon os-icon" />
         ) : (
           <div className="host-card-new-icon" style={{ background: color }}>
             {getInitial(host.alias)}

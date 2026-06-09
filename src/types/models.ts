@@ -70,6 +70,7 @@ export interface AppSettings {
     modal_blur?: number;
     modal_dimming?: number;
     border_radius?: number;
+    window_opacity?: number;
     panel_opacity?: number;
     topbar_opacity?: number;
     terminal_opacity?: number;

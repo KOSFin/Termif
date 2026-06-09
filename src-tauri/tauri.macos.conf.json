@@ -11,6 +11,7 @@
         "resizable": true,
         "center": true,
         "maximized": false,
+        "transparent": true,
         "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,

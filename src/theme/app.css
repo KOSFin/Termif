@@ -11,7 +11,7 @@ body,
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   color: var(--text);
-  background: var(--bg);
+  background: transparent;
 }
 
 body::before {
@@ -123,6 +123,61 @@ textarea:focus {
   border-color: var(--accent);
 }
 
+input[type="range"] {
+  appearance: none;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 82%, var(--accent-2)) 0%,
+      color-mix(in srgb, var(--accent-2) 58%, var(--accent)) var(--range-progress, 0%),
+      var(--bg-surface) var(--range-progress, 0%),
+      var(--bg-surface) 100%
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stroke) 55%, transparent);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-elev-1);
+  background: var(--text-bright);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 80%, var(--accent-2));
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-elev-1);
+  background: var(--text-bright);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
 /* == App root ================================================= */
 
 .app-root {
@@ -131,6 +186,7 @@ textarea:focus {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
 }
 
 /* == Topbar =================================================== */
@@ -351,7 +407,7 @@ textarea:focus {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: transparent;
 }
 
 /* == Sidebar ================================================== */
@@ -432,7 +488,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg);
+  background: transparent;
   position: relative;
 }
 
@@ -518,6 +574,8 @@ textarea:focus {
   position: relative;
   transition: background 0.1s, color 0.1s;
   background: color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
+  cursor: default;
+  user-select: none;
 }
 
 .tab:hover {
@@ -547,6 +605,25 @@ textarea:focus {
   background: var(--tab-color, var(--accent));
 }
 
+.tab.dragging {
+  opacity: 0.62;
+}
+
+.tab.drag-over {
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 45%, transparent);
+}
+
+.tab.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .tab-icon {
   display: inline-flex;
   align-items: center;
@@ -558,11 +635,23 @@ textarea:focus {
   color: var(--text);
 }
 
-.tab-icon-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
+.os-logo-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--os-logo-bg);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.os-logo-badge svg {
+  width: 76%;
+  height: 76%;
+  display: block;
+  fill: currentColor;
 }
 
 .tab-close {
@@ -1001,12 +1090,12 @@ textarea:focus {
 
 .terminal-pane .xterm-viewport {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--accent) 70%, var(--text-muted) 18%) transparent;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-track {
@@ -1014,14 +1103,25 @@ textarea:focus {
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
+  min-height: 48px;
+  border: 3px solid transparent;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 86%, var(--text-bright) 10%),
+      color-mix(in srgb, var(--accent-2) 58%, var(--accent))
+    );
   background-clip: content-box;
 }
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 95%, var(--text-bright) 14%),
+      color-mix(in srgb, var(--accent-2) 70%, var(--accent))
+    );
   background-clip: content-box;
 }
 
@@ -1072,6 +1172,56 @@ textarea:focus {
   max-width: 72ch;
   text-align: center;
   font-size: 12px;
+}
+
+.terminal-detached {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent-dim) 70%, transparent), transparent 34%),
+    color-mix(in srgb, var(--bg) 76%, transparent);
+}
+
+.terminal-detached-panel {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 72%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elev-1) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+}
+
+.terminal-detached-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+}
+
+.terminal-detached-panel h3 {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 20px;
+}
+
+.terminal-detached-panel p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.terminal-detached-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 /* == SSH picker =============================================== */
@@ -1319,7 +1469,9 @@ textarea:focus {
 
 .host-card-icon.os-icon {
   border-radius: 50%;
-  font-size: 15px;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .host-card-icon-lg {
@@ -2299,6 +2451,19 @@ textarea:focus {
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
+}
+
+.settings-file-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-file-picker-row button {
+  height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .settings-divider {
@@ -4069,6 +4234,12 @@ textarea:focus {
   font-size: 1.1rem;
   flex-shrink: 0;
   transition: transform 0.15s ease;
+}
+
+.host-card-new-icon.os-icon {
+  border-radius: 10px;
+  background: var(--os-logo-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 .host-card-new:hover .host-card-new-icon {
   transform: scale(1.05);

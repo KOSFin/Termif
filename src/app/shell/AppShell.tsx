@@ -51,6 +51,7 @@ export function AppShell() {
     duplicateTab,
     renameTab,
     setTabColor,
+    reorderTabs,
     setActiveTab,
     setPaletteOpen,
     setSettingsOpen,
@@ -97,6 +98,7 @@ export function AppShell() {
     duplicateTab: state.duplicateTab,
     renameTab: state.renameTab,
     setTabColor: state.setTabColor,
+    reorderTabs: state.reorderTabs,
     setActiveTab: state.setActiveTab,
     setPaletteOpen: state.setPaletteOpen,
     setSettingsOpen: state.setSettingsOpen,
@@ -125,7 +127,7 @@ export function AppShell() {
   }));
 
   const connectHostFromPalette = useCallback((alias: string) => {
-    const existing = tabs.find((tab) => tab.kind === "ssh" && tab.sshAlias === alias);
+    const existing = tabs.find((tab) => tab.kind === "ssh" && tab.sshAlias === alias && tab.sessionId);
     if (existing) {
       setActiveTab(existing.id);
       return;
@@ -652,6 +654,22 @@ export function AppShell() {
     <>
       {isInitialized && activeTab?.kind === "ssh_picker" ? <SshHostPicker tabId={activeTab.id} /> : null}
 
+      {isInitialized && activeTab?.kind === "ssh" && !activeTab.sessionId ? (
+        <div className="terminal-detached">
+          <div className="terminal-detached-panel">
+            <div className="terminal-detached-kicker">SSH session detached</div>
+            <h3>{activeTab.sshAlias ?? activeTab.title}</h3>
+            <p>{tabDisconnectReasons[activeTab.id] ?? "This tab no longer has a live terminal channel."}</p>
+            <div className="terminal-detached-actions">
+              <button className="primary" onClick={() => void reconnectTab(activeTab.id)} disabled={!!reconnectingTabs[activeTab.id]}>
+                {reconnectingTabs[activeTab.id] ? "Reconnecting..." : "Reconnect"}
+              </button>
+              <button className="ghost" onClick={() => void closeTab(activeTab.id)}>Close Tab</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isInitialized &&
         tabs
           .filter((t) => (t.kind === "local" || t.kind === "ssh") && t.sessionId)
@@ -672,6 +690,9 @@ export function AppShell() {
               }}
               onReconnect={() => {
                 void reconnectTab(t.id);
+              }}
+              onExitRequested={() => {
+                void closeTab(t.id);
               }}
             />
           ))}
@@ -761,6 +782,7 @@ export function AppShell() {
           onNewSsh={createSshPickerTab}
           onRename={renameTab}
           onColor={setTabColor}
+          onReorder={reorderTabs}
           onDuplicate={(tabId) => {
             void duplicateTab(tabId);
           }}

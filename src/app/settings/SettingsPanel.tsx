@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   Palette,
   TerminalSquare,
@@ -113,6 +114,11 @@ function getHotkeyRows(bindings: Array<{ command_id: string; primary: string; al
   });
 }
 
+function rangeProgressStyle(value: number, min: number, max: number): CSSProperties {
+  const pct = ((value - min) / (max - min)) * 100;
+  return { "--range-progress": `${Math.max(0, Math.min(100, pct))}%` } as CSSProperties;
+}
+
 export function SettingsPanel(props: SettingsPanelProps) {
   const [draft, setDraft] = useState<AppSettings | null>(props.settings);
   const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
@@ -212,6 +218,20 @@ export function SettingsPanel(props: SettingsPanelProps) {
     applyThemeEngine(themeId, customThemes);
     setDraft((p) =>
       p ? { ...p, appearance: { ...p.appearance, theme: themeId } } : p
+    );
+  };
+
+  const chooseTerminalBackgroundImage = async () => {
+    const selected = await openDialog({
+      multiple: false,
+      directory: false,
+      filters: [
+        { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] },
+      ],
+    });
+    if (typeof selected !== "string") return;
+    setDraft((p) =>
+      p ? { ...p, appearance: { ...p.appearance, terminal_background_image: selected } } : p
     );
   };
 
@@ -369,6 +389,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="20"
                   step="1"
                   value={draft.appearance.modal_blur ?? 4}
+                  style={rangeProgressStyle(draft.appearance.modal_blur ?? 4, 0, 20)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, modal_blur: Number(e.target.value) } } : p
@@ -384,6 +405,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="1"
                   step="0.05"
                   value={draft.appearance.modal_dimming ?? 0.55}
+                  style={rangeProgressStyle(draft.appearance.modal_dimming ?? 0.55, 0, 1)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, modal_dimming: Number(e.target.value) } } : p
@@ -405,6 +427,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
+              <div id="setting-window-opacity" className="settings-row" style={{ display: matches("window opacity", "glass", "transparency", "desktop") ? undefined : "none" }}>
+                <label>Window Opacity</label>
+                <input
+                  type="range"
+                  min="0.55"
+                  max="1"
+                  step="0.01"
+                  value={draft.appearance.window_opacity ?? 1}
+                  style={rangeProgressStyle(draft.appearance.window_opacity ?? 1, 0.55, 1)}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, window_opacity: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
               <div id="setting-panel-opacity" className="settings-row" style={{ display: matches("panel opacity", "transparency", "appearance") ? undefined : "none" }}>
                 <label>Panel Opacity</label>
                 <input
@@ -413,6 +451,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="1"
                   step="0.01"
                   value={draft.appearance.panel_opacity ?? 1}
+                  style={rangeProgressStyle(draft.appearance.panel_opacity ?? 1, 0.65, 1)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, panel_opacity: Number(e.target.value) } } : p
@@ -428,6 +467,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="1"
                   step="0.01"
                   value={draft.appearance.topbar_opacity ?? 0.88}
+                  style={rangeProgressStyle(draft.appearance.topbar_opacity ?? 0.88, 0.55, 1)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, topbar_opacity: Number(e.target.value) } } : p
@@ -443,6 +483,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="1"
                   step="0.01"
                   value={draft.appearance.terminal_opacity ?? 1}
+                  style={rangeProgressStyle(draft.appearance.terminal_opacity ?? 1, 0.35, 1)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, terminal_opacity: Number(e.target.value) } } : p
@@ -452,15 +493,33 @@ export function SettingsPanel(props: SettingsPanelProps) {
               </div>
               <div id="setting-terminal-background-image" className="settings-row" style={{ display: matches("terminal background image", "wallpaper", "background image", "terminal personalization") ? undefined : "none" }}>
                 <label>Terminal Background Image</label>
-                <input
-                  value={draft.appearance.terminal_background_image ?? ""}
-                  placeholder="/path/to/image.png"
-                  onChange={(e) =>
-                    setDraft((p) =>
-                      p ? { ...p, appearance: { ...p.appearance, terminal_background_image: e.target.value } } : p
-                    )
-                  }
-                />
+                <div className="settings-file-picker-row">
+                  <input
+                    value={draft.appearance.terminal_background_image ?? ""}
+                    placeholder="/path/to/image.png"
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        p ? { ...p, appearance: { ...p.appearance, terminal_background_image: e.target.value } } : p
+                      )
+                    }
+                  />
+                  <button type="button" onClick={() => void chooseTerminalBackgroundImage()}>
+                    Browse
+                  </button>
+                  {(draft.appearance.terminal_background_image ?? "").trim() ? (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() =>
+                        setDraft((p) =>
+                          p ? { ...p, appearance: { ...p.appearance, terminal_background_image: "" } } : p
+                        )
+                      }
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <div id="setting-terminal-background-dim" className="settings-row" style={{ display: matches("terminal background dim", "wallpaper dim", "background image", "terminal personalization") ? undefined : "none" }}>
                 <label>Terminal Background Dimming</label>
@@ -470,6 +529,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   max="0.9"
                   step="0.01"
                   value={draft.appearance.terminal_background_dim ?? 0.35}
+                  style={rangeProgressStyle(draft.appearance.terminal_background_dim ?? 0.35, 0, 0.9)}
                   onChange={(e) =>
                     setDraft((p) =>
                       p ? { ...p, appearance: { ...p.appearance, terminal_background_dim: Number(e.target.value) } } : p

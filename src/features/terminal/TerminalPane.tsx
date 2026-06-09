@@ -29,6 +29,7 @@ interface TerminalPaneProps {
   reconnecting?: boolean;
   onConnectionError?: (message: string) => void;
   onReconnect?: () => void;
+  onExitRequested?: () => void;
 }
 
 // OS detection patterns
@@ -82,6 +83,7 @@ export const TerminalPane = memo(function TerminalPane({
   reconnecting,
   onConnectionError,
   onReconnect,
+  onExitRequested,
 }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
@@ -89,6 +91,8 @@ export const TerminalPane = memo(function TerminalPane({
   const visibleRef = useRef<boolean>(isVisible);
   const inputBufferRef = useRef<string>("");
   const inputFlushTimerRef = useRef<number | undefined>();
+  const commandLineRef = useRef<string>("");
+  const exitCloseTimerRef = useRef<number | undefined>();
 
   const [connecting, setConnecting] = useState<boolean>(!!sshAlias);
   const connectingRef = useRef<boolean>(!!sshAlias);
@@ -149,6 +153,9 @@ export const TerminalPane = memo(function TerminalPane({
     };
 
     const queueInput = (data: string) => {
+      if (isSSH) {
+        trackSshCommandForExit(data, commandLineRef, exitCloseTimerRef, onExitRequested);
+      }
       queueTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, data, onConnectionError);
     };
 
@@ -294,6 +301,7 @@ export const TerminalPane = memo(function TerminalPane({
       dataListener.dispose();
       resizeObserver.disconnect();
       if (resizeTimer !== undefined) window.clearTimeout(resizeTimer);
+      if (exitCloseTimerRef.current !== undefined) window.clearTimeout(exitCloseTimerRef.current);
       flushTerminalInput(inputBufferRef, inputFlushTimerRef, sessionId, onConnectionError);
       xterm.dispose();
       xtermRef.current = null;
@@ -403,6 +411,42 @@ function safeFit(fit: FitAddon) {
     }
   } catch {
     // Ignore
+  }
+}
+
+function trackSshCommandForExit(
+  data: string,
+  commandLineRef: MutableRefObject<string>,
+  timerRef: MutableRefObject<number | undefined>,
+  onExitRequested?: () => void,
+) {
+  for (const char of data) {
+    if (char === "\r" || char === "\n") {
+      const command = commandLineRef.current.trim();
+      commandLineRef.current = "";
+      if (command === "exit" || command === "logout") {
+        if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => {
+          timerRef.current = undefined;
+          onExitRequested?.();
+        }, 180);
+      }
+      continue;
+    }
+
+    if (char === "\x03") {
+      commandLineRef.current = "";
+      continue;
+    }
+
+    if (char === "\x7f" || char === "\b") {
+      commandLineRef.current = commandLineRef.current.slice(0, -1);
+      continue;
+    }
+
+    if (char >= " " && char !== "\x7f") {
+      commandLineRef.current += char;
+    }
   }
 }
 

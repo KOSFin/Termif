@@ -120,6 +120,7 @@ export function applyAppearanceOverrides(appearance?: {
   modal_blur?: number;
   modal_dimming?: number;
   border_radius?: number;
+  window_opacity?: number;
   accent_color?: string;
   panel_opacity?: number;
   topbar_opacity?: number;
@@ -152,6 +153,7 @@ export function applyAppearanceOverrides(appearance?: {
   }
 
   setNumberVar("--panel-opacity", appearance.panel_opacity, 1);
+  setNumberVar("--window-opacity", appearance.window_opacity, 1);
   setNumberVar("--topbar-opacity", appearance.topbar_opacity, 0.88);
   setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
   setNumberVar("--terminal-bg-dim", appearance.terminal_background_dim, 0.35);

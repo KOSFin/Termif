@@ -92,6 +92,7 @@ interface AppState {
   duplicateTab: (tabId: string) => Promise<void>;
   renameTab: (tabId: string, name: string) => void;
   setTabColor: (tabId: string, color: string) => void;
+  reorderTabs: (fromTabId: string, toTabId: string) => void;
   setActiveTab: (tabId: string) => void;
   activateNextTab: () => void;
   activatePrevTab: () => void;
@@ -240,6 +241,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     applyAppearanceOverrides(platformSettings?.appearance);
 
     const restoredTabs: AppTab[] = [];
+    const restoredDisconnectReasons: Record<string, string> = {};
     for (const savedTab of persisted.tabs) {
       if (savedTab.kind === "local") {
         try {
@@ -263,9 +265,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           title: savedTab.title,
           color: savedTab.color,
           icon: "globe",
-          kind: "ssh_picker",
+          kind: "ssh",
           sshAlias: savedTab.ssh_alias
         });
+        restoredDisconnectReasons[savedTab.id] = "The app was restarted and the SSH channel is no longer attached.";
       } else {
         restoredTabs.push({
           id: savedTab.id,
@@ -283,6 +286,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         tabs: restoredTabs,
         activeTabId: persisted.active_tab_id ?? restoredTabs[0].id,
+        tabDisconnectReasons: restoredDisconnectReasons,
         fileTransitioning: true,
         selectedFile: undefined,
         isInitialized: true
@@ -542,6 +546,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       tabs: state.tabs.map((tab) => (tab.id === tabId ? { ...tab, color } : tab))
     }));
+    void persistUiState(get());
+  },
+
+  reorderTabs: (fromTabId, toTabId) => {
+    if (fromTabId === toTabId) return;
+    set((state) => {
+      const fromIndex = state.tabs.findIndex((tab) => tab.id === fromTabId);
+      const toIndex = state.tabs.findIndex((tab) => tab.id === toTabId);
+      if (fromIndex < 0 || toIndex < 0) return {};
+
+      const tabs = [...state.tabs];
+      const [moved] = tabs.splice(fromIndex, 1);
+      tabs.splice(toIndex, 0, moved);
+      return { tabs };
+    });
     void persistUiState(get());
   },
 
