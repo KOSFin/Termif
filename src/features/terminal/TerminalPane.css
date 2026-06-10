@@ -51,6 +51,8 @@
 .terminal-pane .xterm {
   letter-spacing: 0;
   color: var(--text);
+  --terminal-selection-bg: color-mix(in srgb, var(--accent) 34%, transparent);
+  --terminal-selection-inactive-bg: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .terminal-pane .xterm,
@@ -68,6 +70,19 @@
 
 .terminal-pane .xterm-viewport::-webkit-scrollbar {
   display: none;
+}
+
+.terminal-pane .xterm .xterm-selection div {
+  background-color: var(--terminal-selection-bg) !important;
+}
+
+.terminal-pane .xterm:not(.focus) .xterm-selection div {
+  background-color: var(--terminal-selection-inactive-bg) !important;
+}
+
+.terminal-pane .xterm ::selection {
+  background: var(--terminal-selection-bg);
+  color: var(--text-bright);
 }
 
 html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before {

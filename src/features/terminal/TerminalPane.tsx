@@ -595,7 +595,6 @@ function flushTerminalLog(
 function buildXtermTheme(customColors?: Record<string, string>) {
   const bg = readCssVar("--bg", "#1a1d23");
   const bgElev = readCssVar("--bg-elev-1", "#21252b");
-  const bgHover = readCssVar("--bg-hover", "#2c313a");
   const text = readCssVar("--text", "#abb2bf");
   const textBright = readCssVar("--text-bright", "#e6e8ee");
   const textMuted = readCssVar("--text-muted", "#636d83");
@@ -628,13 +627,17 @@ function buildXtermTheme(customColors?: Record<string, string>) {
   };
   const foreground = lightTheme ? lightAnsi.foreground : text;
   const cursor = lightTheme ? lightAnsi.cursor : accent;
+  const selectionBase = c.selectionBackground ?? accent;
+  const selectionBackground = colorWithAlpha(selectionBase, lightTheme ? 0.26 : 0.34) ?? colorWithAlpha(accent, lightTheme ? 0.26 : 0.34) ?? "rgba(97, 175, 239, 0.34)";
+  const selectionInactiveBackground = colorWithAlpha(selectionBase, lightTheme ? 0.14 : 0.18) ?? colorWithAlpha(accent, lightTheme ? 0.14 : 0.18) ?? "rgba(97, 175, 239, 0.18)";
 
   return {
     background: transparentBackground,
     foreground: readableColor(c.foreground, bg, foreground),
     cursor: readableColor(c.cursor, bg, cursor),
     cursorAccent: c.cursorAccent ?? bg,
-    selectionBackground: c.selectionBackground ?? c.selection ?? colorMixFallback(bgHover, accent, 0.18),
+    selectionBackground,
+    selectionInactiveBackground,
     selectionForeground: readableColor(c.selectionForeground, bg, lightTheme ? lightAnsi.brightWhite : textBright),
     black: c.black ?? (lightTheme ? lightAnsi.black : pickAnsiBlack(bg)),
     brightBlack: c.brightBlack ?? (lightTheme ? lightAnsi.brightBlack : pickAnsiBrightBlack(textMuted)),
@@ -757,6 +760,8 @@ function isLightColor(value: string) {
   return false;
 }
 
-function colorMixFallback(base: string, accent: string, alpha: number) {
-  return `color-mix(in srgb, ${accent} ${Math.round(alpha * 100)}%, ${base})`;
+function colorWithAlpha(value: string, alpha: number) {
+  const color = parseCssColor(value);
+  if (!color) return null;
+  return `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${Math.max(0, Math.min(1, alpha))})`;
 }
