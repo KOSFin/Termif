@@ -1,0 +1,28 @@
+#!/bin/sh
+# Termif pre-commit hook: keep the app version in sync across
+# package.json, package-lock.json, src-tauri/tauri.conf.json and Cargo.toml.
+#
+# package.json is the single source of truth. Whenever you bump it, this hook
+# propagates the version to the Rust/Tauri manifests and stages the changes so
+# the visible version can never drift back to a stale value again.
+#
+# Installed automatically by `npm install` via the "prepare" script.
+
+set -e
+
+# Only run when version-bearing files are part of this commit.
+if ! git diff --cached --name-only | grep -Eq '^(package\.json|package-lock\.json|src-tauri/(tauri\.conf\.json|Cargo\.toml|Cargo\.lock))$'; then
+  exit 0
+fi
+
+# Derive the target version from the staged package.json content.
+VERSION="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")"
+
+node scripts/sync-version.mjs --version "$VERSION" >/dev/null
+
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml 2>/dev/null || true
+if [ -f src-tauri/Cargo.lock ]; then
+  git add src-tauri/Cargo.lock 2>/dev/null || true
+fi
+
+exit 0

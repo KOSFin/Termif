@@ -300,6 +300,33 @@ jobs:
           PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
         run: node scripts/create-latest-json.mjs
 
+      - name: Create stable-named download aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The versioned bundle filenames change every release, which would
+          # break the fixed "releases/latest/download/<file>" links used in the
+          # README. Publish stable-named copies of the primary installer for
+          # each platform/arch so those links keep working across releases.
+          cd release-artifacts
+          alias_copy() {
+            # $1 = glob, $2 = stable output name
+            local match
+            match="$(ls -1 $1 2>/dev/null | head -n1 || true)"
+            if [[ -n "${match}" ]]; then
+              cp "${match}" "$2"
+              echo "Aliased ${match} -> $2"
+            else
+              echo "No match for $1 (skipped)"
+            fi
+          }
+          alias_copy "termif-macos-arm64-*.dmg" "Termif-macOS-arm64.dmg"
+          alias_copy "termif-macos-x64-*.dmg"   "Termif-macOS-x64.dmg"
+          alias_copy "termif-windows-x64-*.msi" "Termif-Windows-x64.msi"
+          alias_copy "termif-windows-x64-*setup.exe" "Termif-Windows-x64-setup.exe"
+          alias_copy "termif-linux-x64-*.AppImage" "Termif-Linux-x64.AppImage"
+          alias_copy "termif-linux-x64-*.deb"   "Termif-Linux-x64.deb"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -321,3 +348,9 @@ jobs:
             release-artifacts/*.sig
             release-artifacts/latest.json
             release-artifacts/checksums-*.txt
+            release-artifacts/Termif-macOS-arm64.dmg
+            release-artifacts/Termif-macOS-x64.dmg
+            release-artifacts/Termif-Windows-x64.msi
+            release-artifacts/Termif-Windows-x64-setup.exe
+            release-artifacts/Termif-Linux-x64.AppImage
+            release-artifacts/Termif-Linux-x64.deb

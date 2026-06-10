@@ -50,6 +50,7 @@ export function StatusBar({
   return (
     <footer className="statusbar">
       <div className="statusbar-left">
+        <span className="statusbar-brand">Termif</span>
         <span className="status-pill">{activeTab?.kind === "ssh" ? "SSH" : "LOCAL"}</span>
         <span className="status-label">{activeTab?.title ?? "No active tab"}</span>
       </div>

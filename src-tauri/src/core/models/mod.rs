@@ -105,6 +105,7 @@ impl Default for AppSettings {
                 terminal_opacity: 1.0,
                 terminal_background_image: String::new(),
                 terminal_background_dim: 0.35,
+                theme_background_images: std::collections::HashMap::new(),
             },
             terminal: TerminalSettings {
                 default_shell: crate::platform::default_shell_profile().to_string(),
@@ -184,6 +185,10 @@ pub struct AppearanceSettings {
     pub terminal_background_image: String,
     #[serde(default = "default_terminal_background_dim")]
     pub terminal_background_dim: f32,
+    /// Per-theme background image overrides keyed by theme id. Applied in
+    /// system theme mode so each theme can have its own wallpaper.
+    #[serde(default)]
+    pub theme_background_images: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

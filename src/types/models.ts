@@ -81,6 +81,10 @@ export interface AppSettings {
     terminal_opacity?: number;
     terminal_background_image?: string;
     terminal_background_dim?: number;
+    /** Per-theme background image overrides (keyed by theme id). Applied when
+     *  theme_mode is "system" so each theme in the light/dark pair can have its
+     *  own wallpaper. Falls back to terminal_background_image when unset. */
+    theme_background_images?: Record<string, string>;
     animations_enabled?: boolean;
   };
   terminal: {

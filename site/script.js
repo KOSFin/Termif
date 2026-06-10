@@ -432,8 +432,35 @@ function extractReleaseLinks(body) {
   return { compare, commit };
 }
 
-function stripMarkdownLinks(line) {
-  return line.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/https:\/\/\S+/g, "").trim();
+// Convert a small, safe subset of inline markdown to HTML. Input is escaped
+// first, so we only ever re-introduce the tags we explicitly generate here.
+function renderInlineMarkdown(text) {
+  let out = escapeHtml(String(text || ""));
+  // Links: [label](url) -> keep the label, drop bare URLs entirely.
+  out = out.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1");
+  out = out.replace(/https?:\/\/\S+/g, "");
+  // Bold (**x** / __x__) and inline code (`x`).
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Strip "by @user in #12" trailers that GitHub auto-notes append.
+  out = out.replace(/\s+by\s+@[\w-]+(\s+in\s+#\d+)?\s*$/i, "");
+  // Drop trailing release tags like "[stable]".
+  out = out.replace(/\s*\[[^\]]+\]\s*$/g, "");
+  return out.trim();
+}
+
+// Lines that carry no changelog value on their own.
+function isNoiseLine(line) {
+  const plain = line.replace(/\*\*/g, "").replace(/[*_`]/g, "").trim();
+  if (!plain) return true;
+  if (/^full changelog\b/i.test(plain)) return true;       // "**Full Changelog**: <url>"
+  if (/^what'?s changed\b/i.test(plain)) return true;       // GitHub auto-notes heading
+  if (/^new contributors\b/i.test(plain)) return true;
+  if (/^v?[\d.]+\.{3}v?[\d.]+$/i.test(plain)) return true;  // bare compare range
+  if (/^[a-f0-9]{7,40}$/i.test(plain)) return true;         // bare commit hash
+  if (/^https?:\/\/\S+$/i.test(plain)) return true;         // bare url line
+  return false;
 }
 
 function renderChangelog(body) {
@@ -444,37 +471,42 @@ function renderChangelog(body) {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const titleLine = rawLines
-    .filter((line) => !/^#+\s*/.test(line))
-    .map((line) => stripMarkdownLinks(line))
-    .find((line) => line
-      && !/^[-*]\s+/.test(line)
-      && !/^release\s/i.test(line)
-      && !/^v?[\d.]+\.{3}v?[\d.]+/i.test(line)
-      && !/^[a-f0-9]{7,40}$/i.test(line));
-
-  const metaLine = rawLines
-    .map((line) => stripMarkdownLinks(line))
-    .find((line) => /^release\s/i.test(line));
-
+  // Collect bullet items (-, *, or numbered) from anywhere in the body.
   const bullets = rawLines
-    .filter((line) => /^[-*]\s+/.test(line))
-    .map((line) => stripMarkdownLinks(line.replace(/^[-*]\s+/, "")))
+    .filter((line) => /^([-*]|\d+\.)\s+/.test(line))
+    .map((line) => line.replace(/^([-*]|\d+\.)\s+/, ""))
+    .filter((line) => !isNoiseLine(line))
+    .map((line) => renderInlineMarkdown(line))
     .filter(Boolean)
-    .slice(0, 8);
+    .slice(0, 12);
 
-  if (!titleLine && !metaLine && !bullets.length) return `<p class="changelog-empty">${t("noChangelog")}</p>`;
+  // Pick the most meaningful non-bullet, non-heading line as a summary title.
+  const titleLine = rawLines
+    .filter((line) => !/^#{1,6}\s/.test(line) && !/^([-*]|\d+\.)\s+/.test(line))
+    .filter((line) => !isNoiseLine(line))
+    .map((line) => renderInlineMarkdown(line))
+    .find(Boolean);
 
-  return `
-    ${titleLine ? `<p class="changelog-title">${escapeHtml(titleLine)}</p>` : ""}
-    ${metaLine ? `<p class="changelog-meta">${escapeHtml(metaLine)}</p>` : ""}
-    ${bullets.length ? `<ul>${bullets.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>` : ""}
+  const hasContent = titleLine || bullets.length;
+
+  // Always offer a way to read the full notes on GitHub.
+  const fallbackLinks = `
     ${(links.compare || links.commit) ? `
       <div class="changelog-links">
         ${links.compare ? `<a href="${links.compare}">${t("compare")}</a>` : ""}
         ${links.commit ? `<a href="${links.commit}">${t("commit")}</a>` : ""}
       </div>
     ` : ""}
+  `;
+
+  if (!hasContent) {
+    return `<p class="changelog-empty">${t("noChangelog")}</p>${fallbackLinks}`;
+  }
+
+  return `
+    ${titleLine && !bullets.includes(titleLine) ? `<p class="changelog-title">${titleLine}</p>` : ""}
+    ${bullets.length ? `<ul>${bullets.map((line) => `<li>${line}</li>`).join("")}</ul>` : ""}
+    ${fallbackLinks}
   `;
 }
 
@@ -581,9 +613,8 @@ function applyStaticText() {
   document.querySelector(".secondary").textContent = t("heroSecondary");
   document.getElementById("primary-download").textContent = t("detecting");
   document.getElementById("release-note").textContent = t("releaseLoads");
-  document.querySelector(".demo-copy .eyebrow").textContent = t("demoEyebrow");
-  document.querySelector(".demo-copy h2").textContent = t("demoTitle");
-  document.querySelector(".demo-label").textContent = t("demoLabel");
+  const demoLabel = document.querySelector(".demo-label");
+  if (demoLabel) demoLabel.textContent = t("demoLabel");
   document.querySelectorAll(".features article")[0].querySelector("h2").textContent = t("featureTerminalTitle");
   document.querySelectorAll(".features article")[0].querySelector("p").textContent = t("featureTerminalText");
   document.querySelectorAll(".features article")[1].querySelector("h2").textContent = t("featureSshTitle");
@@ -637,12 +668,16 @@ function setupDemoVideo() {
   const src = configured || source?.getAttribute("src")?.trim() || "";
   const hasVideo = Boolean(src);
 
-  video.hidden = !hasVideo;
-  document.querySelector(".demo-section").hidden = !hasVideo;
-  video.closest(".demo-video-shell")?.classList.toggle("has-video", hasVideo);
+  const shell = video.closest(".demo-video-shell");
+  shell?.classList.toggle("has-video", hasVideo);
+  // Keep the poster/fallback visible when there is no video; the hero visual
+  // should never collapse to empty space.
   if (hasVideo && source && source.getAttribute("src") !== src) {
     source.setAttribute("src", src);
     video.load();
+  }
+  if (!hasVideo) {
+    video.hidden = true;
   }
 }
 

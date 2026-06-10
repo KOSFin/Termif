@@ -116,7 +116,10 @@ interface AppState {
   deleteManagedHost: (hostId: string) => Promise<void>;
   createHostGroup: (name: string) => Promise<void>;
   renameHostGroup: (groupId: string, name: string) => Promise<void>;
-  deleteHostGroup: (groupId: string) => Promise<void>;
+  deleteHostGroup: (
+    groupId: string,
+    options?: { hostsAction?: "ungroup" | "move" | "cascade"; targetGroupId?: string | null }
+  ) => Promise<void>;
   loadCurrentFiles: (options?: { force?: boolean }) => Promise<void>;
   loadCurrentFilesFromCache: () => void;
   navigatePath: (path: string) => Promise<void>;
@@ -665,8 +668,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refreshHosts();
   },
 
-  deleteHostGroup: async (groupId) => {
-    await invoke("delete_ssh_group", { groupId });
+  deleteHostGroup: async (groupId, options) => {
+    await invoke("delete_ssh_group", {
+      groupId,
+      hostsAction: options?.hostsAction ?? "ungroup",
+      targetGroupId: options?.targetGroupId ?? null,
+    });
     await get().refreshHosts();
   },
 

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/KOSFin/Termif/security/advisories/new
+    about: Please report vulnerabilities privately through GitHub Security Advisories, never as a public issue.
+  - name: 💬 Questions & discussion
+    url: https://github.com/KOSFin/Termif/discussions
+    about: Ask questions, share setups, and discuss ideas with the community.
+  - name: 📖 Documentation
+    url: https://github.com/KOSFin/Termif/blob/main/docs/README.md
+    about: Read the documentation hub before opening an issue.

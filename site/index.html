@@ -34,39 +34,39 @@
 
     <main>
       <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Native shells. SSH. Files. Editing.</p>
-          <h1>Termif</h1>
-          <p class="lede">Local-first cross-platform SSH workspace for developers and operators who move between their machine, remote hosts, files, and snippets all day.</p>
-          <div class="actions">
-            <button id="primary-download" class="primary">Detecting your system...</button>
-            <a class="secondary" href="#downloads">Download another version</a>
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">Native shells. SSH. Files. Editing.</p>
+            <h1>Termif</h1>
+            <p class="lede">Local-first cross-platform SSH workspace for developers and operators who move between their machine, remote hosts, files, and snippets all day.</p>
+            <div class="actions">
+              <button id="primary-download" class="primary">Detecting your system...</button>
+              <a class="secondary" href="#downloads">Download another version</a>
+            </div>
+            <p id="release-note" class="release-note">Release data loads directly from GitHub Releases.</p>
           </div>
-          <p id="release-note" class="release-note">Release data loads directly from GitHub Releases.</p>
-        </div>
-      </section>
-
-      <section class="demo-section" aria-label="Termif demo video">
-        <div class="demo-copy">
-          <p class="eyebrow">Workflow preview</p>
-          <h2>Shell, SSH, files, and editor in one workspace.</h2>
-        </div>
-        <div class="demo-video-shell">
-          <video
-            class="demo-video"
-            controls
-            playsinline
-            preload="metadata"
-            poster="assets/termif-logo.png"
-            data-demo-video
-          >
-            <source src="assets/demo.mp4" type="video/mp4" />
-          </video>
-          <div class="demo-fallback">
-            <span class="play-mark" aria-hidden="true"></span>
-            <p class="demo-label">Demo video</p>
+          <div class="hero-visual">
+            <div class="demo-video-shell" data-demo-shell>
+              <video
+                class="demo-video"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+                poster="assets/hero-shot.png"
+                data-demo-video
+              >
+                <source src="assets/demo.mp4" type="video/mp4" />
+              </video>
+              <div class="demo-fallback">
+                <span class="play-mark" aria-hidden="true"></span>
+                <p class="demo-label">Demo</p>
+              </div>
+            </div>
           </div>
         </div>
+        <a class="hero-scroll" href="#features" aria-label="Scroll to features"><span></span></a>
       </section>
 
       <section id="features" class="features">

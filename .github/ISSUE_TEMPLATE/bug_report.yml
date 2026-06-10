@@ -1,0 +1,87 @@
+name: 🐞 Bug report
+description: Report a reproducible problem in Termif
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill out the fields below so we can reproduce and fix the issue quickly.
+
+        ⚠️ **Do not report security vulnerabilities here.** Use a private [Security Advisory](https://github.com/KOSFin/Termif/security/advisories/new) instead. Never paste passwords, private keys, or real hostnames.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am using the latest Termif release (or `main`).
+          required: true
+        - label: My report contains no secrets (passwords, keys, real hostnames).
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: When I…, Termif…
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, ordered steps so we can reproduce.
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Termif version
+      placeholder: e.g. 4.2.4
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: e.g. macOS 15.4, Windows 11 23H2, Ubuntu 24.04
+  - type: dropdown
+    id: session-type
+    attributes:
+      label: Session type involved
+      options:
+        - Local shell
+        - SSH session
+        - SSH host picker
+        - File manager / editor
+        - Settings / themes
+        - Other / not sure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Relevant output, with all secrets removed.
+      render: shell

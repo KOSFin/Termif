@@ -72,6 +72,15 @@ html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
   flex: 1 1 auto;
 }
 
+.statusbar-brand {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  user-select: none;
+  opacity: 0.85;
+}
+
 .statusbar-right {
   flex: 0 0 auto;
   justify-content: flex-end;

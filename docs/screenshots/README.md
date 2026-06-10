@@ -4,14 +4,15 @@ Language: 🇬🇧 [English](README.md)
 
 Project links: [Main README](../../README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
 
-Place product screenshots in this folder using the names below so README sections can reference stable paths.
+Place product screenshots in this folder. The README gallery references these files:
 
-Recommended files:
-
-- main-workspace.png
-- ssh-host-picker.png
-- file-manager-editor.png
-- settings-and-palette.png
+- `demo.gif` — short animated demo used at the top of the README.
+- `mac-ssh-picker.png` — SSH host picker.
+- `mac-editor.png` — integrated editor.
+- `mac-mainscreen-bgimage.png` — workspace with a background image.
+- `mac-main-screen.png` — workspace, default.
+- `mac-mainscreen-wtht-sidebar.png` — workspace with the sidebar hidden.
+- `win-mainscreen.png` — Windows workspace.
 
 Image guidance:
 

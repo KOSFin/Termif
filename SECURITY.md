@@ -2,19 +2,34 @@
 
 ## Supported Versions
 
-Termif is pre-1.0 software. Security fixes target the current `main` branch and the latest published GitHub Release when a release exists.
+Termif is pre-1.0 software. Security fixes target the current `main` branch and the latest published GitHub Release.
+
+| Version | Supported |
+| ------- | --------- |
+| Latest GitHub Release | ✅ |
+| `main` branch | ✅ |
+| Older releases | ❌ |
 
 ## Reporting a Vulnerability
 
 Please do not open public issues for suspected vulnerabilities involving SSH credentials, host-key verification, arbitrary file access, update signing, or release artifact integrity.
 
-Report privately through GitHub Security Advisories for this repository. Include:
+Report privately through [GitHub Security Advisories](https://github.com/KOSFin/Termif/security/advisories/new) for this repository. Include:
 
 - affected version or commit;
 - operating system;
 - reproduction steps;
 - expected impact;
 - any relevant logs with secrets removed.
+
+### What to expect
+
+- **Acknowledgement:** within 5 business days.
+- **Initial assessment:** within 10 business days.
+- **Fix or mitigation plan:** communicated once severity is confirmed.
+- **Coordinated disclosure:** we will agree on a disclosure date with the reporter and credit you in the advisory unless you prefer to remain anonymous.
+
+Please give us a reasonable opportunity to remediate before any public disclosure.
 
 ## Sensitive Data Rules
 
@@ -35,6 +50,12 @@ Frontend snippets are currently stored in browser/WebView `localStorage` under `
 Imported SSH hosts are read from the user's standard `~/.ssh/config`; Termif does not copy private keys into its own store. Managed host entries can currently include an optional password in `hosts.json`. That is a known sensitive-data risk and should only be used with disposable or low-risk hosts until encrypted secret storage/keychain integration lands.
 
 Termif has a `ssh.strict_host_key_checking` setting and host-key trust UI, but host-key enforcement is still a hardening area. Do not treat current host-key behavior as equivalent to OpenSSH's mature `known_hosts` model yet.
+
+Host-key checking is **enabled by default**. With it enabled, unknown host keys are recorded on first use (TOFU) into `~/.ssh/known_hosts` and a changed key is rejected. Disabling `ssh.strict_host_key_checking` accepts any presented key and removes protection against man-in-the-middle attacks — only disable it on trusted networks for hosts you control.
+
+## External Links
+
+Termif opens exactly one category of external link: clicking the GitHub entry hands a URL to the OS default browser. The backend `open_external_url` command only accepts `https://` URLs restricted to the standard URL character set, and never routes through a shell, so it cannot be used as a generic command or file launcher.
 
 ## Logging
 

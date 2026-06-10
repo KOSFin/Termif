@@ -1,9 +1,10 @@
 {
   "name": "termif",
   "private": true,
-  "version": "0.1.0",
+  "version": "4.2.4",
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/install-git-hooks.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint .",

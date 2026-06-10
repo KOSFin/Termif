@@ -135,6 +135,7 @@ export function applyAppearanceOverrides(appearance?: {
   terminal_opacity?: number;
   terminal_background_image?: string;
   terminal_background_dim?: number;
+  theme_background_images?: Record<string, string>;
 }): void {
   if (!appearance) return;
 
@@ -166,7 +167,7 @@ export function applyAppearanceOverrides(appearance?: {
   setPixelVar("--panel-blur", appearance.panel_blur, 12);
   setNumberVar("--topbar-opacity", appearance.topbar_opacity, 0.88);
   setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
-  const bgImage = appearance.terminal_background_image?.trim();
+  const bgImage = resolveBackgroundImage(appearance);
   if (bgImage) {
     document.documentElement.setAttribute("data-app-bg-image", "true");
     document.documentElement.style.setProperty("--terminal-bg-image", `url("${toCssImageUrl(bgImage)}")`);
@@ -179,6 +180,26 @@ export function applyAppearanceOverrides(appearance?: {
 }
 
 let systemThemeCleanup: (() => void) | undefined;
+
+/** Resolve the background image to apply right now. In "system" theme mode the
+ *  active theme (light/dark) can carry its own image via theme_background_images;
+ *  otherwise we fall back to the single terminal_background_image. */
+function resolveBackgroundImage(appearance: {
+  theme?: string;
+  theme_mode?: "manual" | "system";
+  light_theme?: string;
+  dark_theme?: string;
+  terminal_background_image?: string;
+  theme_background_images?: Record<string, string>;
+}): string | undefined {
+  const fallback = appearance.terminal_background_image?.trim();
+  if (appearance.theme_mode === "system" && appearance.theme_background_images) {
+    const activeTheme = resolveEffectiveThemeId(appearance);
+    const perTheme = appearance.theme_background_images[activeTheme]?.trim();
+    if (perTheme) return perTheme;
+  }
+  return fallback || undefined;
+}
 
 export function resolveEffectiveThemeId(appearance?: {
   theme?: string;
@@ -212,6 +233,8 @@ export function watchSystemTheme(appearance?: {
   light_theme?: string;
   dark_theme?: string;
   custom_themes?: CustomTheme[];
+  terminal_background_image?: string;
+  theme_background_images?: Record<string, string>;
 }): void {
   systemThemeCleanup?.();
   systemThemeCleanup = undefined;
@@ -219,7 +242,11 @@ export function watchSystemTheme(appearance?: {
   if (appearance?.theme_mode !== "system" || !window.matchMedia) return;
 
   const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const onChange = () => applyAppearanceTheme(appearance);
+  const onChange = () => {
+    applyAppearanceTheme(appearance);
+    // Re-resolve the per-theme background image for the newly active theme.
+    applyAppearanceOverrides(appearance);
+  };
   query.addEventListener("change", onChange);
   systemThemeCleanup = () => query.removeEventListener("change", onChange);
 }

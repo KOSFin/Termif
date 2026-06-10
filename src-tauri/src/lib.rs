@@ -24,7 +24,7 @@ use crate::{
     persistence::Persistence,
     pty::{SshConnectOptions, TerminalManager},
     settings::SettingsStore,
-    ssh::HostStore,
+    ssh::{GroupDeleteHosts, HostStore},
 };
 
 #[derive(Clone)]
@@ -384,6 +384,38 @@ fn delete_managed_ssh_host(host_id: String, state: State<'_, AppState>) -> Resul
         .map_err(|e| e.to_string())
 }
 
+/// Open an external https:// URL in the user's default browser.
+/// Restricted to https and a conservative character set so it can never be
+/// abused as a generic command/file launcher (notably via the Windows shell).
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("https://") || trimmed.len() > 2048 {
+        return Err("Only https URLs are allowed".to_string());
+    }
+    // Allow only characters that legitimately appear in a URL. This rejects
+    // whitespace, quotes, and every shell/cmd metacharacter (& | ^ % < > etc.).
+    let allowed = |c: char| {
+        c.is_ascii_alphanumeric() || "-._~:/?#[]@!$&'()*+,;=%".contains(c)
+    };
+    if trimmed.contains(['&', '|', '^', '<', '>', '"', '\'', '`', ' ']) || !trimmed.chars().all(allowed) {
+        return Err("URL contains invalid characters".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", trimmed])
+        .spawn();
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(trimmed).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(trimmed).spawn();
+
+    result.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn create_ssh_group(name: String, state: State<'_, AppState>) -> Result<SshHostGroup, String> {
     state.hosts.create_group(name).map_err(|e| e.to_string())
@@ -402,10 +434,21 @@ fn rename_ssh_group(
 }
 
 #[tauri::command]
-fn delete_ssh_group(group_id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn delete_ssh_group(
+    group_id: String,
+    hosts_action: Option<String>,
+    target_group_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let action = match hosts_action.as_deref() {
+        Some("cascade") => GroupDeleteHosts::Cascade,
+        Some("move") => GroupDeleteHosts::MoveTo(target_group_id.unwrap_or_default()),
+        // Default (and "ungroup") preserves the previous behaviour.
+        _ => GroupDeleteHosts::Ungroup,
+    };
     state
         .hosts
-        .delete_group(&group_id)
+        .delete_group_with_hosts(&group_id, action)
         .map_err(|e| e.to_string())
 }
 
@@ -526,6 +569,7 @@ pub fn run() {
             load_ssh_hosts,
             save_managed_ssh_host,
             delete_managed_ssh_host,
+            open_external_url,
             create_ssh_group,
             rename_ssh_group,
             delete_ssh_group,

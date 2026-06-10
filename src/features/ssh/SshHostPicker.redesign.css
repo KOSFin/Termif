@@ -127,6 +127,21 @@
   color: var(--text-bright);
 }
 
+/* Group context menu (right-click on a group heading) */
+.ssh-group-context-menu {
+  min-width: 170px;
+}
+.new-host-dropdown-item.danger {
+  color: var(--danger);
+}
+.new-host-dropdown-item.danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+.ssh-delete-cascade-label {
+  color: var(--danger);
+}
+
 .new-ssh-design .ssh-filter-bar {
   display: flex;
   justify-content: space-between;
@@ -365,12 +380,15 @@
   margin: 0;
 }
 
+/* Constrain ONLY the inner content (header, filter bar, search, lists) and
+   keep it centered. The background block (.new-ssh-design.ssh-picker) is left
+   full-width on purpose so the gradient/blur still fills the pane. */
 .new-ssh-design .ssh-header,
 .new-ssh-design .ssh-filter-bar,
 .new-ssh-design .ssh-search-bar,
 .new-ssh-design .ssh-lists-content {
-  width: min(100%, 1620px);
-  max-width: 1620px;
+  width: min(100%, 1100px);
+  max-width: 1100px;
   margin-left: auto;
   margin-right: auto;
 }

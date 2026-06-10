@@ -5,36 +5,67 @@
 <h1 align="center">Termif</h1>
 
 <p align="center">
-	Local-first cross-platform SSH workspace for native shells, remote hosts, contextual files, snippets, and integrated editing.
+	<b>Local-first cross-platform SSH workspace</b><br/>
+	Native shells, remote hosts, contextual files, snippets, and integrated editing — in one frame.
 </p>
 
 <p align="center">
-	<img alt="Platform Windows macOS Linux" src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0A7A3E" />
-	<img alt="Desktop Tauri" src="https://img.shields.io/badge/Desktop-Tauri%20v2-1B7F6B" />
-	<img alt="Backend Rust" src="https://img.shields.io/badge/Backend-Rust-8C4A2F" />
-	<img alt="Frontend React TypeScript" src="https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript%205-2457A6" />
-	<img alt="Terminal xterm" src="https://img.shields.io/badge/Terminal-xterm.js-2F2F2F" />
-	<img alt="CI Cross Platform" src="https://img.shields.io/badge/CI-Cross--Platform-green" />
+	<a href="#-download"><img alt="Download" src="https://img.shields.io/badge/⬇_Download-Get_Termif-2457A6?style=for-the-badge" /></a>
+	<a href="#-gallery"><img alt="Gallery" src="https://img.shields.io/badge/🖼_Gallery-Screenshots-1B7F6B?style=for-the-badge" /></a>
+	<a href="https://github.com/KOSFin/Termif/releases"><img alt="Releases" src="https://img.shields.io/github/v/release/KOSFin/Termif?style=for-the-badge&label=Latest&color=98C379" /></a>
 </p>
 
 <p align="center">
-	<a href="https://kosfin.github.io/Termif/">
-		<img alt="Download from site" src="https://img.shields.io/badge/Download-Website-61AFEF?style=for-the-badge" />
-	</a>
-	<a href="https://github.com/KOSFin/Termif/releases">
-		<img alt="GitHub Releases" src="https://img.shields.io/badge/GitHub-Releases-98C379?style=for-the-badge&logo=github" />
-	</a>
+	<img alt="Downloads" src="https://img.shields.io/github/downloads/KOSFin/Termif/total?style=flat-square&label=downloads&color=0A7A3E" />
+	<img alt="Stars" src="https://img.shields.io/github/stars/KOSFin/Termif?style=flat-square&color=E5C07B" />
+	<img alt="Built with Tauri" src="https://img.shields.io/badge/Tauri-v2-1B7F6B?style=flat-square" />
+	<img alt="Rust" src="https://img.shields.io/badge/Rust-8C4A2F?style=flat-square&logo=rust&logoColor=white" />
+	<img alt="React 18 + TypeScript 5" src="https://img.shields.io/badge/React_18_+_TS_5-2457A6?style=flat-square&logo=react&logoColor=white" />
 </p>
 
-Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md)
+Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md) &nbsp;•&nbsp; Docs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
 
-Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
+## ⬇ Download
+
+Grab the latest installer for your platform. Builds are published by [GitHub Actions](.github/workflows/ci-release.yml) with SHA-256 `checksums-*.txt` files — verify before installing.
+
+<table>
+	<tr>
+		<th>Platform</th>
+		<th>Download</th>
+		<th>Notes</th>
+	</tr>
+	<tr>
+		<td>🍎 <b>macOS</b> (Apple Silicon)</td>
+		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-macOS-arm64.dmg"><img alt="Download for macOS arm64" src="https://img.shields.io/badge/Download-.dmg_(arm64)-000000?style=for-the-badge&logo=apple&logoColor=white" /></a></td>
+		<td>M1/M2/M3 and newer</td>
+	</tr>
+	<tr>
+		<td>🍎 <b>macOS</b> (Intel)</td>
+		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-macOS-x64.dmg"><img alt="Download for macOS x64" src="https://img.shields.io/badge/Download-.dmg_(x64)-555555?style=for-the-badge&logo=apple&logoColor=white" /></a></td>
+		<td>Intel Macs</td>
+	</tr>
+	<tr>
+		<td>🪟 <b>Windows</b> (x64)</td>
+		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-Windows-x64.msi"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" /></a></td>
+		<td>or <a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-Windows-x64-setup.exe">NSIS .exe</a></td>
+	</tr>
+	<tr>
+		<td>🐧 <b>Linux</b> (x64)</td>
+		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-Linux-x64.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-.AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" /></a></td>
+		<td>or <a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-Linux-x64.deb">.deb</a></td>
+	</tr>
+</table>
+
+<sub>Looking for a specific build, checksums, or older versions? See <a href="https://github.com/KOSFin/Termif/releases">all GitHub Releases</a> or the <a href="https://kosfin.github.io/Termif/">download site</a> (auto-detects your OS).</sub>
 
 ## Demo
 
 <p align="center">
-	<video src="https://github.com/user-attachments/assets/f0778cf1-e0ae-4a47-85ef-a16fe35f793d" controls width="100%"></video>
+	<a href="#-gallery"><img src="docs/screenshots/demo.gif" alt="Termif demo" width="100%" /></a>
 </p>
+
+<p align="center"><sub>👉 The GIF is a quick taste — see the <a href="#-gallery">full gallery</a> for the editor, SSH picker, and themes in full resolution.</sub></p>
 
 ## What Termif Is
 
@@ -102,12 +133,11 @@ Release packaging targets Windows MSI/NSIS installers, macOS DMG/App bundles, an
 
 Local shell defaults follow the host platform: PowerShell on Windows, zsh on macOS, and bash on Linux. App shortcuts use Ctrl on Windows/Linux and Command on macOS, while terminal control sequences such as Ctrl+C remain available to the running shell. SSH host import/export resolves the user's platform home directory and uses the standard `~/.ssh/config` location on every OS.
 
-## Screenshots
-
-![Main workspace Mac](docs/screenshots/mac-mainscreen-bgimage.png)
-![Main workspace Mac](docs/screenshots/mac-main-screen.png)
-![Main workspace Mac](docs/screenshots/mac-mainscreen-wtht-sidebar.png)
-![Main workspace Win](docs/screenshots/win-mainscreen.png)
+| Platform | Architectures | Installers | Default shell |
+| -------- | ------------- | ---------- | ------------- |
+| 🍎 macOS | Apple Silicon (arm64), Intel (x64) | DMG, App | zsh |
+| 🪟 Windows | x64 | MSI, NSIS (.exe) | PowerShell |
+| 🐧 Linux | x64 | AppImage, DEB | bash |
 
 ## Failure Semantics and Error Surfacing
 
@@ -123,6 +153,57 @@ Termif surfaces concrete failures rather than generic UI states. If a session id
 
 [docs/settings-model.md](docs/settings-model.md), [docs/persistence-model.md](docs/persistence-model.md), [docs/plugin-system-proposal.md](docs/plugin-system-proposal.md), and [docs/ci-release-plan.md](docs/ci-release-plan.md) cover subsystem specifications.
 
+## Contributing & Community
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), and please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Use the issue templates to file [bugs](.github/ISSUE_TEMPLATE/bug_report.yml) or [feature requests](.github/ISSUE_TEMPLATE/feature_request.yml).
+
+Found a security issue? Report it privately via a [GitHub Security Advisory](https://github.com/KOSFin/Termif/security/advisories/new) — see [SECURITY.md](SECURITY.md). Never open a public issue for vulnerabilities.
+
+## 🖼 Gallery
+
+<table>
+	<tr>
+		<td width="50%"><b>SSH host picker</b><br/><img src="docs/screenshots/mac-ssh-picker.png" alt="SSH host picker" /></td>
+		<td width="50%"><b>Integrated editor</b><br/><img src="docs/screenshots/mac-editor.png" alt="Integrated editor" /></td>
+	</tr>
+	<tr>
+		<td width="50%"><b>Workspace with background image</b><br/><img src="docs/screenshots/mac-mainscreen-bgimage.png" alt="Main workspace with background image" /></td>
+		<td width="50%"><b>Workspace</b><br/><img src="docs/screenshots/mac-main-screen.png" alt="Main workspace" /></td>
+	</tr>
+	<tr>
+		<td width="50%"><b>Focused (sidebar hidden)</b><br/><img src="docs/screenshots/mac-mainscreen-wtht-sidebar.png" alt="Workspace without sidebar" /></td>
+		<td width="50%"><b>Windows</b><br/><img src="docs/screenshots/win-mainscreen.png" alt="Windows workspace" /></td>
+	</tr>
+</table>
+
+## Architecture at a Glance
+
+```mermaid
+flowchart TD
+	subgraph Frontend["Frontend — React + TypeScript"]
+		UI["App shell · tabs · palette · settings"]
+		Store["Zustand store"]
+		Term["xterm.js terminal"]
+	end
+	subgraph Backend["Backend — Rust"]
+		Sessions["Session lifecycle"]
+		PTY["Local PTY (portable-pty)"]
+		SSH["SSH transport (russh)"]
+		FS["Filesystem ops"]
+		Persist["JSON persistence (atomic writes)"]
+	end
+	UI --> Store
+	Store -->|Tauri IPC| Sessions
+	Term -->|Tauri channels| Sessions
+	Sessions --> PTY
+	Sessions --> SSH
+	Sessions --> FS
+	Sessions --> Persist
+	SSH -->|"~/.ssh/config · known_hosts"| Host[(Remote hosts)]
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full runtime breakdown.
+
 ## License and Commercial Use
 
 Termif uses a source-available attribution license. You may use, copy, modify, and share the source with visible credit to the original Termif project. Commercial distribution, paid hosting, resale, or embedding in a commercial product requires prior written permission from the Termif maintainers.
@@ -130,3 +211,11 @@ Termif uses a source-available attribution license. You may use, copy, modify, a
 This is intentionally not an OSI open-source license such as MIT or Apache-2.0, because those licenses allow commercial use without additional permission.
 
 Full legal text: [LICENSE](LICENSE).
+
+## Star History
+
+If Termif is useful to you, a ⭐ helps others find it.
+
+<a href="https://star-history.com/#KOSFin/Termif&Date">
+	<img alt="Star History Chart" src="https://api.star-history.com/svg?repos=KOSFin/Termif&type=Date" width="600" />
+</a>

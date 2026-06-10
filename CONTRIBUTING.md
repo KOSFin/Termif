@@ -4,6 +4,8 @@ Language: 🇬🇧 [English](CONTRIBUTING.md) | 🇷🇺 [Русский](CONTRI
 
 Project links: [README](README.md) | [Download site](https://kosfin.github.io/Termif/) | [GitHub Releases](https://github.com/KOSFin/Termif/releases)
 
+By participating in this project you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Termif accepts contributions that preserve product direction, architectural coherence, and operational reliability. The repository is not maintained as a generic code dump. Every accepted change is expected to strengthen one or more of the following: execution stability, UX integrity, maintainability of subsystem boundaries, or release confidence for Windows delivery.
 
 ## Contribution Contract

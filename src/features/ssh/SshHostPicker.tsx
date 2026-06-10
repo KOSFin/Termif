@@ -25,14 +25,14 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     importedHosts, managedHosts, sshGroups,
     connectSshTab, connectSshTabWithOptions,
     saveManagedHost, deleteManagedHost, refreshHosts,
-    createHostGroup, renameHostGroup, toast
+    createHostGroup, renameHostGroup, deleteHostGroup, toast
   } = useAppStore((s) => ({
     tabs: s.tabs,
     importedHosts: s.importedHosts, managedHosts: s.managedHosts, sshGroups: s.sshGroups,
     connectSshTab: s.connectSshTab, connectSshTabWithOptions: s.connectSshTabWithOptions,
-    saveManagedHost: s.saveManagedHost, deleteManagedHost: s.deleteManagedHost, 
+    saveManagedHost: s.saveManagedHost, deleteManagedHost: s.deleteManagedHost,
     refreshHosts: s.refreshHosts, createHostGroup: s.createHostGroup,
-    renameHostGroup: s.renameHostGroup, toast: s.toast
+    renameHostGroup: s.renameHostGroup, deleteHostGroup: s.deleteHostGroup, toast: s.toast
   }));
 
   const [sortMode] = useState<HostSortMode>("alias_asc");
@@ -79,6 +79,13 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const [groupModalName, setGroupModalName] = useState("");
   const [renameGroupId, setRenameGroupId] = useState<string>();
   const [alreadyConnectedModal, setAlreadyConnectedModal] = useState<string | null>(null);
+
+  // Group context menu (right-click on a group heading)
+  const [groupMenu, setGroupMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
+  // Delete-group modal: choose what happens to the hosts inside the group
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
+  const [deleteHostsAction, setDeleteHostsAction] = useState<"ungroup" | "move" | "cascade">("ungroup");
+  const [deleteMoveTarget, setDeleteMoveTarget] = useState<string>("");
 
   useEffect(() => {
     const onFocus = () => setOsCache(loadOsCache());
@@ -256,6 +263,37 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
     setGroupModalOpen(false);
   }, [createHostGroup, groupModalName, renameGroupId, renameHostGroup, toast]);
 
+  const openDeleteGroupModal = useCallback((groupId: string) => {
+    setGroupMenu(null);
+    setDeleteGroupTarget(groupId);
+    setDeleteHostsAction("ungroup");
+    // Preselect another group to move into, if one exists.
+    const otherGroup = sshGroups.find((g) => g.id !== groupId);
+    setDeleteMoveTarget(otherGroup?.id ?? "");
+  }, [sshGroups]);
+
+  const confirmDeleteGroup = useCallback(async () => {
+    if (!deleteGroupTarget) return;
+    try {
+      await deleteHostGroup(deleteGroupTarget, {
+        hostsAction: deleteHostsAction,
+        targetGroupId: deleteHostsAction === "move" ? (deleteMoveTarget || null) : null,
+      });
+      toast(
+        deleteHostsAction === "cascade"
+          ? "Group and its hosts deleted"
+          : deleteHostsAction === "move"
+            ? "Group deleted, hosts moved"
+            : "Group deleted"
+      );
+    } catch (e) {
+      toast(`Failed to delete group: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDeleteGroupTarget(null);
+      if (activeGroupTab === deleteGroupTarget) setActiveGroupTab("ALL");
+    }
+  }, [activeGroupTab, deleteGroupTarget, deleteHostsAction, deleteHostGroup, deleteMoveTarget, toast]);
+
   const dragProps = (host: SshHostEntry) => ({
     draggable: true,
     onDragStart: (e: React.DragEvent) => { e.dataTransfer.effectAllowed = "move"; setDraggingHostId(host.id); },
@@ -275,7 +313,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const hasAnyHosts = managedHosts.length > 0;
 
   useEffect(() => {
-    const anyModalOpen = settingsDraft !== null || importModalOpen || quickConnectOpen || alreadyConnectedModal !== null || groupModalOpen;
+    const anyModalOpen = settingsDraft !== null || importModalOpen || quickConnectOpen || alreadyConnectedModal !== null || groupModalOpen || deleteGroupTarget !== null;
     if (!anyModalOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -295,6 +333,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
         }
         if (alreadyConnectedModal) {
           setAlreadyConnectedModal(null);
+          return;
+        }
+        if (deleteGroupTarget) {
+          setDeleteGroupTarget(null);
           return;
         }
         if (groupModalOpen) {
@@ -343,6 +385,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   }, [
     alreadyConnectedModal,
     groupModalOpen,
+    deleteGroupTarget,
     importHosts,
     importModalOpen,
     importSelected.size,
@@ -484,9 +527,13 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               className={`ssh-section ssh-group-wrap ${isDropTarget ? "drag-over-section" : ""}`}
               {...dropZoneProps(group.id, group.id)}
             >
-              <div 
+              <div
                 className="ssh-group-heading"
                 onClick={() => toggleGroup(group.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setGroupMenu({ groupId: group.id, x: e.clientX, y: e.clientY });
+                }}
               >
                 {group.name} {!expanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
               </div>
@@ -748,6 +795,77 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
           </div>
         </div>
       )}
+      {/* ── Group Context Menu (right-click on a group heading) ── */}
+      {groupMenu && (
+        <>
+          <div className="dropdown-backdrop" onClick={() => setGroupMenu(null)} onContextMenu={(e) => { e.preventDefault(); setGroupMenu(null); }} />
+          <div
+            className="new-host-dropdown ssh-group-context-menu"
+            style={{ position: "fixed", top: groupMenu.y, left: groupMenu.x, right: "auto" }}
+          >
+            <button
+              className="new-host-dropdown-item"
+              onClick={() => { openGroupModal(groupMenu.groupId); setGroupMenu(null); }}
+            >
+              <FolderOpen size={14} strokeWidth={2} /> Rename group
+            </button>
+            <button
+              className="new-host-dropdown-item danger"
+              onClick={() => openDeleteGroupModal(groupMenu.groupId)}
+            >
+              <Trash2 size={14} strokeWidth={2} /> Delete group…
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Delete Group Modal ── */}
+      {deleteGroupTarget && (() => {
+        const group = sshGroups.find((g) => g.id === deleteGroupTarget);
+        const hostsInGroup = managedHosts.filter((h) => h.group_id === deleteGroupTarget);
+        const otherGroups = sshGroups.filter((g) => g.id !== deleteGroupTarget);
+        return (
+          <div className="modal-overlay" onClick={() => setDeleteGroupTarget(null)} onKeyDown={(e) => {
+            if (e.key === "Escape") setDeleteGroupTarget(null);
+            if (e.key === "Enter") void confirmDeleteGroup();
+          }}>
+            <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Delete group "{group?.name ?? ""}"</h3>
+                <button className="ghost" onClick={() => setDeleteGroupTarget(null)}>×</button>
+              </div>
+              <div className="modal-body">
+                <div className="modal-tip">
+                  This group has {hostsInGroup.length} host{hostsInGroup.length === 1 ? "" : "s"}. Choose what to do with {hostsInGroup.length === 1 ? "it" : "them"}.
+                </div>
+                <label className="modal-checkbox-row">
+                  <input type="radio" name="delete-hosts-action" checked={deleteHostsAction === "ungroup"} onChange={() => setDeleteHostsAction("ungroup")} />
+                  <span>Keep hosts, move them to "Without a group"</span>
+                </label>
+                <label className="modal-checkbox-row" style={{ opacity: otherGroups.length === 0 ? 0.5 : 1 }}>
+                  <input type="radio" name="delete-hosts-action" disabled={otherGroups.length === 0} checked={deleteHostsAction === "move"} onChange={() => setDeleteHostsAction("move")} />
+                  <span>Move hosts to another group</span>
+                </label>
+                {deleteHostsAction === "move" && otherGroups.length > 0 && (
+                  <select value={deleteMoveTarget} onChange={(e) => setDeleteMoveTarget(e.target.value)} style={{ marginLeft: 24 }}>
+                    {otherGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                )}
+                <label className="modal-checkbox-row">
+                  <input type="radio" name="delete-hosts-action" checked={deleteHostsAction === "cascade"} onChange={() => setDeleteHostsAction("cascade")} />
+                  <span className="ssh-delete-cascade-label">Delete hosts together with the group</span>
+                </label>
+              </div>
+              <div className="modal-footer">
+                <button className="ghost" onClick={() => setDeleteGroupTarget(null)}>Cancel</button>
+                <button className="primary danger" onClick={() => void confirmDeleteGroup()}>
+                  {deleteHostsAction === "cascade" ? "Delete group & hosts" : "Delete group"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

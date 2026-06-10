@@ -32,6 +32,17 @@ pub struct HostStore {
     state: Arc<Mutex<HostState>>,
 }
 
+/// What to do with the hosts of a group when that group is deleted.
+#[derive(Debug, Clone)]
+pub enum GroupDeleteHosts {
+    /// Detach hosts from the group (they become ungrouped).
+    Ungroup,
+    /// Reassign hosts to another group id (empty/unknown id means ungroup).
+    MoveTo(String),
+    /// Delete the hosts together with the group.
+    Cascade,
+}
+
 impl HostStore {
     pub fn new(persistence: Persistence) -> Result<Self, TermifError> {
         let state: HostState = persistence.load_or_default("hosts.json")?;
@@ -113,14 +124,46 @@ impl HostStore {
         Ok(())
     }
 
-    pub fn delete_group(&self, group_id: &str) -> Result<(), TermifError> {
+    /// Delete a group and decide what happens to the hosts that belonged to it:
+    /// move them out (ungroup), move them into another group, or delete them
+    /// together with the group (cascade).
+    pub fn delete_group_with_hosts(
+        &self,
+        group_id: &str,
+        action: GroupDeleteHosts,
+    ) -> Result<(), TermifError> {
         let mut state = self.state.lock().expect("host state lock poisoned");
         state.groups.retain(|g| g.id != group_id);
-        for host in &mut state.managed_hosts {
-            if host.group_id.as_deref() == Some(group_id) {
-                host.group_id = None;
+
+        match action {
+            GroupDeleteHosts::Ungroup => {
+                for host in &mut state.managed_hosts {
+                    if host.group_id.as_deref() == Some(group_id) {
+                        host.group_id = None;
+                    }
+                }
+            }
+            GroupDeleteHosts::MoveTo(target_group_id) => {
+                let target = if target_group_id.trim().is_empty() {
+                    None
+                } else {
+                    Some(target_group_id)
+                };
+                // Guard against pointing hosts at a group that no longer exists.
+                let target = target.filter(|id| state.groups.iter().any(|g| &g.id == id));
+                for host in &mut state.managed_hosts {
+                    if host.group_id.as_deref() == Some(group_id) {
+                        host.group_id = target.clone();
+                    }
+                }
+            }
+            GroupDeleteHosts::Cascade => {
+                state
+                    .managed_hosts
+                    .retain(|host| host.group_id.as_deref() != Some(group_id));
             }
         }
+
         self.persistence.save("hosts.json", &*state)?;
         Ok(())
     }

@@ -138,6 +138,37 @@ export function SettingsPanel(props: SettingsPanelProps) {
     );
   };
 
+  const chooseThemeBackgroundImage = async (themeId: string) => {
+    const selected = await openDialog({
+      multiple: false,
+      directory: false,
+      filters: [
+        { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp"] },
+      ],
+    });
+    if (typeof selected !== "string") return;
+    setDraft((p) =>
+      p
+        ? {
+            ...p,
+            appearance: {
+              ...p.appearance,
+              theme_background_images: { ...(p.appearance.theme_background_images ?? {}), [themeId]: selected },
+            },
+          }
+        : p
+    );
+  };
+
+  const clearThemeBackgroundImage = (themeId: string) => {
+    setDraft((p) => {
+      if (!p) return p;
+      const next = { ...(p.appearance.theme_background_images ?? {}) };
+      delete next[themeId];
+      return { ...p, appearance: { ...p.appearance, theme_background_images: next } };
+    });
+  };
+
   const handleSaveCustomTheme = (theme: CustomTheme) => {
     setDraft((p) => {
       if (!p) return p;
@@ -439,6 +470,44 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   ) : null}
                 </div>
               </div>
+              {(draft.appearance.theme_mode ?? "manual") === "system" && (
+                <div id="setting-per-theme-background" className="settings-row settings-row-stack" style={{ display: matches("app background image", "wallpaper", "background image", "per theme background", "theme image") ? undefined : "none" }}>
+                  <label>Per-Theme Background (System mode)</label>
+                  <div className="settings-hint">Each theme in your light/dark pair can use its own image. If unset, the App Background Image above is used.</div>
+                  {Array.from(new Set([draft.appearance.light_theme ?? "paper", draft.appearance.dark_theme ?? "charcoal"])).map((themeId) => {
+                    const themeName = themes.find((t) => t.id === themeId)?.name
+                      ?? (draft.appearance.custom_themes ?? []).find((t) => t.id === themeId)?.name
+                      ?? themeId;
+                    const value = draft.appearance.theme_background_images?.[themeId] ?? "";
+                    return (
+                      <div key={themeId} className="settings-file-picker-row per-theme-bg-row">
+                        <span className="per-theme-bg-name">{themeName}</span>
+                        <input
+                          value={value}
+                          placeholder="Use default image"
+                          onChange={(e) =>
+                            setDraft((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    appearance: {
+                                      ...p.appearance,
+                                      theme_background_images: { ...(p.appearance.theme_background_images ?? {}), [themeId]: e.target.value },
+                                    },
+                                  }
+                                : p
+                            )
+                          }
+                        />
+                        <button type="button" onClick={() => void chooseThemeBackgroundImage(themeId)}>Browse</button>
+                        {value.trim() ? (
+                          <button type="button" className="ghost" onClick={() => clearThemeBackgroundImage(themeId)}>Clear</button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div id="setting-app-background-dimming" className="settings-row" style={{ display: matches("app background dim", "wallpaper dim", "background image", "terminal personalization") ? undefined : "none" }}>
                 <label>App Background Dimming</label>
                 <input
