@@ -3854,12 +3854,15 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
 }
 
 html[data-app-bg-image="true"] .app-root {
-  background:
+  background-image:
     linear-gradient(
       rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
       rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
     ),
     var(--terminal-bg-image, none);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 
 html[data-app-bg-image="true"] .topbar,
