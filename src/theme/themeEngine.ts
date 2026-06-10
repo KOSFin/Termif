@@ -166,9 +166,11 @@ export function applyAppearanceOverrides(appearance?: {
   setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
   const bgImage = appearance.terminal_background_image?.trim();
   if (bgImage) {
+    document.documentElement.setAttribute("data-app-bg-image", "true");
     document.documentElement.style.setProperty("--terminal-bg-image", `url("${toCssImageUrl(bgImage)}")`);
     setNumberVar("--terminal-bg-dim", appearance.terminal_background_dim, 0.35);
   } else {
+    document.documentElement.removeAttribute("data-app-bg-image");
     document.documentElement.style.removeProperty("--terminal-bg-image");
     document.documentElement.style.setProperty("--terminal-bg-dim", "0");
   }

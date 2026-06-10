@@ -215,6 +215,8 @@ input[type="range"]::-moz-range-thumb {
   min-height: 38px;
   border-bottom: 1px solid var(--stroke);
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
+  -webkit-backdrop-filter: blur(calc(16px + var(--window-blur, 8px))) saturate(1.2);
+  backdrop-filter: blur(calc(16px + var(--window-blur, 8px))) saturate(1.2);
   padding: 0;
   gap: 0;
 }
@@ -438,6 +440,8 @@ input[type="range"]::-moz-range-thumb {
   grid-template-rows: auto 1fr;
   min-height: 0;
   overflow: hidden;
+  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
   transition: width 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
@@ -1171,7 +1175,7 @@ input[type="range"]::-moz-range-thumb {
   display: none;
 }
 
-[data-theme="paper"] .terminal-pane::before {
+html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before {
   background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 78%), transparent);
 }
 
@@ -3838,6 +3842,8 @@ input[type="range"]::-moz-range-thumb {
   z-index: 180;
   border-top: 1px solid color-mix(in srgb, var(--stroke) 50%, transparent);
   background: var(--bg-elev-1);
+  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3845,6 +3851,37 @@ input[type="range"]::-moz-range-thumb {
   gap: 10px;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+html[data-app-bg-image="true"] .app-root {
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
+    ),
+    var(--terminal-bg-image, none);
+}
+
+html[data-app-bg-image="true"] .topbar,
+html[data-app-bg-image="true"] .sidebar,
+html[data-app-bg-image="true"] .statusbar {
+  border-color: color-mix(in srgb, #d8e0ec 18%, transparent);
+  background: color-mix(in srgb, #111827 calc(var(--window-opacity, 1) * 48%), transparent);
+}
+
+html[data-app-bg-image="true"] .terminal-pane::before {
+  background: color-mix(in srgb, #101827 calc(var(--terminal-opacity, 1) * 42%), transparent);
+}
+
+html[data-app-bg-image="true"][data-theme="paper"] .topbar,
+html[data-app-bg-image="true"][data-theme="paper"] .sidebar,
+html[data-app-bg-image="true"][data-theme="paper"] .statusbar {
+  border-color: color-mix(in srgb, #2f3644 18%, transparent);
+  background: color-mix(in srgb, #d6dce5 calc(var(--window-opacity, 1) * 46%), transparent);
+}
+
+html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
+  background: color-mix(in srgb, #d7dde6 calc(var(--terminal-opacity, 1) * 38%), transparent);
 }
 
 .statusbar-left,
