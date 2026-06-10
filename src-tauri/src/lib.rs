@@ -395,10 +395,10 @@ fn open_external_url(url: String) -> Result<(), String> {
     }
     // Allow only characters that legitimately appear in a URL. This rejects
     // whitespace, quotes, and every shell/cmd metacharacter (& | ^ % < > etc.).
-    let allowed = |c: char| {
-        c.is_ascii_alphanumeric() || "-._~:/?#[]@!$&'()*+,;=%".contains(c)
-    };
-    if trimmed.contains(['&', '|', '^', '<', '>', '"', '\'', '`', ' ']) || !trimmed.chars().all(allowed) {
+    let allowed = |c: char| c.is_ascii_alphanumeric() || "-._~:/?#[]@!$&'()*+,;=%".contains(c);
+    if trimmed.contains(['&', '|', '^', '<', '>', '"', '\'', '`', ' '])
+        || !trimmed.chars().all(allowed)
+    {
         return Err("URL contains invalid characters".to_string());
     }
 

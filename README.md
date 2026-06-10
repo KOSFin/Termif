@@ -37,7 +37,7 @@ Grab the latest installer for your platform. Builds are published by [GitHub Act
 	</tr>
 	<tr>
 		<td>🍎 <b>macOS</b> (Apple Silicon)</td>
-		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-macOS-arm64.dmg"><img alt="Download for macOS arm64" src="https://img.shields.io/badge/Download-.dmg_(arm64)-000000?style=for-the-badge&logo=apple&logoColor=white" /></a></td>
+		<td><a href="https://github.com/KOSFin/Termif/releases/latest/download/Termif-macOS-arm64.app.zip"><img alt="Download for macOS arm64" src="https://img.shields.io/badge/Download-.app_(arm64)-000000?style=for-the-badge&logo=apple&logoColor=white" /></a></td>
 		<td>M1/M2/M3 and newer</td>
 	</tr>
 	<tr>
