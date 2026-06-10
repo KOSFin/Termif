@@ -127,6 +127,7 @@ export function applyAppearanceOverrides(appearance?: {
   modal_dimming?: number;
   border_radius?: number;
   window_opacity?: number;
+  window_blur?: number;
   accent_color?: string;
   panel_opacity?: number;
   topbar_opacity?: number;
@@ -160,6 +161,7 @@ export function applyAppearanceOverrides(appearance?: {
 
   setNumberVar("--panel-opacity", appearance.panel_opacity, 1);
   setNumberVar("--window-opacity", appearance.window_opacity, 1);
+  setPixelVar("--window-blur", appearance.window_blur, 8);
   setNumberVar("--topbar-opacity", appearance.topbar_opacity, 0.88);
   setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
   const bgImage = appearance.terminal_background_image?.trim();
@@ -221,6 +223,11 @@ export function watchSystemTheme(appearance?: {
 function setNumberVar(name: string, value: number | undefined, fallback: number): void {
   const next = value ?? fallback;
   document.documentElement.style.setProperty(name, String(next));
+}
+
+function setPixelVar(name: string, value: number | undefined, fallback: number): void {
+  const next = value ?? fallback;
+  document.documentElement.style.setProperty(name, `${next}px`);
 }
 
 function toCssImageUrl(value: string): string {

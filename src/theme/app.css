@@ -200,6 +200,8 @@ input[type="range"]::-moz-range-thumb {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  -webkit-backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
+  backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
 }
 
 /* == Topbar =================================================== */
@@ -223,12 +225,14 @@ input[type="range"]::-moz-range-thumb {
   padding-left: 78px;
   border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
-  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(calc(20px + var(--window-blur, 8px))) saturate(1.25);
+  backdrop-filter: blur(calc(20px + var(--window-blur, 8px))) saturate(1.25);
 }
 
 .platform-linux .topbar {
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
-  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(calc(18px + var(--window-blur, 8px))) saturate(1.25);
+  backdrop-filter: blur(calc(18px + var(--window-blur, 8px))) saturate(1.25);
 }
 
 .topbar button,
@@ -442,7 +446,8 @@ input[type="range"]::-moz-range-thumb {
 .platform-macos .statusbar,
 .platform-linux .statusbar {
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 86%), transparent);
-  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
 }
 
 .platform-macos .sidebar {
@@ -1139,6 +1144,8 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 58%), transparent);
+  -webkit-backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.06);
+  backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.06);
   pointer-events: none;
 }
 
