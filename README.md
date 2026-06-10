@@ -74,10 +74,10 @@ Local shell defaults follow the host platform: PowerShell on Windows, zsh on mac
 
 ## Screenshots
 
+![Main workspace Mac](docs/screenshots/mac-mainscreen-bgimage.png)
 ![Main workspace Mac](docs/screenshots/mac-main-screen.png)
 ![Main workspace Mac](docs/screenshots/mac-mainscreen-wtht-sidebar.png)
-![Main workspace](docs/screenshots/main-workspace.png)
-![Settings and command palette](docs/screenshots/settings-and-palette.png)
+![Main workspace Win](docs/screenshots/win-mainscreen.png)
 
 ## Failure Semantics and Error Surfacing
 
