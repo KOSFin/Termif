@@ -2,8 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { memo, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { OS_CACHE_KEY } from "@/features/ssh/SshHostPicker";
-import type { OsInfo } from "@/features/ssh/SshHostPicker";
+import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/sshHostPickerUtils";
 import { getDefaultTerminalFont, isMacLike } from "@/platform/platform";
 import { appendTerminalLog, loadTerminalLog } from "@/features/terminal/terminalLogStore";
 

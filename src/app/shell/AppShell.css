@@ -1,0 +1,249 @@
+/* == App root ================================================= */
+
+.app-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  -webkit-backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
+  backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
+}
+
+/* == Topbar =================================================== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 180;
+  height: 38px;
+  min-height: 38px;
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
+  -webkit-backdrop-filter: blur(calc(16px + var(--window-blur, 8px))) saturate(1.2);
+  backdrop-filter: blur(calc(16px + var(--window-blur, 8px))) saturate(1.2);
+  padding: 0;
+  gap: 0;
+}
+
+.platform-macos .topbar {
+  height: 44px;
+  min-height: 44px;
+  padding-left: 78px;
+  border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
+  -webkit-backdrop-filter: blur(calc(20px + var(--window-blur, 8px))) saturate(1.25);
+  backdrop-filter: blur(calc(20px + var(--window-blur, 8px))) saturate(1.25);
+}
+
+.platform-linux .topbar {
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
+  -webkit-backdrop-filter: blur(calc(18px + var(--window-blur, 8px))) saturate(1.25);
+  backdrop-filter: blur(calc(18px + var(--window-blur, 8px))) saturate(1.25);
+}
+
+.topbar button,
+.topbar .tabstrip,
+.topbar .topbar-right {
+  -webkit-app-region: no-drag;
+}
+
+.topbar-drag-zone {
+  width: 4px;
+  min-width: 4px;
+  height: 100%;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.sidebar-toggle-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  color: var(--text);
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 8%, transparent);
+}
+
+.platform-macos .sidebar-toggle-btn {
+  height: 44px;
+}
+
+.platform-macos .sidebar-toggle-btn {
+  width: 40px;
+  border-radius: 7px;
+  margin-right: 2px;
+}
+
+.platform-macos .topbar-btn {
+  border-radius: 7px;
+  margin: 0 2px;
+}
+
+.sidebar-toggle-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.topbar-spacer {
+  flex: 1 1 auto;
+  min-width: 56px;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.platform-macos .window-controls {
+  display: none;
+  width: 72px;
+  height: 38px;
+  justify-content: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.topbar-btn {
+  width: 32px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elev-2) 30%, transparent);
+  color: var(--text);
+  transition: background 0.1s, color 0.1s;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 7%, transparent);
+}
+
+.topbar-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.platform-macos .topbar-btn,
+.platform-macos .tab {
+  height: 44px;
+}
+
+.platform-macos .tab {
+  min-width: 104px;
+  max-width: 210px;
+  padding: 0 12px;
+}
+
+.tab-rename-input {
+  width: 128px;
+  height: 24px;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-bright);
+  background: var(--bg-panel);
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--stroke);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.window-btn {
+  width: 46px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+
+.window-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.window-btn-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.platform-macos .window-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: none;
+  color: transparent;
+  overflow: hidden;
+}
+
+.platform-macos .window-btn svg {
+  opacity: 0;
+}
+
+.platform-macos .window-btn-close {
+  background: #ff5f57;
+}
+
+.platform-macos .window-btn-minimize {
+  background: #ffbd2e;
+}
+
+.platform-macos .window-btn-maximize {
+  background: #28c840;
+}
+
+.platform-macos .window-btn:hover {
+  filter: brightness(0.92);
+}
+
+.platform-macos .window-btn-close:hover {
+  background: #ff5f57;
+}
+
+/* == Workspace ================================================ */
+
+.workspace {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+}

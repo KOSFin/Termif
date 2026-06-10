@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings, ChevronRight, ChevronDown, Plus, Trash2, FolderOpen, Paperclip, Server, Search, ChevronUp, Zap, X } from "lucide-react";
+import { ChevronDown, Plus, Trash2, FolderOpen, Paperclip, Server, Search, ChevronUp, Zap, X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshConnectOptions, SshHostEntry } from "@/types/models";
-import { OS_LOGO_META, OsLogoBadge } from "@/features/ssh/OsLogo";
+import { HostCard } from "@/features/ssh/HostCard";
+import { getHostColor, getInitial, loadOsCache, type OsInfo } from "@/features/ssh/sshHostPickerUtils";
 
 interface SshHostPickerProps {
   tabId: string;
@@ -12,36 +13,6 @@ interface SshHostPickerProps {
 
 type HostSortMode = "alias_asc" | "alias_desc" | "host_asc";
 type SettingsTab = "connection" | "appearance" | "danger";
-
-export const OS_CACHE_KEY = "termif.host_os_cache";
-
-export interface OsInfo {
-  os: string;
-  version?: string;
-}
-
-const HOST_COLORS = [
-  "#4a8fe7", "#3dba84", "#e0a84a", "#e05468",
-  "#9a7ce5", "#5fb4d4", "#d47ea8", "#7cb87a",
-  "#f06292", "#4db6ac", "#ff8a65", "#a1887f",
-];
-
-function getHostColor(alias: string): string {
-  let h = 0;
-  for (let i = 0; i < alias.length; i++) h = alias.charCodeAt(i) + ((h << 5) - h);
-  return HOST_COLORS[Math.abs(h) % HOST_COLORS.length];
-}
-
-function getInitial(s: string): string {
-  return (s[0] ?? "?").toUpperCase();
-}
-
-function loadOsCache(): Record<string, OsInfo> {
-  try {
-    const raw = localStorage.getItem(OS_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, OsInfo>) : {};
-  } catch { return {}; }
-}
 
 const blankHost: SshHostEntry = {
   id: "", alias: "", host_name: "", user: "", port: 22,
@@ -777,74 +748,6 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── HostCard ────────────────────────────────────────────────────────────────
-
-
-
-// ──― HostCard  ──―
-
-interface HostCardProps {
-  host: SshHostEntry;
-  osInfo?: OsInfo;
-  connecting: boolean;
-  isConnected?: boolean;
-  onConnect: () => void;
-  onSettings: () => void;
-  draggable?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: () => void;
-}
-
-function HostCard({ host, osInfo, connecting, isConnected, onConnect, onSettings, draggable, onDragStart, onDragEnd }: HostCardProps) {
-  const osMeta = osInfo?.os ? OS_LOGO_META[osInfo.os] : null;
-  const subtitle = [host.user ? `${host.user}@` : "", host.host_name, host.port && host.port !== 22 ? `:${host.port}` : ""].join("");
-  const color = getHostColor(host.alias);
-
-  return (
-    <div 
-      className="host-card-new"
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onConnect}
-    >
-      {connecting && (
-        <div className="connecting-overlay-new">
-            <div className="mini-spinner" />
-        </div>
-      )}
-      {isConnected && (
-         <div className="connection-dot-new" title="Connected in a tab"></div>
-      )}
-
-      {/* Left side settings lock */}
-      <div className="host-card-new-settings" onClick={(e) => { e.stopPropagation(); onSettings(); }}>
-         <Settings size={16} strokeWidth={1.5} />
-      </div>
-
-      <div className="host-card-new-core">
-        {osMeta ? (
-          <OsLogoBadge os={osInfo!.os} version={osInfo?.version} className="host-card-new-icon os-icon" />
-        ) : (
-          <div className="host-card-new-icon" style={{ background: color }}>
-            {getInitial(host.alias)}
-          </div>
-        )}
-
-        <div className="host-card-new-details">
-          <div className="host-card-new-alias">{host.alias}</div>
-          <div className="host-card-new-sub">{subtitle || "No host configured"}</div>
-          <div className="host-card-new-os">{osMeta ? `${osMeta.name} ${osInfo?.version || ""}` : "Linux/Unknown"}</div>
-        </div>
-      </div>
-
-      <div className="host-card-new-chevron">
-         <ChevronRight size={18} strokeWidth={1.5} />
-      </div>
     </div>
   );
 }

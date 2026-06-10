@@ -1,0 +1,232 @@
+/* == Editor =================================================== */
+
+.editor-workspace {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.72)),
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.72))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) 92%, transparent);
+  background-size: cover;
+  background-position: center;
+  color: var(--text);
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
+  height: 44px;
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-tab {
+  padding: 0 10px;
+  height: 44px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+  border: none;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--bg-elev-2) 32%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+  position: relative;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-tab:hover {
+  background: color-mix(in srgb, var(--bg-hover) 68%, transparent);
+  color: var(--text);
+}
+
+.editor-tab.active {
+  background: color-mix(in srgb, var(--bg-active) 78%, transparent);
+  color: var(--text);
+}
+
+.editor-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.editor-tab-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 1px;
+}
+
+.editor-tab-title {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab-subtitle {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.editor-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.editor-tab:hover .editor-tab-close {
+  opacity: 1;
+}
+
+.editor-tab-close:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.editor-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.editor-action-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 36%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.editor-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.editor-action-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.editor-main {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 0;
+  min-height: 0;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.55));
+  backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.55));
+}
+
+.editor-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) 46%, transparent);
+}
+
+.editor-error {
+  color: var(--danger);
+  font-size: 13px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--danger-dim);
+}
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-line-numbers {
+  width: 40px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--bg-elev-1) 62%, transparent);
+  overflow: hidden;
+  padding-top: 10px;
+  user-select: none;
+}
+
+.editor-line-number {
+  height: 20px;
+  font-size: 12px;
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  text-align: right;
+  color: var(--text-muted);
+  padding-right: 8px;
+  line-height: 20px;
+}
+
+.editor-textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 64%, transparent);
+  color: var(--text);
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 10px;
+  resize: none;
+  outline: none;
+  height: auto;
+}
+
+.editor-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}

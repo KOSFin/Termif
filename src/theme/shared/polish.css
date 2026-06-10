@@ -1,0 +1,5 @@
+/* == Tab highlight polish ===================================== */
+
+.tab:not(.active) {
+  opacity: 0.96;
+}

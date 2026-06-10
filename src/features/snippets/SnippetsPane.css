@@ -1,0 +1,290 @@
+/* == Snippets =============================================== */
+
+.snippets-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.snippets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stroke);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--bg-elev-1) 16%, transparent);
+}
+
+.snippets-header h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.snippets-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.snippets-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Snippet group ──────────────────────────────────────────── */
+
+.snippet-group {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  transition: border-color 0.12s;
+}
+
+.snippet-group.drag-over {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.snippet-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm);
+  border-bottom: none;
+}
+
+.snippet-group-head:hover {
+  background: color-mix(in srgb, var(--bg-hover) 64%, transparent);
+}
+
+.snippet-group-chevron {
+  width: 20px;
+  height: 20px;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.snippet-group-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-group-count {
+  font-size: 11px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 38%, transparent);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.snippet-group-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.snippet-group-body {
+  border-top: none;
+  display: grid;
+  gap: 1px;
+}
+
+.snippet-ungrouped {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 0;
+  transition: outline 0.12s;
+}
+
+.snippet-ungrouped.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── Snippet card ───────────────────────────────────────────── */
+
+.snippet-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev-1) 12%, transparent);
+  margin-bottom: 0;
+  transition: background 0.12s, color 0.12s;
+  cursor: default;
+}
+.snippet-card:hover {
+  background: color-mix(in srgb, var(--bg-hover) 64%, transparent);
+  box-shadow: none;
+}
+
+.snippet-card:last-child {
+  margin-bottom: 0;
+}
+
+.snippet-group-body .snippet-card {
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.snippet-group-body .snippet-card:hover {
+  box-shadow: none;
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+}
+
+.snippet-group-body .snippet-card:last-child {
+  border-bottom: none;
+}
+
+.snippet-card.drag-over {
+  background: color-mix(in srgb, var(--accent-dim) 60%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.snippet-drag-handle {
+  width: 20px;
+  height: 20px;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-elev-2) 30%, transparent);
+  opacity: 0;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  padding-top: 0;
+  flex-shrink: 0;
+}
+
+.snippet-card:hover .snippet-drag-handle {
+  opacity: 0.7;
+}
+
+.snippet-drag-handle:active {
+  cursor: grabbing;
+}
+
+.snippet-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(64px, 0.8fr) minmax(88px, 1.4fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.snippet-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-description {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-command {
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--accent-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--bg-elev-2) 28%, transparent);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 14%, transparent);
+  min-width: 0;
+}
+
+.snippet-card-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.snippet-card:hover .snippet-card-actions,
+.snippet-card:focus-within .snippet-card-actions {
+  opacity: 1;
+}
+
+.snippet-card-actions button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
+}
+
+.snippet-card-actions button.primary {
+  width: 22px;
+  height: 22px;
+}
+
+.snippet-empty,
+.snippet-empty-global {
+  font-size: 12px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-style: italic;
+  background: color-mix(in srgb, var(--bg-elev-1) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 30%, transparent);
+  border-radius: 8px;
+  margin: 8px;
+}
+
+.snippet-empty-global {
+  text-align: center;
+  padding: 32px 16px;
+}

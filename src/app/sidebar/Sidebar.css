@@ -1,0 +1,82 @@
+/* == Sidebar ================================================== */
+
+.sidebar {
+  width: 280px;
+  min-width: 0;
+  border-right: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
+  background: color-mix(in srgb, var(--bg) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 46%), transparent);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  transition: width 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
+}
+
+.platform-macos .sidebar,
+.platform-linux .sidebar {
+  background: color-mix(in srgb, var(--bg) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 50%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+}
+
+.platform-macos .statusbar,
+.platform-linux .statusbar {
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 86%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+}
+
+.platform-macos .sidebar {
+  border-right-color: color-mix(in srgb, var(--stroke) 45%, transparent);
+}
+
+.sidebar-hidden {
+  width: 0;
+  border-right-color: transparent;
+  opacity: 0;
+  pointer-events: none;
+  margin-right: -1px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.sidebar-tools {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 48%, transparent);
+}
+
+.sidebar-tools button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 13px;
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 28%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sidebar-tools button:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-hover) 76%, transparent);
+}
+
+.sidebar-tools button.active {
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--bg-active) 82%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 12%, transparent);
+}
+
+.sidebar-content {
+  min-height: 0;
+  overflow: hidden;
+}

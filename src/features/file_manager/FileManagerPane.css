@@ -1,0 +1,266 @@
+/* == File manager ============================================= */
+
+.file-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.file-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 45%, transparent);
+  background: color-mix(in srgb, var(--bg-elev-1) 16%, transparent);
+  min-width: 0;
+}
+
+.file-toolbar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.file-toolbar-actions,
+.file-toolbar-path-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.file-toolbar-actions {
+  flex: 1 1 auto;
+}
+
+.file-toolbar-path-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.file-toolbar button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.file-toolbar button:hover {
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+  color: var(--text);
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: rotate 0.8s linear infinite;
+}
+
+.spin-icon {
+  animation: rotate 0.8s linear infinite;
+  transform-origin: center;
+}
+
+.breadcrumbs {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0 2px;
+  border-bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+
+.breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.breadcrumbs button {
+  flex: 0 0 auto;
+  width: auto;
+  height: 24px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  font-size: 11px;
+  border: none;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  color: var(--text);
+}
+
+.breadcrumbs button:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+}
+
+.breadcrumbs button:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.file-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 6px 8px;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.file-list::-webkit-scrollbar {
+  display: none;
+}
+
+.file-list.busy {
+  overflow: hidden;
+}
+
+.file-list.busy .file-item {
+  pointer-events: none;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--bg-elev-1) 12%, transparent);
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--text);
+  transition: background 0.1s;
+}
+
+.file-item:hover {
+  background: color-mix(in srgb, var(--bg-hover) 64%, transparent);
+}
+
+.file-item:disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.file-item.selected {
+  background: color-mix(in srgb, var(--accent-dim) 78%, var(--bg-elev-1));
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elev-2) 38%, transparent);
+  flex-shrink: 0;
+}
+
+.file-icon.dir {
+  color: var(--accent);
+}
+
+.file-icon.file {
+  color: var(--text);
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-status {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.file-status.error {
+  color: var(--danger);
+}
+
+.file-scope-source {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--bg-elev-2) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
+  border-radius: 5px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.file-scope-action {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.file-scope-action:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+}
+
+.file-scope-action:disabled {
+  opacity: 0.34;
+  cursor: default;
+}
+
+.file-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.file-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--stroke);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}

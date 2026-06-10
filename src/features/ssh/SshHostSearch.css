@@ -1,0 +1,26 @@
+/* ── Search bar for SSH hosts ── */
+.ssh-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  animation: dropdown-open 0.12s ease-out;
+}
+.ssh-search-bar input {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.ssh-search-bar input:focus {
+  border-color: var(--accent);
+}
+.ssh-search-bar input::placeholder {
+  color: var(--text-muted);
+}

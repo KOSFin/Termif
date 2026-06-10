@@ -1,0 +1,80 @@
+/* == Palette ================================================== */
+
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: center;
+  padding-top: 64px;
+  z-index: 260;
+}
+
+.palette-panel {
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(480px, calc(100vh - 112px));
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 100%), transparent);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+}
+
+.palette-panel > input {
+  flex: 0 0 56px;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  border: 0;
+  border-bottom: 1px solid var(--stroke);
+  border-radius: 0;
+  padding: 0 18px;
+  background: var(--bg-elev-2);
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--text-bright);
+}
+
+.palette-list {
+  flex: 1;
+  overflow: auto;
+  display: grid;
+}
+
+.palette-list button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  min-height: 42px;
+  padding: 8px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.palette-list button:hover,
+.palette-list button.selected {
+  background: var(--bg-hover);
+}
+
+.palette-list button.selected {
+  background: var(--accent-dim);
+}
+
+.palette-list small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.palette-empty {
+  color: var(--text-muted);
+  padding: 14px;
+  font-size: 13px;
+}

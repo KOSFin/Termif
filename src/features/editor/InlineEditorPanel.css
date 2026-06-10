@@ -1,0 +1,331 @@
+/* == Inline editor panel ====================================== */
+
+.editor-inline-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.58)),
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.58))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) 86%, transparent);
+  background-size: cover;
+  background-position: center;
+}
+
+.editor-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 42px;
+  min-height: 42px;
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+  padding: 0;
+}
+
+.editor-inline-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.editor-inline-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-inline-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 42px;
+  font-size: 12px;
+  border: none;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--bg-elev-2) 32%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-inline-tab:hover {
+  background: color-mix(in srgb, var(--bg-hover) 68%, transparent);
+  color: var(--text);
+}
+
+.editor-inline-tab.active {
+  background: color-mix(in srgb, var(--bg-active) 78%, transparent);
+  color: var(--text);
+}
+
+.editor-inline-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.editor-inline-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  white-space: nowrap;
+}
+
+.editor-inline-tab-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 1px;
+}
+
+.editor-inline-tab-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.editor-inline-tab-badge {
+  display: none;
+}
+
+.editor-inline-tab-close {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.editor-inline-tab:hover .editor-inline-tab-close {
+  opacity: 1;
+}
+
+.editor-inline-tab-close:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.editor-inline-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-right: 6px;
+}
+
+.editor-action-menu-wrap {
+  position: relative;
+}
+
+.editor-action-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  width: 196px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+  z-index: 240;
+}
+
+.editor-action-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.editor-action-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.editor-action-btn.active {
+  color: var(--text-bright);
+  background: var(--bg-active);
+}
+
+.editor-inline-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.5));
+  backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.5));
+}
+
+.editor-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.editor-inline-error {
+  color: var(--danger);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--danger-dim);
+}
+
+.editor-inline-empty {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* == CodeMirror overrides ===================================== */
+
+.codemirror-container {
+  height: 100%;
+  overflow: hidden;
+}
+
+.codemirror-container .cm-editor {
+  height: 100%;
+  background: transparent;
+}
+
+.codemirror-container .cm-scroller {
+  overflow: auto;
+  font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  background: transparent;
+}
+
+.codemirror-container .cm-gutters {
+  border-right: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) 62%, transparent);
+}
+
+/* == Editor status bar ======================================== */
+
+.editor-statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
+  border-top: 1px solid var(--stroke);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
+}
+
+.editor-statusbar-left,
+.editor-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-statusbar-item {
+  cursor: pointer;
+  padding: 1px 5px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-statusbar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.editor-statusbar-text {
+  white-space: nowrap;
+}
+
+.editor-statusbar-badge {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-elev-2);
+  font-size: 10px;
+}
+
+.editor-statusbar-item-wrap {
+  position: relative;
+}
+
+.editor-selector-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
+  z-index: 240;
+  margin-bottom: 4px;
+}
+
+.editor-selector-dropdown button {
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.editor-selector-dropdown button:hover {
+  background: var(--bg-hover);
+}
+
+.editor-selector-dropdown button.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}

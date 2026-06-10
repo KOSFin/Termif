@@ -1,0 +1,111 @@
+/* == Update banner =========================================== */
+
+.update-banner {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--stroke));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elev-2) 94%, transparent);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.update-banner-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-banner-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.update-banner-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-banner-action {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.update-banner-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.status-users-wrap {
+  position: relative;
+}
+
+.status-users-dropdown {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 170px;
+  max-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  z-index: 260;
+}
+
+.status-users-wrap:hover .status-users-dropdown,
+.status-users-wrap:focus-within .status-users-dropdown {
+  display: block;
+}
+
+.status-users-item {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
+}
+
+.status-users-item:last-child {
+  border-bottom: none;
+}
+
+.status-users-item.muted {
+  color: var(--text-muted);
+}
+
+.status-ok {
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 45%, var(--stroke));
+}
+
+.status-warn {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--stroke));
+}
+
+.status-danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--stroke));
+}

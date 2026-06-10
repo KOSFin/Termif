@@ -1,0 +1,241 @@
+/* == Tab strip ================================================ */
+
+.tabstrip {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 0 1 auto;
+  gap: 0;
+  max-width: none;
+}
+
+.tabstrip-scroll {
+  display: flex;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabstrip-scroll.limited {
+  overflow-x: auto;
+  flex: 1 1 auto;
+  border-right: 1px solid var(--stroke);
+}
+
+.tabstrip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 90px;
+  max-width: 180px;
+  padding: 0 10px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 38px;
+  color: var(--text-bright);
+  position: relative;
+  transition: background 0.1s, color 0.1s, transform 0.12s ease;
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-2) 48%, transparent), color-mix(in srgb, var(--bg-elev-2) 48%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.36);
+  cursor: default;
+  user-select: none;
+}
+
+.tab:hover {
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-2) 56%, transparent), color-mix(in srgb, var(--bg-elev-2) 56%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 28%, transparent);
+  color: var(--text);
+}
+
+.tab .tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tab.active {
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-1) 68%, transparent), color-mix(in srgb, var(--bg-elev-1) 68%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 34%, transparent);
+  color: var(--text-bright);
+}
+
+.tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--tab-color, var(--accent));
+}
+
+.tab.dragging {
+  opacity: 0.62;
+  z-index: 4;
+  pointer-events: none;
+  transition: none;
+}
+
+.tab-drag-active {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.tab.drag-over {
+  background: color-mix(in srgb, var(--tab-color, var(--accent)) 45%, transparent);
+}
+
+.tab.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 42%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 10%, transparent);
+}
+
+.tab.active .tab-icon {
+  color: var(--text);
+}
+
+.os-logo-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--os-logo-bg);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.os-logo-badge svg {
+  width: 76%;
+  height: 76%;
+  display: block;
+  fill: currentColor;
+}
+
+.tab-close {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.tabstrip-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding-right: 6px;
+}
+
+.tabstrip-actions.pinned {
+  border-left: 1px solid var(--stroke);
+  padding-left: 8px;
+}
+
+.tab-action {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
+  transition: background 0.1s, color 0.1s;
+}
+
+.tab-action:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.newtab-dropdown-wrap {
+  position: relative;
+}
+
+.newtab-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  display: grid;
+  width: 180px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.36);
+  overflow: hidden;
+  z-index: 240;
+}
+
+.newtab-dropdown button {
+  padding: 8px 12px;
+  border-radius: 0;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  font-size: 13px;
+}
+
+.newtab-dropdown button:hover {
+  background: var(--bg-hover);
+}

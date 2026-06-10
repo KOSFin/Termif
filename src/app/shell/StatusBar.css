@@ -1,0 +1,152 @@
+/* == Bottom status bar ======================================= */
+
+.statusbar {
+  height: 22px;
+  min-height: 22px;
+  position: relative;
+  z-index: 180;
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 50%, transparent);
+  background: var(--bg-elev-1);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+html[data-app-bg-image="true"] .app-root {
+  background-image:
+    linear-gradient(
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
+      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
+    ),
+    var(--terminal-bg-image, none);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+
+html[data-app-bg-image="true"] .topbar,
+html[data-app-bg-image="true"] .sidebar,
+html[data-app-bg-image="true"] .statusbar {
+  border-color: color-mix(in srgb, #d8e0ec 18%, transparent);
+  background: color-mix(in srgb, #111827 calc(var(--window-opacity, 1) * 48%), transparent);
+}
+
+html[data-app-bg-image="true"] .sidebar {
+  background: color-mix(in srgb, #101827 calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 40%), transparent);
+}
+
+html[data-app-bg-image="true"] .terminal-pane::before {
+  background: color-mix(in srgb, #101827 calc(var(--terminal-opacity, 1) * 42%), transparent);
+}
+
+html[data-app-bg-image="true"][data-theme="paper"] .topbar,
+html[data-app-bg-image="true"][data-theme="paper"] .sidebar,
+html[data-app-bg-image="true"][data-theme="paper"] .statusbar {
+  border-color: color-mix(in srgb, #2f3644 18%, transparent);
+  background: color-mix(in srgb, #d6dce5 calc(var(--window-opacity, 1) * 46%), transparent);
+}
+
+html[data-app-bg-image="true"][data-theme="paper"] .sidebar {
+  background: color-mix(in srgb, #d7dde6 calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 38%), transparent);
+}
+
+html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
+  background: color-mix(in srgb, #d7dde6 calc(var(--terminal-opacity, 1) * 38%), transparent);
+}
+
+.statusbar-left,
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statusbar-left {
+  flex: 1 1 auto;
+}
+
+.statusbar-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.status-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--bg-elev-2) 30%, transparent);
+  color: var(--text);
+}
+
+.status-pill {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--stroke) 62%, transparent);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background: color-mix(in srgb, var(--bg-elev-2) 72%, transparent);
+  color: var(--text-bright);
+}
+
+.status-metric {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  border: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-2) 72%, transparent);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-clock-local {
+  min-width: 108px;
+}
+
+.status-clock-server {
+  min-width: 142px;
+}
+
+.status-danger {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
+}
+
+.status-update {
+  height: 18px;
+  min-width: 74px;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--stroke));
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--accent-dim) 70%, var(--bg-elev-2));
+}
+
+.status-update:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 28%, var(--bg-elev-2));
+}
+
+.status-update-downloading {
+  color: var(--accent);
+  cursor: progress;
+}
+
+.status-update-installed {
+  border-color: color-mix(in srgb, var(--accent-2) 55%, var(--stroke));
+  background: color-mix(in srgb, var(--accent-2) 20%, var(--bg-elev-2));
+}

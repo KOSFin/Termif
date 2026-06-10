@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { X, ChevronDown, Plus, Terminal, Globe, Monitor } from "lucide-react";
 import { getShellProfileOptions } from "@/platform/platform";
 import type { AppTab } from "@/types/models";
-import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/SshHostPicker";
+import { OS_CACHE_KEY, type OsInfo } from "@/features/ssh/sshHostPickerUtils";
 import { OsLogoBadge } from "@/features/ssh/OsLogo";
 
 function resolveTabIcon(tab: AppTab): ReactNode {

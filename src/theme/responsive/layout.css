@@ -1,0 +1,40 @@
+/* == Responsive =============================================== */
+
+@media (max-width: 1024px) {
+  .sidebar:not(.sidebar-hidden) {
+    width: 240px;
+  }
+
+  .settings-panel {
+    grid-template-columns: 160px 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar:not(.sidebar-hidden) {
+    width: 100%;
+    max-height: 40vh;
+  }
+
+  .settings-panel {
+    grid-template-columns: 1fr;
+    width: 100%;
+    height: auto;
+    max-height: calc(100vh - 40px);
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--stroke);
+  }
+
+  .terminal-pane {
+    padding: 0;
+  }
+}

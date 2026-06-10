@@ -1,0 +1,68 @@
+/* == Context menus ============================================ */
+
+.context-anchor {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+}
+
+.tab-context-menu,
+.file-context-menu {
+  position: fixed;
+  width: 180px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev-2);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+  z-index: 240;
+}
+
+.tab-context-menu button,
+.file-context-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  padding: 7px 10px;
+  background: transparent;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tab-context-menu button:hover,
+.file-context-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.context-section {
+  padding: 6px 10px;
+}
+
+.context-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.color-row {
+  display: flex;
+  gap: 5px;
+}
+
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}

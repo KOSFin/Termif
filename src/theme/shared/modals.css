@@ -1,0 +1,205 @@
+/* == Modals ================================================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, var(--modal-dimming, 0.55));
+  backdrop-filter: blur(var(--modal-blur, 4px));
+  display: grid;
+  place-items: center;
+  z-index: 260;
+  animation: overlay-enter var(--anim-duration, 0.15s) ease-out;
+}
+
+.modal-panel {
+  width: min(480px, calc(100vw - 40px));
+  border: 1px solid var(--stroke);
+  border-radius: var(--ui-radius, var(--radius-lg));
+  background: var(--bg-elev-1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+  animation: modal-fade-in var(--anim-duration, 0.18s) ease-out;
+}
+
+.modal-panel-lg {
+  width: min(560px, calc(100vw - 40px));
+  min-height: 420px;
+  height: min(520px, calc(100vh - 80px));
+}
+
+.modal-panel-sm {
+  width: min(340px, calc(100vw - 40px));
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.modal-header button.ghost {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+}
+
+/* Tabs inside modal */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+.modal-tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.modal-tab:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.modal-tab.hidden {
+  display: none;
+}
+
+.modal-body {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 200px;
+}
+
+.modal-body label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-body textarea {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--stroke);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 12px;
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.modal-body textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 10px;
+}
+
+.modal-tip {
+  padding: 9px 12px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev-2) 50%, transparent);
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.modal-danger-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-danger-actions button {
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+}
+
+.modal-checkbox-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.modal-checkbox-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+/* == Shared icon button ====================================== */
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  color: var(--text);
+  transition: background 0.1s, color 0.1s;
+}
+
+.icon-btn:hover {
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}

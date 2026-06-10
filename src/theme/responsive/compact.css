@@ -1,0 +1,163 @@
+@media (max-width: 768px) {
+  .settings-panel {
+    width: min(100%, calc(100vw - 20px));
+    height: min(100%, calc(100vh - 20px));
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .hotkey-recorder,
+  .settings-hotkeys-item {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-file-picker-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-file-picker-row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    min-width: 0;
+  }
+
+  .tab {
+    min-width: 72px;
+    max-width: 136px;
+    padding: 0 8px;
+  }
+
+  .newtab-dropdown {
+    right: 0;
+    left: auto;
+  }
+
+  .settings-overlay {
+    place-items: stretch;
+    padding: 10px;
+  }
+
+  .settings-panel {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--stroke);
+    min-width: 0;
+  }
+
+  .settings-nav-header {
+    display: none;
+  }
+
+  .settings-search-wrap {
+    flex: 0 0 150px;
+    margin: 0 6px 0 0 !important;
+  }
+
+  .settings-nav-item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .settings-content {
+    padding: 0 14px 14px;
+  }
+
+  .settings-content-header {
+    padding-top: 12px;
+  }
+
+  .settings-row,
+  .settings-row-toggle,
+  .modal-row-2,
+  .theme-system-selects,
+  .settings-file-picker-row,
+  .ssh-key-picker-row,
+  .hotkey-recorder,
+  .settings-hotkeys-item {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-file-picker-row button,
+  .ssh-key-picker-row button {
+    width: 100%;
+  }
+
+  .theme-grid {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+
+  .modal-panel,
+  .modal-panel-lg,
+  .modal-panel-sm {
+    width: min(100%, calc(100vw - 20px));
+    max-height: calc(100vh - 20px);
+  }
+
+  .new-ssh-design.ssh-picker {
+    padding: 12px;
+    gap: 12px !important;
+  }
+
+  .new-ssh-design .ssh-header,
+  .new-ssh-design .ssh-header-actions,
+  .new-ssh-design .ssh-filter-bar {
+    align-items: stretch;
+  }
+
+  .new-ssh-design .ssh-header,
+  .new-ssh-design .ssh-filter-bar {
+    flex-direction: column;
+  }
+
+  .new-ssh-design .ssh-header-actions {
+    justify-content: flex-start;
+  }
+
+  .new-ssh-design .import-btn,
+  .new-ssh-design .new-host-wrapper,
+  .new-ssh-design .new-host-group {
+    width: 100%;
+  }
+
+  .new-ssh-design .new-host-group > button:first-child {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .host-card-new {
+    height: 64px;
+  }
+
+  .host-card-new-settings {
+    width: 40px;
+  }
+
+  .host-card-new-core {
+    padding: 0 10px;
+    gap: 10px;
+  }
+
+  .snippet-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .snippet-card-actions {
+    opacity: 1;
+  }
+}

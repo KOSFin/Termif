@@ -1,0 +1,119 @@
+/* == Clipboard History ======================================= */
+
+.clipboard-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.clipboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stroke);
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--bg-elev-1) 16%, transparent);
+}
+
+.clipboard-header h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clipboard-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.clipboard-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.clipboard-empty {
+  text-align: center;
+  padding: 22px 16px;
+  margin: 16px;
+  font-size: 12px;
+  color: var(--text);
+  font-style: italic;
+  background: color-mix(in srgb, var(--bg-elev-1) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 30%, transparent);
+  border-radius: 8px;
+}
+
+.clipboard-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-1) 12%, transparent);
+  color: inherit;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.clipboard-entry:hover {
+  background: color-mix(in srgb, var(--bg-hover) 64%, transparent);
+}
+
+.clipboard-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.clipboard-entry-text {
+  font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+
+.clipboard-entry-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.clipboard-entry-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.clipboard-entry:hover .clipboard-entry-actions {
+  opacity: 1;
+}
+
+.clipboard-entry-actions button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
+  font-size: 0;
+}
+
+.clipboard-entry-actions button:hover {
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+}
