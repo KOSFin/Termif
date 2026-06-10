@@ -1,28 +1,39 @@
-Termif Attribution License 1.0
+Termif Source-Available Attribution License 1.0
 
 Copyright (c) 2026 Termif Contributors
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, subject to the conditions below.
+This license grants limited rights to use, copy, modify, and redistribute the
+Termif source code and associated documentation, subject to the terms below.
 
-CONDITIONS
+1. Permitted Non-Commercial Use
 
-1. Any copy or substantial portion of the Software must include this license
-notice and the copyright notice above.
+You may use, copy, fork, modify, and redistribute the Software for personal,
+educational, evaluation, research, and other non-commercial purposes.
 
-2. Any public fork, redistribution, derivative repository, or distributed
-application that contains substantial portions of the Software must provide
-visible attribution to the original project by including the text:
-"Forked from Termif" and a link to the original Termif repository in a
-README, About page, release notes, or equivalent product/legal surface.
+2. Attribution
 
-3. Names, logos, and trademarks of the original project are not granted under
-this license except as required for factual attribution under condition (2).
+Any copy, public fork, redistributed source archive, derivative repository, or
+distributed application that contains substantial portions of the Software must
+include this license and provide visible attribution to the original Termif
+project. Visible attribution must include the text "Based on Termif" or
+"Forked from Termif" and a link to the original Termif repository in a README,
+About page, release notes, documentation, or equivalent product/legal surface.
 
-4. If you redistribute binaries, installers, or modified source archives, this
-license must be included in the distribution package.
+3. Commercial Use Requires Permission
+
+Commercial distribution, paid hosting, resale, sublicensing for commercial use,
+or embedding substantial portions of the Software in a commercial product or
+service requires prior written permission from the Termif maintainers.
+
+Commercial permission may be granted under a separate written agreement. Nothing
+in this license obligates the maintainers to grant such permission.
+
+4. Trademarks
+
+This license does not grant rights to use the Termif name, logos, or trademarks
+except as needed for factual attribution under section 2.
+
+5. No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "check": "npm run lint && npm run test && npm run build",
+    "version:sync": "node scripts/sync-version.mjs",
+    "version:check": "node scripts/sync-version.mjs --check",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

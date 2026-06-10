@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const appVersion = requiredEnv("APP_VERSION");
 const runNumber = Number(process.env.GITHUB_RUN_NUMBER || "0");
@@ -10,14 +11,10 @@ if (stableUpdate && !updaterPubkey.trim()) {
   throw new Error("Stable updater builds require TAURI_UPDATER_PUBKEY secret/env.");
 }
 
-const packagePath = "package.json";
-const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-packageJson.version = appVersion;
-fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+execFileSync(process.execPath, ["scripts/sync-version.mjs", "--version", appVersion], { stdio: "inherit" });
 
 const tauriPath = "src-tauri/tauri.conf.json";
 const tauriConfig = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
-tauriConfig.version = appVersion;
 tauriConfig.bundle = tauriConfig.bundle ?? {};
 tauriConfig.bundle.createUpdaterArtifacts = stableUpdate;
 
@@ -47,13 +44,6 @@ if (stableUpdate) {
 }
 
 fs.writeFileSync(tauriPath, `${JSON.stringify(tauriConfig, null, 2)}\n`);
-
-const cargoPath = "src-tauri/Cargo.toml";
-const cargoToml = fs.readFileSync(cargoPath, "utf8");
-fs.writeFileSync(
-  cargoPath,
-  cargoToml.replace(/(^\[package\][\s\S]*?^version\s*=\s*")[^"]+(")/m, `$1${appVersion}$2`),
-);
 
 function requiredEnv(name) {
   const value = process.env[name];

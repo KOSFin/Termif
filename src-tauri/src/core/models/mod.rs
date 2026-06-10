@@ -99,6 +99,7 @@ impl Default for AppSettings {
                 border_radius: 8,
                 window_opacity: 1.0,
                 window_blur: default_window_blur(),
+                panel_blur: default_panel_blur(),
                 panel_opacity: 1.0,
                 topbar_opacity: 0.88,
                 terminal_opacity: 1.0,
@@ -171,6 +172,8 @@ pub struct AppearanceSettings {
     pub window_opacity: f32,
     #[serde(default = "default_window_blur")]
     pub window_blur: u8,
+    #[serde(default = "default_panel_blur")]
+    pub panel_blur: u8,
     #[serde(default = "default_panel_opacity")]
     pub panel_opacity: f32,
     #[serde(default = "default_topbar_opacity")]
@@ -233,6 +236,10 @@ fn default_window_opacity() -> f32 {
 
 fn default_window_blur() -> u8 {
     8
+}
+
+fn default_panel_blur() -> u8 {
+    12
 }
 
 fn default_panel_opacity() -> f32 {

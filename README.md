@@ -5,7 +5,7 @@
 <h1 align="center">Termif</h1>
 
 <p align="center">
-	Cross-platform terminal workspace with native shell sessions, SSH orchestration, contextual file operations, and integrated editing.
+	Local-first cross-platform SSH workspace for native shells, remote hosts, contextual files, snippets, and integrated editing.
 </p>
 
 <p align="center">
@@ -30,11 +30,39 @@ Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md
 
 Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
 
+## Demo Placeholder
+
+> Demo video / GIF slot. Replace this block with the real Termif workflow recording before a public launch.
+
 ## What Termif Is
 
-Termif is a desktop terminal product for operators and developers who move constantly between local and remote environments. The application combines low-latency local PTY sessions, SSH session orchestration, and a context-bound file workspace in one frame. Instead of treating terminal, files, and editor as disconnected utilities, Termif keeps those surfaces synchronized around the active tab context and connection state.
+Termif is a local-first desktop SSH workspace for operators and developers who move constantly between local and remote environments. The application combines low-latency local PTY sessions, SSH session orchestration, contextual file navigation, snippets, and editing in one frame. Instead of treating terminal, files, and editor as disconnected utilities, Termif keeps those surfaces synchronized around the active tab context and connection state.
 
 The product now targets Windows, macOS, and Linux from the same codebase. Platform differences are isolated to shell/profile resolution, keyboard conventions, window controls, filesystem roots, and release packaging, while terminal, SSH, editor, and workspace behavior remain shared.
+
+## Why Termif
+
+Termif is built for daily SSH-heavy work where the useful context should stay on your machine. Hosts, settings, snippets, and restored UI state are local by default. Remote connections are explicit, host-key trust is visible, and detached SSH tabs reconnect only when you ask them to.
+
+It is not positioned as just another terminal skin. Termif is a focused workspace for moving between a shell, remote files, quick commands, and release checks without scattering that work across separate apps.
+
+## Typical Workflow
+
+1. Start from a local shell tab.
+2. Open an SSH picker tab or import hosts from `~/.ssh/config`.
+3. Connect to a host, browse the active local or remote path, and preview or edit files.
+4. Run saved snippets into the active terminal.
+5. Reconnect detached SSH tabs explicitly after restart or network failure.
+
+## Who It Is For
+
+Termif fits developers, solo operators, homelab owners, and small infrastructure teams who want a native desktop workspace for many machines. It is especially useful when you want local settings and files, predictable cross-platform shortcuts, and release artifacts you can verify before installing.
+
+## Verify Downloads
+
+Download installers only from the [Termif site](https://kosfin.github.io/Termif/) or [GitHub Releases](https://github.com/KOSFin/Termif/releases). Release assets include `checksums-*.txt` files when CI publishes bundles. Compare the SHA-256 hash of the downloaded installer with the matching checksum before installing.
+
+Stable updater manifests are signed separately through Tauri updater signing secrets. Windows/macOS code signing and notarization are still hardening roadmap items, not completed guarantees.
 
 ## Product Capabilities
 
@@ -93,8 +121,10 @@ Termif surfaces concrete failures rather than generic UI states. If a session id
 
 [docs/settings-model.md](docs/settings-model.md), [docs/persistence-model.md](docs/persistence-model.md), [docs/plugin-system-proposal.md](docs/plugin-system-proposal.md), and [docs/ci-release-plan.md](docs/ci-release-plan.md) cover subsystem specifications.
 
-## License and Fork Policy
+## License and Commercial Use
 
-Termif is distributed under the Termif Attribution License 1.0. Forking and modification are allowed, including commercial distribution, as long as attribution obligations are preserved. In practice, derivative repositories and redistributed products must keep copyright notices and provide visible credit to the original Termif project.
+Termif uses a source-available attribution license. You may use, copy, modify, and share the source with visible credit to the original Termif project. Commercial distribution, paid hosting, resale, or embedding in a commercial product requires prior written permission from the Termif maintainers.
+
+This is intentionally not an OSI open-source license such as MIT or Apache-2.0, because those licenses allow commercial use without additional permission.
 
 Full legal text: [LICENSE](LICENSE).

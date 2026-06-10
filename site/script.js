@@ -32,10 +32,13 @@ const arch = (() => {
 const translations = {
   en: {
     navFeatures: "Features",
+    navWorkflow: "Workflow",
     navDownloads: "Downloads",
-    heroEyebrow: "Native shells. SSH. Files. Editing.",
-    heroLede: "A cross-platform terminal workspace for developers and operators who move between local machines and remote hosts all day.",
+    heroEyebrow: "Local-first. Cross-platform. SSH-aware.",
+    heroLede: "Local-first cross-platform SSH workspace for developers and operators who move between their machine, remote hosts, files, and snippets all day.",
     heroSecondary: "Download another version",
+    demoLabel: "Demo video / GIF placeholder",
+    demoNote: "Replace this block with the real Termif workflow recording.",
     detecting: "Detecting your system...",
     releaseLoads: "Release data loads directly from GitHub Releases.",
     featureTerminalTitle: "Terminal first",
@@ -44,6 +47,18 @@ const translations = {
     featureSshText: "Import hosts from ~/.ssh/config, group managed hosts, reconnect explicitly, and pin host keys.",
     featureFilesTitle: "Context files",
     featureFilesText: "The file manager follows the active local or SSH tab and opens files in a docked or popout editor.",
+    whyEyebrow: "Why Termif",
+    whyTitle: "One local-first frame for shell, SSH, files, and snippets.",
+    whyText: "Termif keeps daily ops context on your machine and makes remote work explicit: connect, inspect, edit, run, reconnect. It is built for fast context switching without turning your terminal into a cloud account.",
+    workflowEyebrow: "Typical workflow",
+    workflowTitle: "Open a local tab, jump to SSH, edit the file next to the terminal.",
+    workflowText: "Import hosts from ~/.ssh/config, group managed servers, browse local or remote paths from the active tab, preview/edit files, run snippets, and keep release checks close to the shell that executes them.",
+    audienceEyebrow: "Who it is for",
+    audienceTitle: "Developers, solo operators, homelab owners, and small infra teams.",
+    audienceText: "Termif is for people who need a focused desktop workspace for many machines, not a hosted platform. It works best when you want local settings, visible trust decisions, and platform-native bundles.",
+    verifyEyebrow: "Verify downloads",
+    verifyTitle: "Install from GitHub Releases and compare SHA-256 checksums.",
+    verifyText: "Release assets include checksum files when CI publishes bundles. Stable updater manifests are signed separately from OS code signing, which is still on the hardening roadmap.",
     downloadsEyebrow: "GitHub Releases",
     downloadsTitle: "Downloads",
     downloadsText: "Choose the installer for your platform. Checksums and alternate packages are available under each download.",
@@ -87,10 +102,13 @@ const translations = {
   },
   ru: {
     navFeatures: "Возможности",
+    navWorkflow: "Workflow",
     navDownloads: "Скачать",
-    heroEyebrow: "Локальный shell. SSH. Файлы. Редактор.",
-    heroLede: "Кроссплатформенный терминальный workspace для разработчиков и операторов, которые весь день переключаются между локальными машинами и удаленными хостами.",
+    heroEyebrow: "Local-first. Cross-platform. SSH-aware.",
+    heroLede: "Local-first кроссплатформенный SSH workspace для разработчиков и операторов, которые весь день переключаются между своей машиной, удаленными хостами, файлами и сниппетами.",
     heroSecondary: "Выбрать другую версию",
+    demoLabel: "Placeholder под demo video / GIF",
+    demoNote: "Замените этот блок на настоящий ролик рабочего сценария Termif.",
     detecting: "Определяем систему...",
     releaseLoads: "Данные релизов загружаются напрямую из GitHub Releases.",
     featureTerminalTitle: "Терминал в центре",
@@ -99,6 +117,18 @@ const translations = {
     featureSshText: "Импорт хостов из ~/.ssh/config, группы managed hosts, явный reconnect и pinning host keys.",
     featureFilesTitle: "Контекстные файлы",
     featureFilesText: "Файловый менеджер следует за активной локальной или SSH-вкладкой и открывает файлы во встроенном или отдельном редакторе.",
+    whyEyebrow: "Why Termif",
+    whyTitle: "Одна local-first рамка для shell, SSH, файлов и сниппетов.",
+    whyText: "Termif держит ежедневный ops-контекст на вашей машине и делает удаленную работу явной: подключиться, посмотреть, отредактировать, выполнить, переподключиться. Он создан для быстрого переключения без превращения терминала в облачный аккаунт.",
+    workflowEyebrow: "Typical workflow",
+    workflowTitle: "Откройте локальную вкладку, перейдите в SSH, редактируйте файл рядом с терминалом.",
+    workflowText: "Импортируйте хосты из ~/.ssh/config, группируйте managed servers, просматривайте локальные или удаленные пути активной вкладки, редактируйте файлы, запускайте сниппеты и держите release checks рядом с shell.",
+    audienceEyebrow: "Для кого",
+    audienceTitle: "Разработчики, solo operators, homelab и небольшие infra-команды.",
+    audienceText: "Termif нужен тем, кому важен сфокусированный desktop workspace для многих машин, а не hosted platform. Он лучше всего подходит, когда нужны локальные настройки, видимые trust-решения и нативные сборки.",
+    verifyEyebrow: "Проверка загрузок",
+    verifyTitle: "Ставьте из GitHub Releases и сверяйте SHA-256 checksums.",
+    verifyText: "Release assets включают checksum-файлы, когда CI публикует bundles. Stable updater manifests подписываются отдельно от OS code signing, который пока остается в hardening roadmap.",
     downloadsEyebrow: "GitHub Releases",
     downloadsTitle: "Скачать",
     downloadsText: "Выберите установщик для вашей платформы. Checksums и альтернативные пакеты доступны под каждой загрузкой.",
@@ -541,18 +571,34 @@ function renderDownloads(releases) {
 function applyStaticText() {
   document.documentElement.lang = currentLanguage;
   document.querySelector('[href="#features"]').textContent = t("navFeatures");
+  document.querySelector('[href="#workflow"]').textContent = t("navWorkflow");
   document.querySelector('[href="#downloads"]').textContent = t("navDownloads");
   document.querySelector(".hero .eyebrow").textContent = t("heroEyebrow");
   document.querySelector(".lede").textContent = t("heroLede");
   document.querySelector(".secondary").textContent = t("heroSecondary");
   document.getElementById("primary-download").textContent = t("detecting");
   document.getElementById("release-note").textContent = t("releaseLoads");
+  document.querySelector(".demo-label").textContent = t("demoLabel");
+  document.querySelector(".demo-note").textContent = t("demoNote");
   document.querySelectorAll(".features article")[0].querySelector("h2").textContent = t("featureTerminalTitle");
   document.querySelectorAll(".features article")[0].querySelector("p").textContent = t("featureTerminalText");
   document.querySelectorAll(".features article")[1].querySelector("h2").textContent = t("featureSshTitle");
   document.querySelectorAll(".features article")[1].querySelector("p").textContent = t("featureSshText");
   document.querySelectorAll(".features article")[2].querySelector("h2").textContent = t("featureFilesTitle");
   document.querySelectorAll(".features article")[2].querySelector("p").textContent = t("featureFilesText");
+  const blocks = document.querySelectorAll(".product-blocks article");
+  blocks[0].querySelector(".eyebrow").textContent = t("whyEyebrow");
+  blocks[0].querySelector("h2").textContent = t("whyTitle");
+  blocks[0].querySelector("p:not(.eyebrow)").textContent = t("whyText");
+  blocks[1].querySelector(".eyebrow").textContent = t("workflowEyebrow");
+  blocks[1].querySelector("h2").textContent = t("workflowTitle");
+  blocks[1].querySelector("p:not(.eyebrow)").textContent = t("workflowText");
+  blocks[2].querySelector(".eyebrow").textContent = t("audienceEyebrow");
+  blocks[2].querySelector("h2").textContent = t("audienceTitle");
+  blocks[2].querySelector("p:not(.eyebrow)").textContent = t("audienceText");
+  blocks[3].querySelector(".eyebrow").textContent = t("verifyEyebrow");
+  blocks[3].querySelector("h2").textContent = t("verifyTitle");
+  blocks[3].querySelector("p:not(.eyebrow)").textContent = t("verifyText");
   document.querySelector(".downloads .eyebrow").textContent = t("downloadsEyebrow");
   document.querySelector(".section-head h2").textContent = t("downloadsTitle");
   document.querySelector(".section-head > p").textContent = t("downloadsText");

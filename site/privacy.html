@@ -13,7 +13,8 @@
       <a href="index.html">Back to Termif</a>
       <h1>Privacy</h1>
       <p>This static website does not include analytics, advertising scripts, or tracking cookies. It requests public GitHub Releases data from the GitHub API so download buttons can point at current release assets.</p>
-      <p>The Termif desktop app stores settings, host metadata, and workspace state locally in the app data directory. SSH credentials and host files remain on your machine unless you explicitly configure or export them elsewhere.</p>
+      <p>The Termif desktop app stores settings, host metadata, and workspace state locally in the app data directory. Snippets and bounded terminal scrollback snapshots are currently stored in local WebView storage.</p>
+      <p>Imported SSH private keys are not copied into Termif storage. Managed hosts can currently include an optional password in local host metadata, so avoid saving sensitive production passwords until OS keychain storage lands.</p>
       <p>GitHub may process access logs when you visit the repository or download release assets. Review GitHub's own privacy terms for those services.</p>
     </main>
   </body>

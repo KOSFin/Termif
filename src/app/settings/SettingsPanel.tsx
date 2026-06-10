@@ -503,6 +503,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
+              <div id="setting-panel-blur" className="settings-row" style={{ display: matches("panel blur", "sidebar blur", "file manager blur", "glass", "transparency") ? undefined : "none" }}>
+                <label>Panel Blur</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="28"
+                  step="1"
+                  value={draft.appearance.panel_blur ?? 12}
+                  style={rangeProgressStyle(draft.appearance.panel_blur ?? 12, 0, 28)}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, panel_blur: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
               <div id="setting-app-background-image" className="settings-row" style={{ display: matches("app background image", "wallpaper", "background image", "terminal personalization") ? undefined : "none" }}>
                 <label>App Background Image</label>
                 <div className="settings-file-picker-row">

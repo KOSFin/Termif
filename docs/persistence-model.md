@@ -42,9 +42,11 @@ The product therefore distinguishes between durable workspace state and transien
 
 ## Sensitive Data Considerations
 
-Managed SSH host entries can include an optional password field. This improves quick-connect usability but introduces sensitive persistence risk. Downstream hardening work should prioritize secret handling improvements and storage protections.
+Managed SSH host entries can include an optional password field in `hosts.json`. This improves quick-connect usability but introduces sensitive persistence risk because passwords are not currently stored in the OS keychain. Downstream hardening work should prioritize moving secrets into platform credential storage or removing password persistence.
 
 Imported host data from ~/.ssh/config is not duplicated into managed host arrays by default; instead, imported hosts are parsed and merged with override maps from hosts.json.
+
+Termif must not persist private keys, passphrases, updater signing keys, or full SSH payload logs. Bounded localStorage terminal logs are UI scrollback snapshots and may still contain sensitive command output if a user prints it in the terminal.
 
 ## Non-Persisted Domains
 

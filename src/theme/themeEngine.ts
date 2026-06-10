@@ -128,6 +128,7 @@ export function applyAppearanceOverrides(appearance?: {
   border_radius?: number;
   window_opacity?: number;
   window_blur?: number;
+  panel_blur?: number;
   accent_color?: string;
   panel_opacity?: number;
   topbar_opacity?: number;
@@ -162,6 +163,7 @@ export function applyAppearanceOverrides(appearance?: {
   setNumberVar("--panel-opacity", appearance.panel_opacity, 1);
   setNumberVar("--window-opacity", appearance.window_opacity, 1);
   setPixelVar("--window-blur", appearance.window_blur, 8);
+  setPixelVar("--panel-blur", appearance.panel_blur, 12);
   setNumberVar("--topbar-opacity", appearance.topbar_opacity, 0.88);
   setNumberVar("--terminal-opacity", appearance.terminal_opacity, 1);
   const bgImage = appearance.terminal_background_image?.trim();

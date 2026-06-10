@@ -10,7 +10,7 @@ The workflow is triggered by pull requests, pushes to `main`/`develop`, version 
 
 The `metadata` job computes SemVer-compatible build metadata, release channel, release tag, release name, prerelease state, stable-updater eligibility, and publication intent.
 
-The `quality` job runs once on Ubuntu. It validates frontend lint, Vitest unit tests, frontend build integrity, Rust formatting, clippy warnings as errors, and Rust tests. It does not run a Tauri smoke build; native Tauri compilation is reserved for the platform `build` jobs that produce artifacts.
+The `quality` job runs once on Ubuntu unless the commit explicitly contains `[skip ci]` or `[ci skip]`. It validates `npm run version:check`, frontend lint, Vitest unit tests, frontend build integrity, Rust formatting, clippy warnings as errors, and Rust tests. It does not run a Tauri smoke build; native Tauri compilation is reserved for the platform `build` jobs that produce artifacts.
 
 The `build` job runs for non-PR events only when metadata found a release version and publishing is enabled. It runs in parallel with quality to reduce wall-clock time, while release publication still waits for both quality and build to pass. It builds native bundles per OS:
 
@@ -29,6 +29,10 @@ Non-tag builds no longer publish automatically. The last commit message or manua
 If the version has no prerelease suffix and no channel marker, it is treated as stable. If a non-stable channel is specified without a prerelease suffix, CI appends `-<channel>.<run_number>`.
 
 Windows MSI still receives a numeric four-part WiX version projection during the build step.
+
+All app version writes go through `scripts/sync-version.mjs`. Local maintainers can run `npm run version:sync -- --version 0.2.0` to update `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` when present, and `src-tauri/tauri.conf.json`. CI calls the same mechanism from `scripts/apply-build-metadata.mjs`.
+
+Release publishing is disabled when the commit message contains `[skip release]`, `[release skip]`, `[no release]`, `[skip ci]`, or `[ci skip]`. Tag pushes created by `github-actions[bot]` are treated as release-loop candidates and do not publish another release.
 
 ## Artifact Contract
 

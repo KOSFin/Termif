@@ -11,9 +11,15 @@ const commitMessage = process.env.COMMIT_MESSAGE ?? "";
 const versionInput = (process.env.RELEASE_VERSION_INPUT ?? "").trim();
 const channelInput = normalizeChannel(process.env.RELEASE_CHANNEL_INPUT ?? "");
 const publishInput = process.env.PUBLISH_RELEASE_INPUT ?? "true";
+const isActionsTagPush =
+  ref.startsWith("refs/tags/v") &&
+  process.env.GITHUB_ACTOR === "github-actions[bot]" &&
+  process.env.GITHUB_EVENT_NAME === "push";
+const skipCi = hasMarker(commitMessage, ["skip ci", "ci skip"]);
+const skipRelease = skipCi || isActionsTagPush || hasMarker(commitMessage, ["skip release", "release skip", "no release"]);
 
 const source = resolveVersionSource();
-const noRelease = !source.version;
+const noRelease = !source.version || skipRelease;
 
 let appVersion = noRelease ? normalizeVersion(baseVersion) : source.version;
 let channel = noRelease ? "none" : resolveChannel(appVersion, source.text);
@@ -40,8 +46,9 @@ const outputs = {
   prerelease: String(prerelease),
   stable_update: String(stableUpdate),
   publish_release: String(publishRelease),
+  skip_ci: String(skipCi),
   release_reason: noRelease
-    ? "No SemVer version marker found; release publishing is disabled."
+    ? noReleaseReason()
     : `Resolved ${appVersion} from ${source.kind}.`,
 };
 
@@ -111,6 +118,18 @@ function normalizeChannel(value) {
 
 function hasPrerelease(version) {
   return version.includes("-");
+}
+
+function hasMarker(text, markers) {
+  const normalized = text.toLowerCase();
+  return markers.some((marker) => normalized.includes(`[${marker}]`));
+}
+
+function noReleaseReason() {
+  if (skipCi) return "Commit contains [skip ci] or [ci skip]; release publishing is disabled.";
+  if (isActionsTagPush) return "Tag push was created by github-actions[bot]; release publishing is disabled to avoid a release loop.";
+  if (skipRelease) return "Commit contains a release skip marker; release publishing is disabled.";
+  return "No SemVer version marker found; release publishing is disabled.";
 }
 
 function escapeOutput(value) {

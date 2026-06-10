@@ -4,7 +4,7 @@ import { tags as t } from "@lezer/highlight";
 import type { Extension } from "@codemirror/state";
 
 export function buildEditorTheme(): Extension[] {
-  const bg = "var(--bg)";
+  const bg = "color-mix(in srgb, var(--bg) 68%, transparent)";
   const bgElev1 = "var(--bg-elev-1)";
   const bgHover = "var(--bg-hover)";
   const text = "var(--text)";
@@ -62,7 +62,7 @@ export function buildEditorTheme(): Extension[] {
         outline: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)",
       },
       ".cm-gutters": {
-        backgroundColor: bg,
+        backgroundColor: "color-mix(in srgb, var(--bg-elev-1) 62%, transparent)",
         color: textMuted,
         border: "none",
       },

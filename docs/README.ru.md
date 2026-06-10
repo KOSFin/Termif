@@ -20,6 +20,8 @@
 
 [persistence-model.md](persistence-model.md) описывает persistence-артефакты, восстановление состояния и вопросы чувствительных данных.
 
+[../SECURITY.md](../SECURITY.md) описывает local storage, credentials, host-key posture, границы логирования и текущие security TODO.
+
 [plugin-system-proposal.md](plugin-system-proposal.md) фиксирует направление plugin-системы и capability-модель.
 
 [ci-release-plan.md](ci-release-plan.md) описывает кроссплатформенный CI, сборку артефактов и релизный контур.

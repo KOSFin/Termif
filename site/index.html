@@ -22,6 +22,7 @@
       </a>
       <nav>
         <a href="#features">Features</a>
+        <a href="#workflow">Workflow</a>
         <a href="#downloads">Downloads</a>
         <a href="https://github.com/KOSFin/Termif" data-github-link>GitHub</a>
         <div id="language-switch" class="language-switch" aria-label="Language">
@@ -36,34 +37,20 @@
         <div class="hero-copy">
           <p class="eyebrow">Native shells. SSH. Files. Editing.</p>
           <h1>Termif</h1>
-          <p class="lede">A cross-platform terminal workspace for developers and operators who move between local machines and remote hosts all day.</p>
+          <p class="lede">Local-first cross-platform SSH workspace for developers and operators who move between their machine, remote hosts, files, and snippets all day.</p>
           <div class="actions">
             <button id="primary-download" class="primary">Detecting your system...</button>
             <a class="secondary" href="#downloads">Download another version</a>
           </div>
           <p id="release-note" class="release-note">Release data loads directly from GitHub Releases.</p>
         </div>
-        <div class="app-preview" aria-label="Termif workspace preview">
-          <div class="preview-topbar">
-            <span class="traffic red"></span>
-            <span class="traffic yellow"></span>
-            <span class="traffic green"></span>
-            <span class="preview-tab active">prod</span>
-            <span class="preview-tab">local</span>
-          </div>
-          <div class="preview-body">
-            <aside class="preview-sidebar">
-              <span class="preview-path">/srv/app</span>
-              <span>deploy.sh</span>
-              <span>release.yml</span>
-              <span>logs</span>
-            </aside>
-            <pre><code>$ ssh prod
-known_hosts verified
-$ ./deploy.sh --check
-services ok
-files synced
-status ready</code></pre>
+        <div class="demo-placeholder" aria-label="Termif demo video placeholder">
+          <div class="demo-frame">
+            <span class="play-mark" aria-hidden="true"></span>
+            <div>
+              <p class="demo-label">Demo video / GIF placeholder</p>
+              <p class="demo-note">Replace this block with the real Termif workflow recording.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -83,6 +70,29 @@ status ready</code></pre>
         </article>
       </section>
 
+      <section class="product-blocks" aria-label="Product positioning">
+        <article>
+          <p class="eyebrow">Why Termif</p>
+          <h2>One local-first frame for shell, SSH, files, and snippets.</h2>
+          <p>Termif keeps daily ops context on your machine and makes remote work explicit: connect, inspect, edit, run, reconnect. It is built for fast context switching without turning your terminal into a cloud account.</p>
+        </article>
+        <article id="workflow">
+          <p class="eyebrow">Typical workflow</p>
+          <h2>Open a local tab, jump to SSH, edit the file next to the terminal.</h2>
+          <p>Import hosts from <code>~/.ssh/config</code>, group managed servers, browse local or remote paths from the active tab, preview/edit files, run snippets, and keep release checks close to the shell that executes them.</p>
+        </article>
+        <article>
+          <p class="eyebrow">Who it is for</p>
+          <h2>Developers, solo operators, homelab owners, and small infra teams.</h2>
+          <p>Termif is for people who need a focused desktop workspace for many machines, not a hosted platform. It works best when you want local settings, visible trust decisions, and platform-native bundles.</p>
+        </article>
+        <article>
+          <p class="eyebrow">Verify downloads</p>
+          <h2>Install from GitHub Releases and compare SHA-256 checksums.</h2>
+          <p>Release assets include checksum files when CI publishes bundles. Stable updater manifests are signed separately from OS code signing, which is still on the hardening roadmap.</p>
+        </article>
+      </section>
+
       <section id="downloads" class="downloads">
         <div class="section-head">
           <div class="section-head-top">
@@ -97,7 +107,7 @@ status ready</code></pre>
     </main>
 
     <footer>
-      <span>Termif Attribution License 1.0</span>
+      <span>Termif Source-Available Attribution License 1.0</span>
       <a href="terms.html">Terms</a>
       <a href="privacy.html">Privacy</a>
       <a href="https://github.com/KOSFin/Termif" data-github-link>Source</a>

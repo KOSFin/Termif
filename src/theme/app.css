@@ -440,8 +440,8 @@ input[type="range"]::-moz-range-thumb {
   grid-template-rows: auto 1fr;
   min-height: 0;
   overflow: hidden;
-  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
-  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
   transition: width 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
@@ -450,8 +450,8 @@ input[type="range"]::-moz-range-thumb {
 .platform-macos .statusbar,
 .platform-linux .statusbar {
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 86%), transparent);
-  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
-  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
 }
 
 .platform-macos .sidebar {
@@ -463,6 +463,9 @@ input[type="range"]::-moz-range-thumb {
   border-right-color: transparent;
   opacity: 0;
   pointer-events: none;
+  margin-right: -1px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .sidebar-tools {
@@ -592,16 +595,21 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   flex-shrink: 0;
   height: 38px;
-  color: var(--text);
+  color: var(--text-bright);
   position: relative;
   transition: background 0.1s, color 0.1s, transform 0.12s ease;
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-2) 48%, transparent), color-mix(in srgb, var(--bg-elev-2) 48%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 18%, transparent);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.36);
   cursor: default;
   user-select: none;
 }
 
 .tab:hover {
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 28%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-2) 56%, transparent), color-mix(in srgb, var(--bg-elev-2) 56%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 28%, transparent);
   color: var(--text);
 }
 
@@ -613,7 +621,9 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .tab.active {
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 34%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg-elev-1) 68%, transparent), color-mix(in srgb, var(--bg-elev-1) 68%, transparent)),
+    color-mix(in srgb, var(--tab-color, var(--accent)) 34%, transparent);
   color: var(--text-bright);
 }
 
@@ -658,7 +668,13 @@ input[type="range"]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 42%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 10%, transparent);
 }
 
 .tab.active .tab-icon {
@@ -695,7 +711,7 @@ input[type="range"]::-moz-range-thumb {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text);
   opacity: 0;
   transition: opacity 0.1s, background 0.1s, color 0.1s;
 }
@@ -731,9 +747,9 @@ input[type="range"]::-moz-range-thumb {
   place-items: center;
   padding: 0;
   border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text-muted);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 42%, transparent);
+  color: var(--text);
   transition: background 0.1s, color 0.1s;
 }
 
@@ -849,6 +865,9 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 62%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
 }
 
 .file-toolbar {
@@ -891,8 +910,8 @@ input[type="range"]::-moz-range-thumb {
   padding: 0;
   border: none;
   border-radius: 7px;
-  background: transparent;
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  color: var(--text);
   display: grid;
   place-items: center;
   transition: background 0.1s, color 0.1s;
@@ -945,8 +964,8 @@ input[type="range"]::-moz-range-thumb {
   font-size: 11px;
   border: none;
   border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-2) 26%, transparent);
+  color: var(--text);
 }
 
 .breadcrumbs button:hover {
@@ -993,7 +1012,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 5px 8px;
   text-align: left;
   border: 1px solid transparent;
-  background: transparent;
+  background: color-mix(in srgb, var(--bg-elev-1) 24%, transparent);
   border-radius: 7px;
   font-size: 12px;
   color: var(--text);
@@ -1001,7 +1020,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .file-item:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
 }
 
 .file-item:disabled {
@@ -1063,8 +1082,8 @@ input[type="range"]::-moz-range-thumb {
   padding: 0;
   border: none;
   border-radius: 5px;
-  background: transparent;
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-2) 34%, transparent);
+  color: var(--text);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -1148,8 +1167,8 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 58%), transparent);
-  -webkit-backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.06);
-  backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.06);
+  -webkit-backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
+  backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
   pointer-events: none;
 }
 
@@ -3112,7 +3131,15 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
-  background: var(--bg);
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.72)),
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.72))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) 92%, transparent);
+  background-size: cover;
+  background-position: center;
   color: var(--text);
 }
 
@@ -3123,6 +3150,9 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   padding: 0 8px;
   height: 44px;
   border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
 }
 
 .editor-tabs {
@@ -3142,20 +3172,20 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   font-size: 12px;
   border: none;
   border-radius: 0;
-  background: transparent;
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-2) 32%, transparent);
+  color: var(--text);
   white-space: nowrap;
   position: relative;
   transition: background 0.1s, color 0.1s;
 }
 
 .editor-tab:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--bg-hover) 68%, transparent);
   color: var(--text);
 }
 
 .editor-tab.active {
-  background: var(--bg-active);
+  background: color-mix(in srgb, var(--bg-active) 78%, transparent);
   color: var(--text);
 }
 
@@ -3230,9 +3260,9 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   height: 30px;
   padding: 0;
   border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text-muted);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elev-2) 36%, transparent);
+  color: var(--text);
   display: grid;
   place-items: center;
   transition: background 0.1s, color 0.1s;
@@ -3258,6 +3288,9 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   grid-template-rows: auto auto 1fr;
   gap: 0;
   min-height: 0;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.55));
+  backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.55));
 }
 
 .editor-meta {
@@ -3267,6 +3300,7 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   font-size: 12px;
   padding: 6px 10px;
   border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) 46%, transparent);
 }
 
 .editor-error {
@@ -3286,7 +3320,7 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
 .editor-line-numbers {
   width: 40px;
   flex-shrink: 0;
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) 62%, transparent);
   overflow: hidden;
   padding-top: 10px;
   user-select: none;
@@ -3306,7 +3340,7 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   flex: 1;
   min-width: 0;
   border: none;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 64%, transparent);
   color: var(--text);
   font-family: "Cascadia Code", "JetBrains Mono", monospace;
   font-size: 13px;
@@ -3526,7 +3560,15 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--bg);
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.58)),
+      rgba(0, 0, 0, calc(var(--terminal-bg-dim, 0.35) * 0.58))
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) 86%, transparent);
+  background-size: cover;
+  background-position: center;
 }
 
 .editor-inline-header {
@@ -3536,7 +3578,9 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   height: 42px;
   min-height: 42px;
   border-bottom: 1px solid var(--stroke);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.14);
   padding: 0;
 }
 
@@ -3562,8 +3606,8 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   font-size: 12px;
   border: none;
   border-radius: 0;
-  background: transparent;
-  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elev-2) 32%, transparent);
+  color: var(--text);
   white-space: nowrap;
   flex-shrink: 0;
   position: relative;
@@ -3571,12 +3615,12 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
 }
 
 .editor-inline-tab:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--bg-hover) 68%, transparent);
   color: var(--text);
 }
 
 .editor-inline-tab.active {
-  background: var(--bg-active);
+  background: color-mix(in srgb, var(--bg-active) 78%, transparent);
   color: var(--text);
 }
 
@@ -3691,6 +3735,9 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   min-height: 0;
   overflow: hidden;
   position: relative;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.5));
+  backdrop-filter: blur(calc(var(--panel-blur, 12px) * 0.5));
 }
 
 .editor-loading-overlay {
@@ -3731,15 +3778,18 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
 
 .codemirror-container .cm-editor {
   height: 100%;
+  background: transparent;
 }
 
 .codemirror-container .cm-scroller {
   overflow: auto;
   font-family: "Cascadia Code", "JetBrains Mono", monospace;
+  background: transparent;
 }
 
 .codemirror-container .cm-gutters {
   border-right: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-elev-1) 62%, transparent);
 }
 
 /* == Editor status bar ======================================== */
@@ -3753,8 +3803,10 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   padding: 0 8px;
   font-size: 11px;
   color: var(--text-muted);
-  background: var(--bg-elev-1);
+  background: color-mix(in srgb, var(--bg-elev-1) calc(var(--panel-opacity, 1) * 82%), transparent);
   border-top: 1px solid var(--stroke);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.12);
 }
 
 .editor-statusbar-left,
@@ -3842,8 +3894,8 @@ html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before 
   z-index: 180;
   border-top: 1px solid color-mix(in srgb, var(--stroke) 50%, transparent);
   background: var(--bg-elev-1);
-  -webkit-backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
-  backdrop-filter: blur(calc(14px + var(--window-blur, 8px))) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
+  backdrop-filter: blur(var(--panel-blur, 12px)) saturate(1.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
