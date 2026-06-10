@@ -33,7 +33,7 @@ Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Док�
 ## Demo
 
 <p align="center">
-	<video src="docs/screenshots/demo.mp4" controls width="100%"></video>
+	<video src="https://github.com/user-attachments/assets/f0778cf1-e0ae-4a47-85ef-a16fe35f793d" controls width="100%"></video>
 </p>
 
 ## What Termif Is
