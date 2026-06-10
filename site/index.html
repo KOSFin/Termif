@@ -44,13 +44,27 @@
           </div>
           <p id="release-note" class="release-note">Release data loads directly from GitHub Releases.</p>
         </div>
-        <div class="demo-placeholder" aria-label="Termif demo video placeholder">
-          <div class="demo-frame">
+      </section>
+
+      <section class="demo-section" aria-label="Termif demo video">
+        <div class="demo-copy">
+          <p class="eyebrow">Workflow preview</p>
+          <h2>Shell, SSH, files, and editor in one workspace.</h2>
+        </div>
+        <div class="demo-video-shell">
+          <video
+            class="demo-video"
+            controls
+            playsinline
+            preload="metadata"
+            poster="assets/termif-logo.png"
+            data-demo-video
+          >
+            <source src="assets/demo.mp4" type="video/mp4" />
+          </video>
+          <div class="demo-fallback">
             <span class="play-mark" aria-hidden="true"></span>
-            <div>
-              <p class="demo-label">Demo video / GIF placeholder</p>
-              <p class="demo-note">Replace this block with the real Termif workflow recording.</p>
-            </div>
+            <p class="demo-label">Demo video</p>
           </div>
         </div>
       </section>
@@ -87,9 +101,9 @@
           <p>Termif is for people who need a focused desktop workspace for many machines, not a hosted platform. It works best when you want local settings, visible trust decisions, and platform-native bundles.</p>
         </article>
         <article>
-          <p class="eyebrow">Verify downloads</p>
-          <h2>Install from GitHub Releases and compare SHA-256 checksums.</h2>
-          <p>Release assets include checksum files when CI publishes bundles. Stable updater manifests are signed separately from OS code signing, which is still on the hardening roadmap.</p>
+          <p class="eyebrow">Native packages</p>
+          <h2>Install the build that matches the machine in front of you.</h2>
+          <p>Termif publishes platform-native bundles for Windows, macOS, and Linux, then keeps the download page grouped by OS and architecture so the right installer is obvious.</p>
         </article>
       </section>
 
@@ -97,7 +111,6 @@
         <div class="section-head">
           <div class="section-head-top">
             <p class="eyebrow">GitHub Releases</p>
-            <span id="release-mode" class="mode-pill" hidden></span>
           </div>
           <h2>Downloads</h2>
           <p>Each release appears once, with platform-specific installers grouped inside the same card. Older releases stay collapsed until needed.</p>

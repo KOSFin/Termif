@@ -101,13 +101,15 @@ footer a:hover {
 }
 
 .hero {
-  min-height: calc(100vh - 70px);
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+  min-height: min(640px, calc(100vh - 70px));
+  display: flex;
   align-items: center;
-  gap: clamp(28px, 5vw, 76px);
-  padding: clamp(44px, 8vw, 96px) max(22px, 6vw);
+  padding: clamp(52px, 8vw, 90px) max(22px, 6vw) clamp(36px, 6vw, 68px);
   border-bottom: 1px solid var(--line);
+}
+
+.hero-copy {
+  width: min(920px, 100%);
 }
 
 .eyebrow {
@@ -176,7 +178,30 @@ button:disabled {
   font-size: 13px;
 }
 
-.demo-placeholder,
+.demo-section {
+  display: grid;
+  gap: clamp(20px, 4vw, 34px);
+  padding: 0 max(22px, 6vw) clamp(48px, 8vw, 86px);
+  border-bottom: 1px solid var(--line);
+}
+
+.demo-section[hidden] {
+  display: none;
+}
+
+.demo-copy {
+  display: grid;
+  gap: 10px;
+  max-width: 780px;
+}
+
+.demo-copy h2 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 46px);
+  line-height: 1.08;
+}
+
+.demo-video-shell,
 .app-preview {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -188,14 +213,27 @@ button:disabled {
   overflow: hidden;
 }
 
-.demo-placeholder {
+.demo-video-shell {
+  position: relative;
+  width: min(1120px, 100%);
   aspect-ratio: 16 / 10;
   display: grid;
   place-items: center;
-  min-height: 360px;
+  min-height: 280px;
 }
 
-.demo-frame {
+.demo-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #070a0d;
+}
+
+.demo-video-shell.has-video .demo-fallback {
+  display: none;
+}
+
+.demo-fallback {
   width: min(520px, calc(100% - 42px));
   aspect-ratio: 16 / 9;
   display: grid;
@@ -232,12 +270,6 @@ button:disabled {
   font-size: clamp(20px, 3vw, 30px);
   font-weight: 800;
   line-height: 1.15;
-}
-
-.demo-note {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 14px;
 }
 
 .preview-topbar {
@@ -331,8 +363,8 @@ pre {
 }
 
 .product-blocks article {
-  min-height: 260px;
-  padding: clamp(30px, 5vw, 58px) max(22px, 5vw);
+  min-height: 210px;
+  padding: clamp(24px, 4vw, 42px) max(22px, 5vw);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent),
     var(--bg);
@@ -346,15 +378,15 @@ pre {
 }
 
 .product-blocks h2 {
-  max-width: 760px;
-  font-size: clamp(27px, 4vw, 44px);
-  line-height: 1.08;
+  max-width: 680px;
+  font-size: clamp(23px, 3vw, 34px);
+  line-height: 1.12;
 }
 
 .product-blocks p:not(.eyebrow) {
-  max-width: 760px;
+  max-width: 660px;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .features article {
@@ -418,8 +450,8 @@ footer {
 
 .release-card {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 16px;
+  padding: clamp(16px, 2vw, 20px);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--panel) 92%, var(--bg));
@@ -490,7 +522,7 @@ footer {
 
 .release-platforms {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 12px;
   align-items: start;
 }
@@ -498,12 +530,12 @@ footer {
 .platform-block {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
 }
 
 .platform-block-head {
@@ -512,42 +544,33 @@ footer {
   justify-content: space-between;
   gap: 10px;
   min-height: 24px;
-  padding: 0 2px;
+  padding: 0 2px 2px;
 }
 
 .platform-block-head h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.2;
 }
 
 .platform-rows {
   display: grid;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--bg) 28%, transparent);
+  gap: 10px;
 }
 
 .download-choice {
   display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.download-choice + .download-choice {
-  border-top: 1px solid var(--line);
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 52%, transparent);
 }
 
 .download-choice-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(138px, auto);
-  gap: 10px;
-  align-items: center;
+  gap: 9px;
+  align-items: start;
 }
 
 .choice-platform {
@@ -562,7 +585,7 @@ footer {
 .download-choice h4 {
   margin: 0;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.2;
   font-weight: 700;
 }
@@ -595,33 +618,44 @@ footer {
 }
 
 .primary-download-link {
+  width: 100%;
   justify-content: flex-start;
-  min-height: 34px;
-  padding: 0 10px;
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent),
+    color-mix(in srgb, var(--panel-2) 86%, var(--accent));
   color: #effdff;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .download-text {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
+  display: grid;
+  gap: 2px;
   min-width: 0;
-  line-height: 1;
+  line-height: 1.15;
 }
 
 .download-verb {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .download-text strong {
   color: var(--text);
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 800;
+  white-space: normal;
+}
+
+.download-format {
+  color: color-mix(in srgb, var(--accent) 75%, var(--muted));
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .asset-icon {
@@ -660,7 +694,7 @@ footer {
   width: fit-content;
   cursor: pointer;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   list-style-position: inside;
 }
 
@@ -812,7 +846,7 @@ footer {
     font-size: 13px;
   }
 
-  .demo-placeholder {
+  .demo-video-shell {
     min-height: 260px;
   }
 
@@ -840,5 +874,11 @@ footer {
 
   .download-choice-main {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1180px) {
+  .release-platforms {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 }

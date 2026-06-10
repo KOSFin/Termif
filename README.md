@@ -30,6 +30,12 @@ Language: 🇬🇧 [English](README.md) | 🇷🇺 [Русский](README.ru.md
 
 Documentation hubs: 🇬🇧 [Documentation](docs/README.md) | 🇷🇺 [Документация](docs/README.ru.md)
 
+## Demo
+
+<p align="center">
+	<video src="docs/screenshots/demo.mp4" controls width="100%"></video>
+</p>
+
 ## What Termif Is
 
 Termif is a local-first desktop SSH workspace for operators and developers who move constantly between local and remote environments. The application combines low-latency local PTY sessions, SSH session orchestration, contextual file navigation, snippets, and editing in one frame. Instead of treating terminal, files, and editor as disconnected utilities, Termif keeps those surfaces synchronized around the active tab context and connection state.

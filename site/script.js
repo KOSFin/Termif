@@ -37,8 +37,9 @@ const translations = {
     heroEyebrow: "Local-first. Cross-platform. SSH-aware.",
     heroLede: "Local-first cross-platform SSH workspace for developers and operators who move between their machine, remote hosts, files, and snippets all day.",
     heroSecondary: "Download another version",
-    demoLabel: "Demo video / GIF placeholder",
-    demoNote: "Replace this block with the real Termif workflow recording.",
+    demoEyebrow: "Workflow preview",
+    demoTitle: "Shell, SSH, files, and editor in one workspace.",
+    demoLabel: "Demo video",
     detecting: "Detecting your system...",
     releaseLoads: "Release data loads directly from GitHub Releases.",
     featureTerminalTitle: "Terminal first",
@@ -56,9 +57,9 @@ const translations = {
     audienceEyebrow: "Who it is for",
     audienceTitle: "Developers, solo operators, homelab owners, and small infra teams.",
     audienceText: "Termif is for people who need a focused desktop workspace for many machines, not a hosted platform. It works best when you want local settings, visible trust decisions, and platform-native bundles.",
-    verifyEyebrow: "Verify downloads",
-    verifyTitle: "Install from GitHub Releases and compare SHA-256 checksums.",
-    verifyText: "Release assets include checksum files when CI publishes bundles. Stable updater manifests are signed separately from OS code signing, which is still on the hardening roadmap.",
+    verifyEyebrow: "Native packages",
+    verifyTitle: "Install the build that matches the machine in front of you.",
+    verifyText: "Termif publishes platform-native bundles for Windows, macOS, and Linux, then keeps the download page grouped by OS and architecture so the right installer is obvious.",
     downloadsEyebrow: "GitHub Releases",
     downloadsTitle: "Downloads",
     downloadsText: "Choose the installer for your platform. Checksums and alternate packages are available under each download.",
@@ -107,8 +108,9 @@ const translations = {
     heroEyebrow: "Local-first. Cross-platform. SSH-aware.",
     heroLede: "Local-first кроссплатформенный SSH workspace для разработчиков и операторов, которые весь день переключаются между своей машиной, удаленными хостами, файлами и сниппетами.",
     heroSecondary: "Выбрать другую версию",
-    demoLabel: "Placeholder под demo video / GIF",
-    demoNote: "Замените этот блок на настоящий ролик рабочего сценария Termif.",
+    demoEyebrow: "Workflow preview",
+    demoTitle: "Shell, SSH, файлы и редактор в одном workspace.",
+    demoLabel: "Demo video",
     detecting: "Определяем систему...",
     releaseLoads: "Данные релизов загружаются напрямую из GitHub Releases.",
     featureTerminalTitle: "Терминал в центре",
@@ -126,9 +128,9 @@ const translations = {
     audienceEyebrow: "Для кого",
     audienceTitle: "Разработчики, solo operators, homelab и небольшие infra-команды.",
     audienceText: "Termif нужен тем, кому важен сфокусированный desktop workspace для многих машин, а не hosted platform. Он лучше всего подходит, когда нужны локальные настройки, видимые trust-решения и нативные сборки.",
-    verifyEyebrow: "Проверка загрузок",
-    verifyTitle: "Ставьте из GitHub Releases и сверяйте SHA-256 checksums.",
-    verifyText: "Release assets включают checksum-файлы, когда CI публикует bundles. Stable updater manifests подписываются отдельно от OS code signing, который пока остается в hardening roadmap.",
+    verifyEyebrow: "Нативные пакеты",
+    verifyTitle: "Ставьте сборку под конкретную машину.",
+    verifyText: "Termif публикует нативные bundles для Windows, macOS и Linux, а страница загрузок группирует их по OS и архитектуре, чтобы нужный installer был очевиден.",
     downloadsEyebrow: "GitHub Releases",
     downloadsTitle: "Скачать",
     downloadsText: "Выберите установщик для вашей платформы. Checksums и альтернативные пакеты доступны под каждой загрузкой.",
@@ -365,6 +367,7 @@ function groupAssetsByPlatform(release) {
 function renderAssetLink(asset, meta, { primary = false } = {}) {
   const kind = assetKind(meta.format);
   const label = assetLabel(meta.format, meta.os, meta.cpu, primary);
+  const format = meta.format === "App ZIP" ? "APP ZIP" : meta.format.toUpperCase();
   return `
     <a
       class="asset-link asset-link--${kind}${primary ? " primary-download-link" : ""}"
@@ -373,7 +376,7 @@ function renderAssetLink(asset, meta, { primary = false } = {}) {
     >
       <span class="asset-icon asset-icon--${kind}" aria-hidden="true">${assetIcon(kind)}</span>
       ${primary
-        ? `<span class="download-text"><strong>${escapeHtml(label)}</strong><span class="download-verb">${t("download")}</span></span>`
+        ? `<span class="download-text"><span class="download-verb">${t("download")}</span><strong>${escapeHtml(label)}</strong><span class="download-format">${escapeHtml(format)}</span></span>`
         : `<span>${escapeHtml(label)}</span>`}
     </a>
   `;
@@ -578,8 +581,9 @@ function applyStaticText() {
   document.querySelector(".secondary").textContent = t("heroSecondary");
   document.getElementById("primary-download").textContent = t("detecting");
   document.getElementById("release-note").textContent = t("releaseLoads");
+  document.querySelector(".demo-copy .eyebrow").textContent = t("demoEyebrow");
+  document.querySelector(".demo-copy h2").textContent = t("demoTitle");
   document.querySelector(".demo-label").textContent = t("demoLabel");
-  document.querySelector(".demo-note").textContent = t("demoNote");
   document.querySelectorAll(".features article")[0].querySelector("h2").textContent = t("featureTerminalTitle");
   document.querySelectorAll(".features article")[0].querySelector("p").textContent = t("featureTerminalText");
   document.querySelectorAll(".features article")[1].querySelector("h2").textContent = t("featureSshTitle");
@@ -620,15 +624,32 @@ function setupLanguageSwitch(releasesRef) {
       applyStaticText();
       setupLanguageSwitch(releasesRef);
       if (releasesRef.current) renderDownloads(releasesRef.current);
-      const mode = document.getElementById("release-mode");
-      if (isMockMode && mode) mode.textContent = t("mockData");
     };
   });
+}
+
+function setupDemoVideo() {
+  const video = document.querySelector("[data-demo-video]");
+  if (!video) return;
+
+  const configured = video.dataset.demoSrc?.trim();
+  const source = video.querySelector("source");
+  const src = configured || source?.getAttribute("src")?.trim() || "";
+  const hasVideo = Boolean(src);
+
+  video.hidden = !hasVideo;
+  document.querySelector(".demo-section").hidden = !hasVideo;
+  video.closest(".demo-video-shell")?.classList.toggle("has-video", hasVideo);
+  if (hasVideo && source && source.getAttribute("src") !== src) {
+    source.setAttribute("src", src);
+    video.load();
+  }
 }
 
 async function init() {
   const releasesRef = { current: null };
   applyStaticText();
+  setupDemoVideo();
   setupLanguageSwitch(releasesRef);
 
   document.querySelectorAll("[data-github-link]").forEach((link) => {
@@ -637,13 +658,10 @@ async function init() {
 
   const primary = document.getElementById("primary-download");
   const note = document.getElementById("release-note");
-  const mode = document.getElementById("release-mode");
 
   primary.disabled = true;
 
-  if (isMockMode && mode) {
-    mode.hidden = false;
-    mode.textContent = t("mockData");
+  if (isMockMode) {
     note.textContent = t("mockNote");
   }
 
