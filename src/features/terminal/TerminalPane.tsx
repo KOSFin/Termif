@@ -627,14 +627,16 @@ function buildXtermTheme(customColors?: Record<string, string>) {
     white: "#3f3933",
     brightWhite: "#11100e",
   };
+  const foreground = lightTheme ? lightAnsi.foreground : text;
+  const cursor = lightTheme ? lightAnsi.cursor : accent;
 
   return {
     background: transparentBackground,
-    foreground: c.foreground ?? (lightTheme ? lightAnsi.foreground : text),
-    cursor: c.cursor ?? (lightTheme ? lightAnsi.cursor : accent),
+    foreground: readableColor(c.foreground, bg, foreground),
+    cursor: readableColor(c.cursor, bg, cursor),
     cursorAccent: c.cursorAccent ?? bg,
     selectionBackground: c.selectionBackground ?? c.selection ?? colorMixFallback(bgHover, accent, 0.18),
-    selectionForeground: c.selectionForeground ?? textBright,
+    selectionForeground: readableColor(c.selectionForeground, bg, lightTheme ? lightAnsi.brightWhite : textBright),
     black: c.black ?? (lightTheme ? lightAnsi.black : pickAnsiBlack(bg)),
     brightBlack: c.brightBlack ?? (lightTheme ? lightAnsi.brightBlack : pickAnsiBrightBlack(textMuted)),
     red: c.red ?? (lightTheme ? lightAnsi.red : danger),
@@ -649,8 +651,8 @@ function buildXtermTheme(customColors?: Record<string, string>) {
     brightMagenta: c.brightMagenta ?? (lightTheme ? lightAnsi.brightMagenta : "#d896f0"),
     cyan: c.cyan ?? (lightTheme ? lightAnsi.cyan : "#56b6c2"),
     brightCyan: c.brightCyan ?? (lightTheme ? lightAnsi.brightCyan : "#82ccdf"),
-    white: c.white ?? (lightTheme ? lightAnsi.white : text),
-    brightWhite: c.brightWhite ?? (lightTheme ? lightAnsi.brightWhite : textBright),
+    white: readableColor(c.white, bg, lightTheme ? lightAnsi.white : text),
+    brightWhite: readableColor(c.brightWhite, bg, lightTheme ? lightAnsi.brightWhite : textBright),
     extendedAnsi: [bgElev],
   };
 }
@@ -661,6 +663,75 @@ function pickAnsiBlack(bg: string) {
 
 function pickAnsiBrightBlack(textMuted: string) {
   return isLightHex(readCssVar("--bg", "#1a1d23")) ? "#6e6258" : textMuted;
+}
+
+function readableColor(preferred: string | undefined, background: string, fallback: string, minRatio = 4.5) {
+  if (!preferred) return fallback;
+  const ratio = contrastRatio(preferred, background);
+  if (ratio === null) return preferred;
+  return ratio >= minRatio ? preferred : fallback;
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const bg = parseCssColor(background);
+  const fg = parseCssColor(foreground);
+  if (!fg || !bg) return null;
+
+  const blendedFg = fg.a < 1 ? blendColor(fg, bg) : fg;
+  const fgLum = relativeLuminance(blendedFg);
+  const bgLum = relativeLuminance(bg);
+  const lighter = Math.max(fgLum, bgLum);
+  const darker = Math.min(fgLum, bgLum);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function parseCssColor(value: string) {
+  const normalized = value.trim();
+  const hex = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+  if (hex) {
+    const full = hex.length === 3
+      ? hex.split("").map((part) => `${part}${part}`).join("")
+      : hex;
+    return {
+      r: parseInt(full.slice(0, 2), 16),
+      g: parseInt(full.slice(2, 4), 16),
+      b: parseInt(full.slice(4, 6), 16),
+      a: 1,
+    };
+  }
+
+  const rgb = normalized.match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgb) return null;
+  const parts = rgb[1].split(",").map((part) => part.trim());
+  if (parts.length < 3) return null;
+  const [r, g, b] = parts.slice(0, 3).map(Number);
+  const a = parts[3] === undefined ? 1 : Number(parts[3]);
+  if ([r, g, b, a].some((part) => Number.isNaN(part))) return null;
+  return { r, g, b, a };
+}
+
+function blendColor(
+  foreground: { r: number; g: number; b: number; a: number },
+  background: { r: number; g: number; b: number; a: number },
+) {
+  const alpha = foreground.a + background.a * (1 - foreground.a);
+  if (alpha <= 0) return { r: 0, g: 0, b: 0, a: 1 };
+  return {
+    r: (foreground.r * foreground.a + background.r * background.a * (1 - foreground.a)) / alpha,
+    g: (foreground.g * foreground.a + background.g * background.a * (1 - foreground.a)) / alpha,
+    b: (foreground.b * foreground.a + background.b * background.a * (1 - foreground.a)) / alpha,
+    a: 1,
+  };
+}
+
+function relativeLuminance(color: { r: number; g: number; b: number }) {
+  const [r, g, b] = [color.r, color.g, color.b].map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function isLightHex(value: string) {
