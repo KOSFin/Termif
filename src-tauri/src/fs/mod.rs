@@ -107,6 +107,16 @@ pub fn copy_entry(from: &str, to: &str) -> Result<(), TermifError> {
     Ok(())
 }
 
+pub fn get_file_mtime(path: &str) -> Result<Option<u64>, TermifError> {
+    let metadata = std::fs::metadata(path)?;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs());
+    Ok(mtime)
+}
+
 pub fn reveal_path(path: &str) -> Result<(), TermifError> {
     let target = PathBuf::from(path);
     let reveal_target = if target.exists() {

@@ -206,6 +206,43 @@
   border-bottom: 1px solid var(--danger-dim);
 }
 
+.editor-external-modified {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent-dim) 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.editor-external-modified span {
+  flex: 1;
+}
+
+.editor-external-modified button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  height: 22px;
+  font-size: 11px;
+  border-radius: 5px;
+  border: 1px solid var(--stroke);
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
+.editor-external-modified button:hover {
+  background: var(--bg-hover);
+}
+
+.editor-external-modified button.dismiss {
+  color: var(--text-muted);
+}
+
 .editor-inline-empty {
   display: grid;
   place-items: center;

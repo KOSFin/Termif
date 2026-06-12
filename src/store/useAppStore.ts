@@ -45,6 +45,8 @@ export interface EditorFile {
   languageName: string;
   encoding: string;
   loading?: boolean;
+  diskMtime?: number;
+  externallyModified?: boolean;
 }
 
 export type EditorDock = "left" | "right" | "top" | "bottom";
@@ -140,6 +142,7 @@ interface AppState {
   setEditorLanguage: (fileId: string, langId: string, langName: string) => void;
   clearEditorWorkspace: () => void;
   hasUnsavedEditorFiles: () => boolean;
+  checkEditorFilesChanged: () => Promise<void>;
 
   // Zoom actions
   zoomIn: () => void;
@@ -683,11 +686,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!activeTab) return;
 
     if (activeTab.kind === "ssh_picker") {
-      set({
-        fileEntries: [], fileLoading: false, fileTransitioning: false,
-        fileError: undefined, selectedFile: undefined,
-        fileDisplayTabId: activeTab.id, fileDisplayPath: undefined
-      });
+      // Show ~/.ssh directory contents when the ssh picker tab is active
+      try {
+        const homeDir = await invoke<string>("get_home_dir");
+        const sshPath = homeDir.replace(/\\/g, "/").replace(/\/$/, "") + "/.ssh";
+        const sshTabPath = get().tabPaths[activeTab.id] ?? sshPath;
+        const showHidden = get().settings?.file_manager.show_hidden ?? false;
+        const entries = await invoke<FileEntryDto[]>("list_local_entries", { path: sshTabPath, showHidden });
+        set({
+          fileEntries: entries, fileLoading: false, fileTransitioning: false,
+          fileError: undefined, selectedFile: undefined,
+          fileDisplayTabId: activeTab.id, fileDisplayPath: sshTabPath
+        });
+        if (!get().tabPaths[activeTab.id]) {
+          set((state) => ({ tabPaths: { ...state.tabPaths, [activeTab.id]: sshTabPath } }));
+        }
+      } catch {
+        set({
+          fileEntries: [], fileLoading: false, fileTransitioning: false,
+          fileError: undefined, selectedFile: undefined,
+          fileDisplayTabId: activeTab.id, fileDisplayPath: undefined
+        });
+      }
       return;
     }
 
@@ -788,11 +808,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!activeTab) return;
 
     if (activeTab.kind === "ssh_picker") {
-      set({
-        fileEntries: [], fileLoading: false, fileTransitioning: false,
-        fileError: undefined, selectedFile: undefined,
-        fileDisplayTabId: activeTab.id, fileDisplayPath: undefined
-      });
+      // Fall through to loadCurrentFiles for ssh_picker to get ~/.ssh
+      void get().loadCurrentFiles();
       return;
     }
 
@@ -964,6 +981,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         ? await invoke<string>("read_remote_text_file", { sessionId, path })
         : await invoke<string>("read_text_file", { path });
       const normalizedContent = normalizeLineEndings(rawContent);
+      const mtime: number | null | undefined = !sessionId
+        ? await invoke<number | null>("get_file_mtime", { path })
+        : undefined;
 
       const file: EditorFile = {
         id,
@@ -977,6 +997,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         languageName: lang.name,
         encoding: "UTF-8",
         loading: false,
+        diskMtime: mtime ?? undefined,
       };
       set((state) => {
         if (!state.editorFiles.some((item) => item.id === id)) return {};
@@ -1060,9 +1081,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       } else {
         await invoke("write_text_file", { path: file.path, content: file.content });
       }
+      const newMtime: number | null = !file.sessionId
+        ? await invoke<number | null>("get_file_mtime", { path: file.path })
+        : null;
       set((state) => ({
         editorFiles: state.editorFiles.map((f) =>
-          f.id === fileId ? { ...f, dirty: false, originalContent: f.content, error: undefined } : f
+          f.id === fileId ? { ...f, dirty: false, originalContent: f.content, error: undefined, diskMtime: newMtime ?? undefined, externallyModified: false } : f
         ),
       }));
       get().toast("File saved");
@@ -1100,6 +1124,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   hasUnsavedEditorFiles: () => get().editorFiles.some((f) => f.dirty),
+
+  checkEditorFilesChanged: async () => {
+    const localFiles = get().editorFiles.filter((f) => !f.sessionId && !f.loading);
+    if (localFiles.length === 0) return;
+    for (const file of localFiles) {
+      try {
+        const mtime = await invoke<number | null>("get_file_mtime", { path: file.path });
+        if (mtime != null && file.diskMtime != null && mtime > file.diskMtime) {
+          set((state) => ({
+            editorFiles: state.editorFiles.map((f) =>
+              f.id === file.id ? { ...f, externallyModified: true } : f
+            ),
+          }));
+        }
+      } catch {
+        // file may have been deleted externally — ignore
+      }
+    }
+  },
 
   // ── Zoom actions ───────────────────────────────────────────────────
 

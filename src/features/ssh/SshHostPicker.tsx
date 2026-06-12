@@ -829,7 +829,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
             if (e.key === "Escape") setDeleteGroupTarget(null);
             if (e.key === "Enter") void confirmDeleteGroup();
           }}>
-            <div className="modal-panel modal-panel-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h3>Delete group "{group?.name ?? ""}"</h3>
                 <button className="ghost" onClick={() => setDeleteGroupTarget(null)}>×</button>

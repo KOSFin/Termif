@@ -285,6 +285,18 @@ async fn write_remote_text_file(
 }
 
 #[tauri::command]
+fn get_home_dir() -> Result<String, String> {
+    crate::platform::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_file_mtime(path: String) -> Result<Option<u64>, String> {
+    fs_ops::get_file_mtime(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn create_fs_entry(path: String, is_dir: bool) -> Result<(), String> {
     fs_ops::create_entry(&path, is_dir).map_err(|e| e.to_string())
 }
@@ -566,6 +578,8 @@ pub fn run() {
             delete_remote_fs_entry,
             copy_fs_entry,
             reveal_path,
+            get_file_mtime,
+            get_home_dir,
             load_ssh_hosts,
             save_managed_ssh_host,
             delete_managed_ssh_host,

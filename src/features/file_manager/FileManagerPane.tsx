@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import {
   ArrowLeft,
   RefreshCw,
@@ -14,7 +14,8 @@ import {
   Pencil,
   Trash2,
   Terminal,
-  ExternalLink
+  ExternalLink,
+  X as XIcon
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { getDefaultLocalPath } from "@/platform/platform";
@@ -70,6 +71,9 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   }));
 
   const [contextMenu, setContextMenu] = useState<FileContextMenu>();
+  const [inlineInput, setInlineInput] = useState<{ type: "file" | "folder" | "rename"; entry?: FileEntryDto } | null>(null);
+  const [inlineValue, setInlineValue] = useState("");
+  const inlineRef = useRef<HTMLInputElement>(null);
 
   const activeTab = useMemo(() => tabs.find((item) => item.id === activeTabId), [activeTabId, tabs]);
 
@@ -150,30 +154,43 @@ export function FileManagerPane(props: FileManagerPaneProps) {
     await loadCurrentFiles({ force: true });
   };
 
-  const onRename = async (entry: FileEntryDto) => {
-    const nextName = window.prompt("Rename", entry.name)?.trim();
-    if (!nextName || nextName === entry.name) return;
-    const nextPath = entry.path.replace(/[^/\\]+$/, nextName);
-    if (props.isRemote && props.activeSessionId) {
-      await invoke("rename_remote_fs_entry", { sessionId: props.activeSessionId, from: entry.path, to: nextPath });
+  const openInlineInput = (type: "file" | "folder" | "rename", entry?: FileEntryDto) => {
+    setContextMenu(undefined);
+    setInlineValue(type === "rename" && entry ? entry.name : "");
+    setInlineInput({ type, entry });
+    setTimeout(() => inlineRef.current?.focus(), 0);
+  };
+
+  const commitInlineInput = async () => {
+    if (!inlineInput) return;
+    const name = inlineValue.trim();
+    if (!name) { setInlineInput(null); return; }
+
+    if (inlineInput.type === "rename" && inlineInput.entry) {
+      const entry = inlineInput.entry;
+      const nextPath = entry.path.replace(/[^/\\]+$/, name);
+      setInlineInput(null);
+      if (props.isRemote && props.activeSessionId) {
+        await invoke("rename_remote_fs_entry", { sessionId: props.activeSessionId, from: entry.path, to: nextPath });
+      } else {
+        await invoke("rename_fs_entry", { from: entry.path, to: nextPath });
+      }
     } else {
-      await invoke("rename_fs_entry", { from: entry.path, to: nextPath });
+      const isDir = inlineInput.type === "folder";
+      const path = displayPath.endsWith("/") ? `${displayPath}${name}` : `${displayPath}/${name}`;
+      setInlineInput(null);
+      if (props.isRemote && props.activeSessionId) {
+        await invoke("create_remote_fs_entry", { sessionId: props.activeSessionId, path, isDir });
+      } else {
+        await invoke("create_fs_entry", { path, isDir });
+      }
     }
     await loadCurrentFiles({ force: true });
   };
 
-  const onCreateEntry = async (isDir: boolean) => {
-    const name = window.prompt(isDir ? "Folder name" : "File name")?.trim();
-    if (!name) return;
-    const basePath = displayPath;
-    const path = basePath.endsWith("/") ? `${basePath}${name}` : `${basePath}/${name}`;
-    if (props.isRemote && props.activeSessionId) {
-      await invoke("create_remote_fs_entry", { sessionId: props.activeSessionId, path, isDir });
-    } else {
-      await invoke("create_fs_entry", { path, isDir });
-    }
-    await loadCurrentFiles({ force: true });
-  };
+  const onRename = (entry: FileEntryDto) => openInlineInput("rename", entry);
+
+  const onCreateEntry = (isDir: boolean) => openInlineInput(isDir ? "folder" : "file");
 
   const onCdHere = async (entry: FileEntryDto) => {
     if (!props.activeSessionId) return;
@@ -260,6 +277,25 @@ export function FileManagerPane(props: FileManagerPaneProps) {
 
       {fileError ? <div className="file-status error">{fileError}</div> : null}
 
+      {inlineInput && (
+        <div className="file-inline-input">
+          <span className="file-inline-label">
+            {inlineInput.type === "rename" ? "Rename:" : inlineInput.type === "folder" ? "Folder:" : "File:"}
+          </span>
+          <input
+            ref={inlineRef}
+            value={inlineValue}
+            onChange={(e) => setInlineValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); void commitInlineInput(); }
+              if (e.key === "Escape") setInlineInput(null);
+            }}
+            onBlur={() => void commitInlineInput()}
+          />
+          <button className="file-inline-cancel" onClick={() => setInlineInput(null)} title="Cancel"><XIcon size={12} /></button>
+        </div>
+      )}
+
       <div className={`file-list${uiBusy ? " busy" : ""}`}>
         {fileEntries.map((entry) => (
           <button
@@ -312,7 +348,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
             <button onClick={() => { void onCopy(contextMenu.file.name, "name"); setContextMenu(undefined); }}>
               <Type size={13} strokeWidth={2} /> Copy Name
             </button>
-            <button onClick={() => { void onRename(contextMenu.file); setContextMenu(undefined); }}>
+            <button onClick={() => { void onRename(contextMenu.file); }}>
               <Pencil size={13} strokeWidth={2} /> Rename
             </button>
             <button className="danger" onClick={() => { void onDelete(contextMenu.file); setContextMenu(undefined); }}>

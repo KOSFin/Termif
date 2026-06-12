@@ -75,6 +75,7 @@ export function AppShell() {
     setEditorDock,
     setEditorSplitPercent,
     hasUnsavedEditorFiles,
+    checkEditorFilesChanged,
     zoomIn,
     zoomOut,
     zoomReset,
@@ -122,6 +123,7 @@ export function AppShell() {
     setEditorDock: state.setEditorDock,
     setEditorSplitPercent: state.setEditorSplitPercent,
     hasUnsavedEditorFiles: state.hasUnsavedEditorFiles,
+    checkEditorFilesChanged: state.checkEditorFilesChanged,
     zoomIn: state.zoomIn,
     zoomOut: state.zoomOut,
     zoomReset: state.zoomReset,
@@ -173,6 +175,12 @@ export function AppShell() {
     if (!hasUnsavedEditorFiles()) return true;
     return window.confirm("You have unsaved editor files. Close the window anyway?");
   }, [hasUnsavedEditorFiles]);
+
+  useEffect(() => {
+    const onFocus = () => { void checkEditorFilesChanged(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [checkEditorFilesChanged]);
 
   const onMinimize = async () => {
     try {

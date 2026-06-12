@@ -163,7 +163,8 @@
   cursor: pointer;
 }
 
-.modal-checkbox-row input[type="checkbox"] {
+.modal-checkbox-row input[type="checkbox"],
+.modal-checkbox-row input[type="radio"] {
   width: 15px;
   height: 15px;
   flex-shrink: 0;

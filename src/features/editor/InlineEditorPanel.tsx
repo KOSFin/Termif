@@ -8,8 +8,10 @@ import {
   PanelBottom,
   PanelLeft,
   PanelRight,
-  PanelTop
+  PanelTop,
+  RotateCcw
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore, type EditorDock, type EditorFile } from "@/store/useAppStore";
 import { appShortcutTitle } from "@/platform/platform";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -47,6 +49,24 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     setEditorVisible: s.setEditorVisible,
     clearEditorWorkspace: s.clearEditorWorkspace,
   }));
+
+  const reloadFileFromDisk = useCallback(async (file: EditorFile) => {
+    if (file.sessionId) return;
+    try {
+      const raw = await invoke<string>("read_text_file", { path: file.path });
+      const mtime = await invoke<number | null>("get_file_mtime", { path: file.path });
+      const content = raw.replace(/\r\n/g, "\n");
+      useAppStore.setState((state) => ({
+        editorFiles: state.editorFiles.map((f) =>
+          f.id === file.id
+            ? { ...f, content, originalContent: content, dirty: false, externallyModified: false, diskMtime: mtime ?? undefined }
+            : f
+        ),
+      }));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const activeFile = useMemo(
     () => editorFiles.find((f) => f.id === activeEditorFileId),
@@ -232,6 +252,19 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
         <>
           {activeFile.error ? (
             <div className="editor-inline-error">{activeFile.error}</div>
+          ) : null}
+          {activeFile.externallyModified ? (
+            <div className="editor-external-modified">
+              <span>File changed on disk</span>
+              <button onClick={() => void reloadFileFromDisk(activeFile)}>
+                <RotateCcw size={12} strokeWidth={2} /> Reload
+              </button>
+              <button className="dismiss" onClick={() => useAppStore.setState((state) => ({
+                editorFiles: state.editorFiles.map((f) =>
+                  f.id === activeFile.id ? { ...f, externallyModified: false } : f
+                ),
+              }))}>Keep</button>
+            </div>
           ) : null}
           <div className="editor-inline-body">
             <CodeMirrorEditor
