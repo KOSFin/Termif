@@ -73,7 +73,7 @@ export function FileManagerPane(props: FileManagerPaneProps) {
   const [contextMenu, setContextMenu] = useState<FileContextMenu>();
   const [inlineInput, setInlineInput] = useState<{ type: "file" | "folder" | "rename"; entry?: FileEntryDto } | null>(null);
   const [inlineValue, setInlineValue] = useState("");
-  const inlineRef = useRef<HTMLInputElement>(null);
+  const inlineRef = useRef<React.ElementRef<"input">>(null);
 
   const activeTab = useMemo(() => tabs.find((item) => item.id === activeTabId), [activeTabId, tabs]);
 
