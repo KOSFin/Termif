@@ -23,11 +23,9 @@ tauri = { version = "=2.11.2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
+time = "=0.3.40"
 tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-
-[patch.crates-io]
-time = { version = "=0.3.40" }
 
 [features]
 default = ["custom-protocol"]
