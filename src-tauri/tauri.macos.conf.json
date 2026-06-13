@@ -26,5 +26,10 @@
         }
       }
     ]
+  },
+  "bundle": {
+    "macOS": {
+      "infoPlist": "Info.plist"
+    }
   }
 }

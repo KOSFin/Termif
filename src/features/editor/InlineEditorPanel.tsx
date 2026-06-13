@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   X,
   Save,
@@ -12,6 +12,8 @@ import {
   RotateCcw
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { ContextMenu, anchorMenuFromRect, type MenuPoint } from "@/components/ContextMenu";
+import { resolveWindowLabel } from "@/store/useAppStore";
 import { useAppStore, type EditorDock, type EditorFile } from "@/store/useAppStore";
 import { appShortcutTitle } from "@/platform/platform";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -28,6 +30,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     editorFiles,
     activeEditorFileId,
     tabs,
+    activeTabId,
     closeEditorFile,
     setActiveEditorFile,
     updateEditorContent,
@@ -36,10 +39,13 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     setEditorDock,
     setEditorVisible,
     clearEditorWorkspace,
+    setSelectedSidebarTool,
+    revealFileInManager,
   } = useAppStore((s) => ({
     editorFiles: s.editorFiles,
     activeEditorFileId: s.activeEditorFileId,
     tabs: s.tabs,
+    activeTabId: s.activeTabId,
     closeEditorFile: s.closeEditorFile,
     setActiveEditorFile: s.setActiveEditorFile,
     updateEditorContent: s.updateEditorContent,
@@ -48,6 +54,8 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     setEditorDock: s.setEditorDock,
     setEditorVisible: s.setEditorVisible,
     clearEditorWorkspace: s.clearEditorWorkspace,
+    setSelectedSidebarTool: s.setSelectedSidebarTool,
+    revealFileInManager: s.revealFileInManager,
   }));
 
   const reloadFileFromDisk = useCallback(async (file: EditorFile) => {
@@ -74,10 +82,9 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
   );
 
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
-  const [langSelectorOpen, setLangSelectorOpen] = useState(false);
-  const [dockMenuOpen, setDockMenuOpen] = useState(false);
-  const langSelectorRef = useRef<HTMLDivElement | null>(null);
-  const dockMenuRef = useRef<HTMLDivElement | null>(null);
+  const [langMenuAnchor, setLangMenuAnchor] = useState<MenuPoint | null>(null);
+  const [dockMenuAnchor, setDockMenuAnchor] = useState<MenuPoint | null>(null);
+  const [tabMenu, setTabMenu] = useState<{ fileId: string; anchor: MenuPoint } | null>(null);
 
   const onCursorChange = useCallback((line: number, col: number) => {
     setCursorPos({ line, col });
@@ -101,25 +108,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
     return () => window.removeEventListener("keydown", handler, true);
   }, [activeFile, saveEditorFile]);
 
-  useEffect(() => {
-    if (!langSelectorOpen && !dockMenuOpen) return;
-
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (langSelectorOpen && langSelectorRef.current && !langSelectorRef.current.contains(target)) {
-        setLangSelectorOpen(false);
-      }
-      if (dockMenuOpen && dockMenuRef.current && !dockMenuRef.current.contains(target)) {
-        setDockMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [dockMenuOpen, langSelectorOpen]);
-
   const filename = (f: EditorFile) => f.path.split(/[\\/]/).pop() ?? f.path;
-
   const resolveServerLabel = useCallback((file: EditorFile) => {
     if (!file.sessionId) {
       return "Local machine";
@@ -146,6 +135,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
         mode: f.mode,
         sessionId: f.sessionId,
         serverLabel: resolveServerLabel(f),
+        ownerWindowLabel: resolveWindowLabel(),
         content: f.content,
         dirty: f.dirty,
         error: f.error,
@@ -153,7 +143,7 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
       activeIndex
     );
     clearEditorWorkspace();
-    setDockMenuOpen(false);
+    setDockMenuAnchor(null);
   };
 
   if (editorFiles.length === 0) return null;
@@ -169,6 +159,14 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
               className={`editor-inline-tab${f.id === activeEditorFileId ? " active" : ""}`}
               onClick={() => setActiveEditorFile(f.id)}
               title={f.path}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setTabMenu({
+                  fileId: f.id,
+                  anchor: { x: event.clientX, y: event.clientY },
+                });
+              }}
             >
               <FileCode size={12} strokeWidth={2} />
               <span className="editor-inline-tab-meta">
@@ -199,34 +197,20 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
           >
             <GripVertical size={14} strokeWidth={2} />
           </button>
-          <div className="editor-action-menu-wrap" ref={dockMenuRef}>
-            <button
-              className={`editor-action-btn${dockMenuOpen ? " active" : ""}`}
-              onClick={() => setDockMenuOpen((v) => !v)}
-              title={`Dock and window options (current: ${dock})`}
-            >
-              <ChevronDown size={14} strokeWidth={2} />
-            </button>
-            {dockMenuOpen ? (
-              <div className="editor-action-menu" onMouseLeave={() => setDockMenuOpen(false)}>
-                <button onClick={() => { setEditorDock("left"); setDockMenuOpen(false); }}>
-                  <PanelLeft size={13} strokeWidth={2} /> Dock Left
-                </button>
-                <button onClick={() => { setEditorDock("top"); setDockMenuOpen(false); }}>
-                  <PanelTop size={13} strokeWidth={2} /> Dock Top
-                </button>
-                <button onClick={() => { setEditorDock("right"); setDockMenuOpen(false); }}>
-                  <PanelRight size={13} strokeWidth={2} /> Dock Right
-                </button>
-                <button onClick={() => { setEditorDock("bottom"); setDockMenuOpen(false); }}>
-                  <PanelBottom size={13} strokeWidth={2} /> Dock Bottom
-                </button>
-                <button onClick={popoutEditorWorkspace}>
-                  <ChevronDown size={13} strokeWidth={2} /> Open in Separate Window
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <button
+            className={`editor-action-btn${dockMenuAnchor ? " active" : ""}`}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              setDockMenuAnchor((current) =>
+                current
+                  ? null
+                  : anchorMenuFromRect(rect, { width: 196, height: 180 }, "bottom-end")
+              );
+            }}
+            title={`Dock and window options (current: ${dock})`}
+          >
+            <ChevronDown size={14} strokeWidth={2} />
+          </button>
           <button
             className="editor-action-btn"
             onClick={() => {
@@ -284,33 +268,20 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
           {/* Status bar */}
           <div className="editor-statusbar">
             <div className="editor-statusbar-left">
-              <div className="editor-statusbar-item-wrap" style={{ position: "relative" }}>
+              <div className="editor-statusbar-item-wrap">
                 <button
                   className="editor-statusbar-item"
-                  onClick={() => setLangSelectorOpen((v) => !v)}
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setLangMenuAnchor((current) =>
+                      current
+                        ? null
+                        : anchorMenuFromRect(rect, { width: 200, height: 280 }, "top-start")
+                    );
+                  }}
                 >
                   {activeFile.languageName} <ChevronDown size={10} strokeWidth={2} />
                 </button>
-                {langSelectorOpen ? (
-                  <div
-                    className="editor-selector-dropdown"
-                        ref={langSelectorRef}
-                    onMouseLeave={() => setLangSelectorOpen(false)}
-                  >
-                    {allLanguages.map((lang) => (
-                      <button
-                        key={lang.id}
-                        className={lang.id === activeFile.languageId ? "active" : ""}
-                        onClick={() => {
-                          setEditorLanguage(activeFile.id, lang.id, lang.name);
-                          setLangSelectorOpen(false);
-                        }}
-                      >
-                        {lang.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
               <span className="editor-statusbar-text">{activeFile.encoding}</span>
             </div>
@@ -327,6 +298,104 @@ export function InlineEditorPanel({ dock, onStartDockDrag }: InlineEditorPanelPr
       ) : (
         <div className="editor-inline-empty">No file selected</div>
       )}
+
+      <ContextMenu
+        open={!!dockMenuAnchor}
+        anchor={dockMenuAnchor}
+        onClose={() => setDockMenuAnchor(null)}
+        className="file-context-menu"
+        minWidth={196}
+        allowViewportOverflowOnMac
+      >
+        <button onClick={() => { setEditorDock("left"); setDockMenuAnchor(null); }}>
+          <PanelLeft size={13} strokeWidth={2} /> Dock Left
+        </button>
+        <button onClick={() => { setEditorDock("top"); setDockMenuAnchor(null); }}>
+          <PanelTop size={13} strokeWidth={2} /> Dock Top
+        </button>
+        <button onClick={() => { setEditorDock("right"); setDockMenuAnchor(null); }}>
+          <PanelRight size={13} strokeWidth={2} /> Dock Right
+        </button>
+        <button onClick={() => { setEditorDock("bottom"); setDockMenuAnchor(null); }}>
+          <PanelBottom size={13} strokeWidth={2} /> Dock Bottom
+        </button>
+        <button onClick={popoutEditorWorkspace}>
+          <ChevronDown size={13} strokeWidth={2} /> Open in Separate Window
+        </button>
+      </ContextMenu>
+
+      <ContextMenu
+        open={!!langMenuAnchor}
+        anchor={langMenuAnchor}
+        onClose={() => setLangMenuAnchor(null)}
+        className="file-context-menu"
+        minWidth={200}
+        allowViewportOverflowOnMac
+      >
+        {activeFile ? allLanguages.map((lang) => (
+          <button
+            key={lang.id}
+            className={lang.id === activeFile.languageId ? "active" : ""}
+            onClick={() => {
+              setEditorLanguage(activeFile.id, lang.id, lang.name);
+              setLangMenuAnchor(null);
+            }}
+          >
+            {lang.name}
+          </button>
+        )) : null}
+      </ContextMenu>
+
+      <ContextMenu
+        open={!!tabMenu}
+        anchor={tabMenu?.anchor ?? null}
+        onClose={() => setTabMenu(null)}
+        className="file-context-menu"
+        minWidth={216}
+        allowViewportOverflowOnMac
+      >
+        {tabMenu ? (() => {
+          const file = editorFiles.find((item) => item.id === tabMenu.fileId);
+          if (!file) return null;
+          return (
+            <>
+              <button onClick={() => {
+                void navigator.clipboard.writeText(file.path);
+                setTabMenu(null);
+              }}>
+                <FileCode size={13} strokeWidth={2} /> Copy Path
+              </button>
+              <button
+                disabled={!!file.sessionId}
+                onClick={() => {
+                  if (!file.sessionId) {
+                    void invoke("reveal_path", { path: file.path });
+                  }
+                  setTabMenu(null);
+                }}
+              >
+                <PanelRight size={13} strokeWidth={2} /> Open in Finder/Explorer
+              </button>
+              <button
+                disabled={activeTabId == null}
+                onClick={() => {
+                  setSelectedSidebarTool("files");
+                  void revealFileInManager(file.path, file.sessionId).catch(() => undefined);
+                  setTabMenu(null);
+                }}
+              >
+                <PanelLeft size={13} strokeWidth={2} /> Show in File Manager
+              </button>
+              <button onClick={() => {
+                closeEditorFile(file.id);
+                setTabMenu(null);
+              }}>
+                <X size={13} strokeWidth={2} /> Close Tab
+              </button>
+            </>
+          );
+        })() : null}
+      </ContextMenu>
     </div>
   );
 }

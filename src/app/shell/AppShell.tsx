@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getAllWindows, getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
 import { TabStrip } from "@/app/tabs/TabStrip";
@@ -13,6 +13,7 @@ import { DockDropOverlay } from "@/app/shell/DockDropOverlay";
 import { StatusBar } from "@/app/shell/StatusBar";
 import { TabSwitcherOverlay } from "@/app/shell/TabSwitcherOverlay";
 import { Toast } from "@/app/shell/Toast";
+import { WindowDropOverlay } from "@/app/shell/WindowDropOverlay";
 import { WindowControls } from "@/app/shell/WindowControls";
 import { looksLikeDisconnected } from "@/app/shell/shellUtils";
 import { useHotkeys } from "@/hooks/useHotkeys";
@@ -29,14 +30,29 @@ import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
 import { UpdateBanner } from "@/features/update/UpdateBanner";
 import { useAutoUpdater } from "@/features/update/useAutoUpdater";
+import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, TAB_DRAG_EVENT, formatWindowDisplayTitle, UI_STATE_SYNC_EVENT, type RevealInFileManagerPayload, type TabDragPayload, type UiStateSyncPayload } from "@/app/windows/windowing";
+import { makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
+import { resolveWindowLabel } from "@/store/useAppStore";
+import type { PersistedUiState } from "@/types/models";
+
+interface LaunchPathsPayload {
+  requests: LaunchRequest[];
+}
+
+interface LaunchRequest {
+  path: string;
+  target: "tab" | "window";
+}
 
 export function AppShell() {
+  const windowLabel = resolveWindowLabel();
+  const isMainWindow = windowLabel === MAIN_WINDOW_LABEL;
   const {
     isInitialized,
     initialize,
-    tabs,
     activeTabId,
     sidebarVisible,
+    sidebarWidth,
     paletteOpen,
     settingsOpen,
     settings,
@@ -47,6 +63,13 @@ export function AppShell() {
     lastToast,
     createLocalTab,
     createSshPickerTab,
+    getWindowTabs,
+    getActiveTabIdForWindow,
+    syncWindowStateFromBackend,
+    detachTabToNewWindow,
+    moveTabToWindow,
+    moveTabToMainWindow,
+    closeDetachedWindow,
     connectSshTab,
     closeTab,
     duplicateTab,
@@ -82,9 +105,9 @@ export function AppShell() {
   } = useAppStore((state) => ({
     isInitialized: state.isInitialized,
     initialize: state.initialize,
-    tabs: state.tabs,
     activeTabId: state.activeTabId,
     sidebarVisible: state.sidebarVisible,
+    sidebarWidth: state.sidebarWidth,
     paletteOpen: state.paletteOpen,
     settingsOpen: state.settingsOpen,
     settings: state.settings,
@@ -95,6 +118,13 @@ export function AppShell() {
     lastToast: state.lastToast,
     createLocalTab: state.createLocalTab,
     createSshPickerTab: state.createSshPickerTab,
+    getWindowTabs: state.getWindowTabs,
+    getActiveTabIdForWindow: state.getActiveTabIdForWindow,
+    syncWindowStateFromBackend: state.syncWindowStateFromBackend,
+    detachTabToNewWindow: state.detachTabToNewWindow,
+    moveTabToWindow: state.moveTabToWindow,
+    moveTabToMainWindow: state.moveTabToMainWindow,
+    closeDetachedWindow: state.closeDetachedWindow,
     connectSshTab: state.connectSshTab,
     closeTab: state.closeTab,
     duplicateTab: state.duplicateTab,
@@ -129,17 +159,50 @@ export function AppShell() {
     zoomReset: state.zoomReset,
   }));
 
+  const visibleTabs = useMemo(() => getWindowTabs(windowLabel), [getWindowTabs, windowLabel]);
+  const visibleActiveTabId = useMemo(
+    () => getActiveTabIdForWindow(windowLabel) ?? activeTabId,
+    [activeTabId, getActiveTabIdForWindow, windowLabel]
+  );
+
   const connectHostFromPalette = useCallback((alias: string) => {
-    const existing = tabs.find((tab) => tab.kind === "ssh" && tab.sshAlias === alias && tab.sessionId);
+    const existing = visibleTabs.find((tab) => tab.kind === "ssh" && tab.sshAlias === alias && tab.sessionId);
     if (existing) {
       setActiveTab(existing.id);
       return;
     }
     const pickerTabId = createSshPickerTab();
     void connectSshTab(pickerTabId, alias);
-  }, [connectSshTab, createSshPickerTab, setActiveTab, tabs]);
+  }, [connectSshTab, createSshPickerTab, setActiveTab, visibleTabs]);
 
-  const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
+  const openLaunchRequests = useCallback(async (requests: LaunchRequest[]) => {
+    if (!isMainWindow) return;
+    const unique = requests.filter((request, index, list) => {
+      const path = request.path.trim();
+      if (!path) return false;
+      return list.findIndex((item) => item.path.trim() === path && item.target === request.target) === index;
+    });
+
+    for (const request of unique) {
+      const cwd = request.path.trim();
+      if (!cwd) continue;
+
+      if (request.target === "window") {
+        const label = makeTerminalWindowLabel();
+        openTerminalWorkspaceWindow(label, `Termif — ${cwd}`);
+        const tabId = await createLocalTab(coerceShellProfile(settings?.terminal.default_shell), cwd);
+        await moveTabToWindow(tabId, label, {
+          sourceWindowLabel: windowLabel,
+          activate: true,
+        }).catch(() => undefined);
+        continue;
+      }
+
+      await createLocalTab(coerceShellProfile(settings?.terminal.default_shell), cwd);
+    }
+  }, [createLocalTab, isMainWindow, moveTabToWindow, settings?.terminal.default_shell, windowLabel]);
+
+  const activeTab = useMemo(() => visibleTabs.find((tab) => tab.id === visibleActiveTabId), [visibleActiveTabId, visibleTabs]);
   const {
     updateState,
     installUpdate,
@@ -259,6 +322,8 @@ export function AppShell() {
   const [remoteStatusError, setRemoteStatusError] = useState<string>();
   const [clockTick, setClockTick] = useState(0);
   const [reconnectingTabs, setReconnectingTabs] = useState<Record<string, boolean>>({});
+  const [availableWindowTargets, setAvailableWindowTargets] = useState<Array<{ label: string; title: string }>>([]);
+  const [windowDropActive, setWindowDropActive] = useState(false);
   const autoReconnectAtRef = useRef<Record<string, number>>({});
 
   const statusBarSettings = settings?.status_bar;
@@ -359,6 +424,123 @@ export function AppShell() {
     void initialize();
   }, [initialize]);
 
+  useEffect(() => {
+    const unlistenPromise = listen<UiStateSyncPayload<PersistedUiState>>(UI_STATE_SYNC_EVENT, (event) => {
+      if (event.payload.sourceWindow === windowLabel) return;
+      void syncWindowStateFromBackend(windowLabel);
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [syncWindowStateFromBackend, windowLabel]);
+
+  useEffect(() => {
+    const isPointInsideWindow = async (screenX: number, screenY: number) => {
+      const [position, size] = await Promise.all([
+        appWindow.outerPosition(),
+        appWindow.outerSize(),
+      ]).catch(() => [null, null] as const);
+      if (!position || !size) return false;
+      return (
+        screenX >= position.x &&
+        screenY >= position.y &&
+        screenX <= position.x + size.width &&
+        screenY <= position.y + size.height
+      );
+    };
+
+    const unlistenPromise = listen<TabDragPayload>(TAB_DRAG_EVENT, (event) => {
+      const payload = event.payload;
+      if (payload.sourceWindow === windowLabel) {
+        setWindowDropActive(false);
+        return;
+      }
+      if (payload.phase === "end") {
+        setWindowDropActive(false);
+        return;
+      }
+      void isPointInsideWindow(payload.screenX, payload.screenY).then((inside) => {
+        setWindowDropActive(inside);
+      });
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [appWindow, windowLabel]);
+
+  useEffect(() => {
+    const nextTitle = formatWindowDisplayTitle(windowLabel, activeTab?.title ?? null);
+    void appWindow.setTitle(nextTitle).catch(() => undefined);
+  }, [activeTab?.title, appWindow, windowLabel]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const refreshWindowTargets = async () => {
+      const windows = await getAllWindows().catch(() => []);
+      if (disposed) return;
+      const targets = await Promise.all(
+        windows
+          .filter((win) => win.label !== windowLabel)
+          .map(async (win) => ({
+            label: win.label,
+            title: (await win.title().catch(() => "")) || formatWindowDisplayTitle(win.label, null),
+          }))
+      );
+      if (disposed) return;
+      setAvailableWindowTargets(targets);
+    };
+
+    void refreshWindowTargets();
+    const unlistenPromise = listen<UiStateSyncPayload<PersistedUiState>>(UI_STATE_SYNC_EVENT, () => {
+      void refreshWindowTargets();
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [activeTab?.title, windowLabel]);
+
+  useEffect(() => {
+    if (!isMainWindow) {
+      return;
+    }
+    let disposed = false;
+
+    void invoke<LaunchRequest[]>("consume_launch_paths")
+      .then((requests) => {
+        if (disposed || !requests.length) return;
+        void openLaunchRequests(requests);
+      })
+      .catch(() => {});
+
+    const unlistenPromise = listen<LaunchPathsPayload>("termif://launch-paths", (event) => {
+      void openLaunchRequests(event.payload.requests);
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [isMainWindow, openLaunchRequests]);
+
+  useEffect(() => {
+    const unlistenPromise = listen<RevealInFileManagerPayload>(REVEAL_IN_FILE_MANAGER_EVENT, (event) => {
+      if (event.payload.targetWindow !== windowLabel) return;
+      void useAppStore.getState().revealFileInManager(
+        event.payload.path,
+        event.payload.sessionId,
+        { allowCrossWindow: false }
+      );
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [windowLabel]);
+
   // macOS WebView can autocapitalize values like "root" in plain inputs.
   useEffect(() => {
     type TextAssistElement = {
@@ -411,7 +593,7 @@ export function AppShell() {
     },
     onOpenSettings: () => setSettingsOpen(true),
     onCloseTab: () => {
-      if (activeTabId) void closeTab(activeTabId);
+      if (visibleActiveTabId) void closeTab(visibleActiveTabId);
     },
     onNextTab: () => activateNextTab(),
     onPrevTab: () => activatePrevTab(),
@@ -427,14 +609,14 @@ export function AppShell() {
     onTerminalTextReset: () => terminalTextReset(),
     onToggleEditor: () => setEditorVisible(!editorVisible),
     onTabSwitcherOpen: (direction: 1 | -1) => {
-      if (tabs.length < 2) return;
+      if (visibleTabs.length < 2) return;
       const useMru = settings?.appearance.tab_switching_mode !== "positional";
       const orderedTabs = useMru
         ? tabMruOrder
-            .map((id) => tabs.find((t) => t.id === id))
-            .filter((t): t is typeof tabs[number] => !!t)
-            .concat(tabs.filter((t) => !tabMruOrder.includes(t.id)))
-        : tabs;
+            .map((id) => visibleTabs.find((t) => t.id === id))
+            .filter((t): t is typeof visibleTabs[number] => !!t)
+            .concat(visibleTabs.filter((t) => !tabMruOrder.includes(t.id)))
+        : visibleTabs;
 
       if (!tabSwitcherOpenRef.current && !tabSwitcherPendingRef.current) {
         // First press — start delay, move selection
@@ -461,10 +643,10 @@ export function AppShell() {
       const useMru = settings?.appearance.tab_switching_mode !== "positional";
       const orderedTabs = useMru
         ? tabMruOrder
-            .map((id) => tabs.find((t) => t.id === id))
-            .filter((t): t is typeof tabs[number] => !!t)
-            .concat(tabs.filter((t) => !tabMruOrder.includes(t.id)))
-        : tabs;
+            .map((id) => visibleTabs.find((t) => t.id === id))
+            .filter((t): t is typeof visibleTabs[number] => !!t)
+            .concat(visibleTabs.filter((t) => !tabMruOrder.includes(t.id)))
+        : visibleTabs;
       const target = orderedTabs[tabSwitcherIndex];
       if (target) setActiveTab(target.id);
       setTabSwitcherOpen(false);
@@ -491,7 +673,7 @@ export function AppShell() {
       }
     }
   }), [
-    tabs, activeTabId, paletteOpen, settingsOpen, settings,
+    visibleTabs, visibleActiveTabId, paletteOpen, settingsOpen, settings,
     setPaletteOpen, toggleSidebar, createLocalTab, setSettingsOpen,
     closeTab, activateNextTab, activatePrevTab, activateTabByIndex,
     loadCurrentFiles, setActiveTab, tabSwitcherIndex, tabMruOrder,
@@ -521,13 +703,17 @@ export function AppShell() {
   useEffect(() => {
     const unlistenPromise = appWindow.onCloseRequested((event) => {
       event.preventDefault();
-      void onCloseWindow();
+      if (isMainWindow) {
+        void onCloseWindow();
+        return;
+      }
+      void closeDetachedWindow(windowLabel);
     });
 
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [appWindow, onCloseWindow]);
+  }, [appWindow, closeDetachedWindow, isMainWindow, onCloseWindow, windowLabel]);
 
   // ── Editor split drag state ─────────────────────────────────────
   const splitDragging = useRef(false);
@@ -686,14 +872,14 @@ export function AppShell() {
       ) : null}
 
       {isInitialized &&
-        tabs
+        visibleTabs
           .filter((t) => (t.kind === "local" || t.kind === "ssh") && t.sessionId)
           .map((t) => (
             <TerminalPane
               key={t.sessionId}
               tabId={t.id}
               sessionId={t.sessionId!}
-              isVisible={t.id === activeTabId}
+              isVisible={t.id === visibleActiveTabId}
               sshAlias={t.sshAlias}
               shellProfile={t.shellProfile}
               terminalSettings={settings?.terminal}
@@ -715,7 +901,6 @@ export function AppShell() {
     </>
   ), [
     activeTab,
-    activeTabId,
     closeTab,
     isInitialized,
     markTabDisconnected,
@@ -723,7 +908,8 @@ export function AppShell() {
     reconnectingTabs,
     settings?.terminal,
     tabDisconnectReasons,
-    tabs,
+    visibleTabs,
+    visibleActiveTabId,
   ]);
 
   const hasEditor = isInitialized && editorVisible;
@@ -745,7 +931,7 @@ export function AppShell() {
     managedHosts,
     selectedFile,
     settings,
-    tabs,
+    tabs: visibleTabs,
     activateNextTab,
     activatePrevTab,
     closeTab,
@@ -775,7 +961,9 @@ export function AppShell() {
       isMaximized={isMax}
       onMinimize={onMinimize}
       onMaximize={onMaximize}
-      onClose={onCloseWindow}
+      onClose={isMainWindow ? onCloseWindow : () => {
+        void closeDetachedWindow(windowLabel);
+      }}
     />
   );
 
@@ -790,22 +978,49 @@ export function AppShell() {
           {sidebarVisible ? <PanelLeftClose size={15} strokeWidth={2} /> : <PanelLeft size={15} strokeWidth={2} />}
         </button>
         <div className="topbar-drag-zone" data-tauri-drag-region onMouseDown={onStartWindowDrag} />
+        {!isMacLike ? windowControls : null}
         <TabStrip
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onSelectTab={setActiveTab}
-          onNewDefault={() => void createLocalTab(coerceShellProfile(settings?.terminal.default_shell))}
-          onNewShell={(shell) => void createLocalTab(shell)}
-          onNewSsh={createSshPickerTab}
-          onRename={renameTab}
-          onColor={setTabColor}
-          onReorder={reorderTabs}
-          onDuplicate={(tabId) => {
-            void duplicateTab(tabId);
-          }}
-          onClose={(tabId) => {
-            void closeTab(tabId);
-          }}
+        tabs={visibleTabs}
+        activeTabId={visibleActiveTabId}
+        currentWindowLabel={windowLabel}
+        isMainWindow={isMainWindow}
+        availableWindowTargets={availableWindowTargets}
+        onSelectTab={setActiveTab}
+        onNewDefault={() => void createLocalTab(coerceShellProfile(settings?.terminal.default_shell))}
+        onNewShell={(shell) => void createLocalTab(shell)}
+        onNewSsh={createSshPickerTab}
+        onRename={renameTab}
+        onColor={setTabColor}
+        onReorder={reorderTabs}
+        onDuplicate={(tabId) => {
+          void duplicateTab(tabId);
+        }}
+        onDetachTab={(tabId) => {
+          void detachTabToNewWindow(tabId, windowLabel);
+        }}
+        onDetachTabAtPosition={(tabId, point) => {
+          void detachTabToNewWindow(tabId, windowLabel, {
+            x: Math.max(24, point.x - 220),
+            y: Math.max(24, point.y - 18),
+          });
+        }}
+        onAcceptDroppedTab={({ tabId, sourceWindow, targetTabId, side }) => {
+          void moveTabToWindow(tabId, windowLabel, {
+            sourceWindowLabel: sourceWindow,
+            targetTabId,
+            side,
+            activate: true,
+          });
+        }}
+        onMoveTabToMainWindow={(tabId) => {
+          void moveTabToMainWindow(tabId, windowLabel);
+        }}
+        onMoveTabToWindow={(tabId, targetWindowLabel) => {
+          void moveTabToWindow(tabId, targetWindowLabel, { sourceWindowLabel: windowLabel, activate: true });
+        }}
+        onClose={(tabId) => {
+          void closeTab(tabId);
+        }}
         />
         <div className="topbar-spacer" data-tauri-drag-region onMouseDown={onStartWindowDrag} />
         <div className="topbar-right">
@@ -815,12 +1030,10 @@ export function AppShell() {
           <button className="topbar-btn" onClick={() => setSettingsOpen(true)} title={appShortcutTitle("Settings", "Ctrl+,")}>
             <Settings size={14} strokeWidth={2} />
           </button>
-          {!isMacLike ? <div className="topbar-divider" /> : null}
-          {!isMacLike ? windowControls : null}
         </div>
       </header>
 
-      <main className="workspace">
+      <main className="workspace" style={{ gridTemplateColumns: sidebarVisible ? `${sidebarWidth}px minmax(0, 1fr)` : "0 minmax(0, 1fr)" }}>
         <Sidebar hidden={!sidebarVisible} />
 
         <section className="center-pane" ref={centerPaneRef}>
@@ -867,6 +1080,7 @@ export function AppShell() {
           {editorVisible && dockDropTarget ? (
             <DockDropOverlay target={dockDropTarget} />
           ) : null}
+          <WindowDropOverlay active={windowDropActive} />
         </section>
       </main>
 
@@ -886,8 +1100,8 @@ export function AppShell() {
 
       <TabSwitcherOverlay
         open={tabSwitcherOpen}
-        tabs={tabs}
-        activeTabId={activeTabId}
+        tabs={visibleTabs}
+        activeTabId={visibleActiveTabId}
         selectedIndex={tabSwitcherIndex}
         tabMruOrder={tabMruOrder}
         useMru={settings?.appearance.tab_switching_mode !== "positional"}

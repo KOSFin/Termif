@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildDirCacheKey,
+  getRelativeHistoryTarget,
+  getResolvedHistoryIndex,
   isConnectionError,
   makeTabFromSession,
+  normalizeDisplayPath,
   normalizeLineEndings,
+  pushPathHistory,
+  reorderScopedTabIds,
 } from "@/store/appStoreUtils";
 import type { AppTab, SessionDto } from "@/types/models";
 
@@ -33,6 +38,14 @@ describe("app store utils", () => {
     expect(normalizeLineEndings("a\r\nb\nc")).toBe("a\nb\nc");
   });
 
+  it("normalizes local and remote paths for display/history consistency", () => {
+    expect(normalizeDisplayPath("C:\\Users\\demo\\")).toBe("C:/Users/demo");
+    expect(normalizeDisplayPath("C:/")).toBe("C:/");
+    expect(normalizeDisplayPath("/tmp//logs/")).toBe("/tmp/logs");
+    expect(normalizeDisplayPath("var/log", { remote: true })).toBe("/var/log");
+    expect(normalizeDisplayPath("//", { remote: true })).toBe("/");
+  });
+
   it("recognizes connection-oriented errors", () => {
     expect(isConnectionError("channel closed")).toBe(true);
     expect(isConnectionError("Broken pipe")).toBe(true);
@@ -59,5 +72,47 @@ describe("app store utils", () => {
       sshAlias: "prod",
       shellProfile: "russh",
     });
+  });
+
+  it("reorders tab ids to either edge without dropping the moved tab", () => {
+    expect(reorderScopedTabIds(["a", "b", "c"], "a", "c", "after")).toEqual(["b", "c", "a"]);
+    expect(reorderScopedTabIds(["a", "b", "c"], "c", "a", "before")).toEqual(["c", "a", "b"]);
+    expect(reorderScopedTabIds(["a", "b", "c"], "b", "a", "before")).toEqual(["b", "a", "c"]);
+    expect(reorderScopedTabIds(["a", "b", "c"], "b", "c", "after")).toEqual(["a", "c", "b"]);
+  });
+
+  it("pushes path history while truncating stale forward entries by default", () => {
+    expect(pushPathHistory(["/a", "/b", "/c"], 1, "/d")).toEqual({
+      history: ["/a", "/b", "/d"],
+      index: 2,
+    });
+  });
+
+  it("preserves forward history when explicitly requested", () => {
+    expect(pushPathHistory(["/a", "/b", "/c"], 1, "/d", { preserveForward: true })).toEqual({
+      history: ["/a", "/b", "/c", "/d"],
+      index: 3,
+    });
+  });
+
+  it("does not duplicate the current path in history", () => {
+    expect(pushPathHistory(["/a", "/b"], 1, "/b")).toEqual({
+      history: ["/a", "/b"],
+      index: 1,
+    });
+  });
+
+  it("resolves missing or out-of-range history indices safely", () => {
+    expect(getResolvedHistoryIndex([], undefined)).toBe(-1);
+    expect(getResolvedHistoryIndex(["/a", "/b"], undefined)).toBe(1);
+    expect(getResolvedHistoryIndex(["/a", "/b"], 9)).toBe(1);
+    expect(getResolvedHistoryIndex(["/a", "/b"], -4)).toBe(0);
+  });
+
+  it("returns adjacent back and forward history targets when available", () => {
+    expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 1, "back")).toEqual({ index: 0, path: "/a" });
+    expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 1, "forward")).toEqual({ index: 2, path: "/c" });
+    expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 0, "back")).toEqual({ index: 0, path: undefined });
+    expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 2, "forward")).toEqual({ index: 2, path: undefined });
   });
 });

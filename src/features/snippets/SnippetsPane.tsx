@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Play, Plus, Pencil, Trash2, ChevronRight, ChevronDown, GripVertical } from "lucide-react";
+import { ContextMenu, type MenuPoint } from "@/components/ContextMenu";
 import { useAppStore } from "@/store/useAppStore";
 
 interface SnippetsPaneProps {
@@ -64,6 +65,8 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
   const [dragOverId, setDragOverId] = useState<string>();
   const [dragOverGroupId, setDragOverGroupId] = useState<string>();
   const dragCounter = useRef(0);
+  const [snippetMenu, setSnippetMenu] = useState<{ snippetId: string; anchor: MenuPoint } | null>(null);
+  const [groupMenu, setGroupMenu] = useState<{ groupId?: string | null; anchor: MenuPoint } | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -258,17 +261,18 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
               </div>
               <div className="snippet-group-title">{group.name}</div>
               <div className="snippet-group-count">{snippets.length}</div>
-              <div className="snippet-group-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="ghost icon-btn" onClick={() => openCreateSnippet(group.id)} title="Add snippet">
-                  <Plus size={12} strokeWidth={2} />
-                </button>
-                <button className="ghost icon-btn" onClick={() => openRenameGroup(group.id)} title="Rename">
-                  <Pencil size={12} strokeWidth={2} />
-                </button>
-                <button className="ghost icon-btn danger" onClick={() => deleteGroup(group.id)} title="Delete">
-                  <Trash2 size={12} strokeWidth={2} />
-                </button>
-              </div>
+              <div
+                className="snippet-group-actions"
+                onClick={(e) => e.stopPropagation()}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setGroupMenu({
+                    groupId: group.id,
+                    anchor: { x: event.clientX, y: event.clientY },
+                  });
+                }}
+              />
             </div>
 
             {expandedGroups.has(group.id) && (
@@ -284,6 +288,14 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
                       onRun={() => void runSnippet(snippet)}
                       onEdit={() => openEditSnippet(snippet.id)}
                       onDelete={() => deleteSnippet(snippet.id)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setSnippetMenu({
+                          snippetId: snippet.id,
+                          anchor: { x: event.clientX, y: event.clientY },
+                        });
+                      }}
                       onDragStart={(e) => onDragStart(snippet.id, e)}
                       onDragEnd={onDragEnd}
                       onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
@@ -311,11 +323,18 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
             </div>
             <div className="snippet-group-title">Ungrouped</div>
             <div className="snippet-group-count">{ungrouped.length}</div>
-            <div className="snippet-group-actions" onClick={(e) => e.stopPropagation()}>
-              <button className="ghost icon-btn" onClick={() => openCreateSnippet(null)} title="Add snippet">
-                <Plus size={12} strokeWidth={2} />
-              </button>
-            </div>
+            <div
+              className="snippet-group-actions"
+              onClick={(e) => e.stopPropagation()}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setGroupMenu({
+                  groupId: null,
+                  anchor: { x: event.clientX, y: event.clientY },
+                });
+              }}
+            />
           </div>
 
           {expandedGroups.has("ungrouped") ? (
@@ -331,6 +350,14 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
                     onRun={() => void runSnippet(snippet)}
                     onEdit={() => openEditSnippet(snippet.id)}
                     onDelete={() => deleteSnippet(snippet.id)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setSnippetMenu({
+                        snippetId: snippet.id,
+                        anchor: { x: event.clientX, y: event.clientY },
+                      });
+                    }}
                     onDragStart={(e) => onDragStart(snippet.id, e)}
                     onDragEnd={onDragEnd}
                     onDragOver={(e) => { e.preventDefault(); setDragOverId(snippet.id); }}
@@ -425,6 +452,69 @@ export function SnippetsPane({ activeSessionId }: SnippetsPaneProps) {
         </div>,
         document.body
       ) : null}
+
+      <ContextMenu
+        open={!!snippetMenu}
+        anchor={snippetMenu?.anchor ?? null}
+        onClose={() => setSnippetMenu(null)}
+        className="file-context-menu"
+        minWidth={188}
+        allowViewportOverflowOnMac
+      >
+        {snippetMenu ? (() => {
+          const snippet = state.snippets.find((item) => item.id === snippetMenu.snippetId);
+          if (!snippet) return null;
+          return (
+            <>
+              <button onClick={() => { void runSnippet(snippet); setSnippetMenu(null); }}>
+                <Play size={13} strokeWidth={2} /> Insert Command
+              </button>
+              <button onClick={() => { openEditSnippet(snippet.id); setSnippetMenu(null); }}>
+                <Pencil size={13} strokeWidth={2} /> Edit
+              </button>
+              <button className="danger" onClick={() => { deleteSnippet(snippet.id); setSnippetMenu(null); }}>
+                <Trash2 size={13} strokeWidth={2} /> Delete
+              </button>
+            </>
+          );
+        })() : null}
+      </ContextMenu>
+
+      <ContextMenu
+        open={!!groupMenu}
+        anchor={groupMenu?.anchor ?? null}
+        onClose={() => setGroupMenu(null)}
+        className="file-context-menu"
+        minWidth={188}
+        allowViewportOverflowOnMac
+      >
+        {groupMenu ? (
+          <>
+            <button onClick={() => {
+              openCreateSnippet(groupMenu.groupId ?? null);
+              setGroupMenu(null);
+            }}>
+              <Plus size={13} strokeWidth={2} /> Add Snippet
+            </button>
+            {groupMenu.groupId ? (
+              <>
+                <button onClick={() => {
+                  openRenameGroup(groupMenu.groupId as string);
+                  setGroupMenu(null);
+                }}>
+                  <Pencil size={13} strokeWidth={2} /> Rename Group
+                </button>
+                <button className="danger" onClick={() => {
+                  deleteGroup(groupMenu.groupId as string);
+                  setGroupMenu(null);
+                }}>
+                  <Trash2 size={13} strokeWidth={2} /> Delete Group
+                </button>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </ContextMenu>
     </div>
   );
 }
@@ -437,17 +527,19 @@ interface SnippetCardProps {
   onRun: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onContextMenu: (event: React.MouseEvent<HTMLElement>) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
 }
 
-function SnippetCard({ snippet, isDragOver, onRun, onEdit, onDelete, onDragStart, onDragEnd, onDragOver, onDrop }: SnippetCardProps) {
+function SnippetCard({ snippet, isDragOver, onRun, onEdit: _onEdit, onDelete: _onDelete, onContextMenu, onDragStart, onDragEnd, onDragOver, onDrop }: SnippetCardProps) {
   return (
     <article
       className={`snippet-card${isDragOver ? " drag-over" : ""}`}
       draggable
+      onContextMenu={onContextMenu}
       onDragStart={(e) => { onDragStart(e); }}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
@@ -464,12 +556,6 @@ function SnippetCard({ snippet, isDragOver, onRun, onEdit, onDelete, onDragStart
       <div className="snippet-card-actions">
         <button className="primary" onClick={onRun} title="Run now">
           <Play size={12} strokeWidth={2} />
-        </button>
-        <button className="ghost icon-btn" onClick={onEdit} title="Edit">
-          <Pencil size={12} strokeWidth={2} />
-        </button>
-        <button className="ghost icon-btn danger" onClick={onDelete} title="Delete">
-          <Trash2 size={12} strokeWidth={2} />
         </button>
       </div>
     </article>

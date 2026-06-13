@@ -6,6 +6,10 @@ function App() {
     return <EditorWorkspace />;
   }
 
+  if (window.location.hash.startsWith("#/terminal-window")) {
+    return <AppShell />;
+  }
+
   return <AppShell />;
 }
 

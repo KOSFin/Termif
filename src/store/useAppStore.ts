@@ -1,9 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
+import { Window, getCurrentWindow } from "@tauri-apps/api/window";
 import { create } from "zustand";
 import {
   isEditorPopoutLive,
   requestOpenFileInEditorWindow
 } from "@/features/file_manager/editorWindow";
+import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, UI_STATE_SYNC_EVENT, makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
 import type {
   AppSettings,
   AppTab,
@@ -13,8 +16,10 @@ import type {
   SshConnectOptions,
   SshHostEntry,
   SshHostGroup,
-  SshHostsPayload
+  SshHostsPayload,
+  WindowTabsSnapshot,
 } from "@/types/models";
+import type { WindowPlacement } from "@/app/windows/windowing";
 import { detectLanguage } from "@/features/editor/languageMap";
 import {
   coerceShellProfile,
@@ -25,9 +30,13 @@ import {
 } from "@/platform/platform";
 import {
   buildDirCacheKey,
+  getRelativeHistoryTarget,
   isConnectionError,
   makeTabFromSession,
+  normalizeDisplayPath,
   normalizeLineEndings,
+  pushPathHistory,
+  reorderScopedTabIds,
 } from "@/store/appStoreUtils";
 import { applyAppearanceOverrides, applyAppearanceTheme, watchSystemTheme } from "@/theme/themeEngine";
 import { clearTerminalLog } from "@/features/terminal/terminalLogStore";
@@ -55,7 +64,10 @@ interface AppState {
   isInitialized: boolean;
   tabs: AppTab[];
   activeTabId?: string;
+  windowTabs: Record<string, string[]>;
+  activeTabByWindow: Record<string, string | null>;
   sidebarVisible: boolean;
+  sidebarWidth: number;
   paletteOpen: boolean;
   settingsOpen: boolean;
   selectedSidebarTool: "files" | "snippets" | "clipboard";
@@ -72,10 +84,14 @@ interface AppState {
   fileDisplayPath?: string;
   fileError?: string;
   selectedFile?: FileEntryDto;
+  pendingSelectedFilePath?: string;
+  pendingSelectedFileTabId?: string;
   lastToast?: string;
   toastId: number;
   dirCache: Record<string, FileEntryDto[]>;
   tabMruOrder: string[];
+  fileHistory: Record<string, string[]>;
+  fileHistoryIndex: Record<string, number>;
 
   // Editor state
   editorFiles: EditorFile[];
@@ -88,19 +104,42 @@ interface AppState {
   zoomLevel: number;
 
   initialize: () => Promise<void>;
-  createLocalTab: (shellProfile?: string) => Promise<void>;
+  createLocalTab: (shellProfile?: string, cwd?: string) => Promise<string>;
   createSshPickerTab: () => string;
+  getWindowTabs: (windowLabel?: string) => AppTab[];
+  getActiveTabIdForWindow: (windowLabel?: string) => string | undefined;
+  ensureWindowState: (windowLabel?: string) => void;
+  syncWindowStateFromBackend: (windowLabel?: string) => Promise<void>;
+  attachExistingSessionTab: (session: SessionDto, options?: { tabId?: string; title?: string; color?: string; icon?: string; windowLabel?: string }) => void;
+  moveTabToWindow: (
+    tabId: string,
+    targetWindowLabel: string,
+    options?: {
+      activate?: boolean;
+      sourceWindowLabel?: string;
+      targetTabId?: string;
+      side?: "before" | "after";
+    }
+  ) => Promise<void>;
+  detachTabToNewWindow: (tabId: string, sourceWindowLabel?: string, placement?: WindowPlacement) => Promise<void>;
+  moveTabToMainWindow: (tabId: string, sourceWindowLabel?: string) => Promise<void>;
+  moveAllTabsToWindow: (sourceWindowLabel: string, targetWindowLabel: string) => Promise<void>;
+  closeWindowTabs: (windowLabel?: string) => Promise<void>;
+  closeEmptyDetachedWindow: (windowLabel?: string) => Promise<void>;
+  closeDetachedWindow: (windowLabel?: string) => Promise<void>;
   connectSshTab: (tabId: string, alias: string) => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   duplicateTab: (tabId: string) => Promise<void>;
   renameTab: (tabId: string, name: string) => void;
   setTabColor: (tabId: string, color: string) => void;
-  reorderTabs: (fromTabId: string, toTabId: string) => void;
-  setActiveTab: (tabId: string) => void;
+  reorderTabs: (fromTabId: string, toTabId: string, side?: "before" | "after", windowLabel?: string) => void;
+  setActiveTab: (tabId: string, windowLabel?: string) => void;
   activateNextTab: () => void;
   activatePrevTab: () => void;
   activateTabByIndex: (index: number) => void;
   toggleSidebar: () => void;
+  setSidebarVisible: (visible: boolean) => void;
+  setSidebarWidth: (width: number) => void;
   setPaletteOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSelectedSidebarTool: (tool: "files" | "snippets" | "clipboard") => void;
@@ -124,9 +163,14 @@ interface AppState {
   ) => Promise<void>;
   loadCurrentFiles: (options?: { force?: boolean }) => Promise<void>;
   loadCurrentFilesFromCache: () => void;
-  navigatePath: (path: string) => Promise<void>;
+  navigatePath: (path: string, options?: { preserveForward?: boolean; skipHistory?: boolean }) => Promise<void>;
   goParentPath: () => Promise<void>;
+  goBackPath: () => Promise<void>;
+  goForwardPath: () => Promise<void>;
+  canGoBackPath: () => boolean;
+  canGoForwardPath: () => boolean;
   setSelectedFile: (file?: FileEntryDto) => void;
+  revealFileInManager: (path: string, sessionId?: string, options?: { allowCrossWindow?: boolean }) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   toast: (message: string) => void;
 
@@ -155,15 +199,174 @@ let fileLoadDebounceTimer: number | undefined;
 const FILE_LOAD_DEBOUNCE_MS = 40;
 const FILE_CACHE_FRESH_MS = 60_000;
 const dirCacheFreshAt: Record<string, number> = {};
+const currentWindow = getCurrentWindow();
 
 type SidebarTool = AppState["selectedSidebarTool"];
+
+const SIDEBAR_MIN_WIDTH = 196;
+const SIDEBAR_DEFAULT_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 520;
 
 function coerceSidebarTool(value?: string | null): SidebarTool {
   if (value === "files" || value === "snippets" || value === "clipboard") return value;
   return "files";
 }
 
-async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId" | "sidebarVisible" | "selectedSidebarTool">): Promise<void> {
+function clampSidebarWidth(width?: number | null) {
+  if (typeof width !== "number" || !Number.isFinite(width)) return SIDEBAR_DEFAULT_WIDTH;
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(width)));
+}
+
+function fileDirname(path: string) {
+  const normalized = path.replace(/\\/g, "/");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return normalized;
+  return normalized.slice(0, idx);
+}
+
+function sanitizeWindowTabs(tabs: AppTab[], windowTabs: Record<string, string[]>) {
+  const validIds = new Set(tabs.map((tab) => tab.id));
+  const cleaned = Object.fromEntries(
+    Object.entries(windowTabs)
+      .map(([label, ids]) => [label, ids.filter((id) => validIds.has(id))] as const)
+      .filter(([label, ids]) => ids.length > 0 || label === MAIN_WINDOW_LABEL)
+  );
+
+  const hasAnyAssignedTabs = Object.values(cleaned).some((ids) => ids.length > 0);
+  if (!hasAnyAssignedTabs) {
+    cleaned[MAIN_WINDOW_LABEL] = tabs.map((tab) => tab.id);
+  } else if (!cleaned[MAIN_WINDOW_LABEL]) {
+    cleaned[MAIN_WINDOW_LABEL] = [];
+  }
+
+  return cleaned;
+}
+
+function sanitizeActiveTabs(windowTabs: Record<string, string[]>, activeByWindow: Record<string, string | null>) {
+  const cleaned: Record<string, string | null> = {};
+  for (const [label, ids] of Object.entries(windowTabs)) {
+    const current = activeByWindow[label];
+    cleaned[label] = current && ids.includes(current) ? current : (ids[0] ?? null);
+  }
+  return cleaned;
+}
+
+function resolveWindowLabel(windowLabel?: string) {
+  return windowLabel ?? currentWindow.label ?? MAIN_WINDOW_LABEL;
+}
+
+function getWindowTabIds(state: Pick<AppState, "tabs" | "windowTabs">, windowLabel?: string) {
+  const label = resolveWindowLabel(windowLabel);
+  const ids = state.windowTabs[label];
+  if (ids && ids.length) return ids;
+  return label === MAIN_WINDOW_LABEL ? state.tabs.map((tab) => tab.id) : [];
+}
+
+function getWindowTabsSnapshot(state: Pick<AppState, "tabs" | "windowTabs" | "activeTabByWindow">, windowLabel?: string): WindowTabsSnapshot {
+  const label = resolveWindowLabel(windowLabel);
+  const tabIds = getWindowTabIds(state, label);
+  const tabs = tabIds.filter((id) => state.tabs.some((tab) => tab.id === id));
+  const activeTabId = state.activeTabByWindow[label] ?? tabs[0] ?? null;
+  return { tabs, activeTabId };
+}
+
+function findWindowLabelForTab(state: Pick<AppState, "windowTabs">, tabId: string) {
+  for (const [label, ids] of Object.entries(state.windowTabs)) {
+    if (ids.includes(tabId)) return label;
+  }
+  return undefined;
+}
+
+function applyPersistedWindowState(
+  tabs: AppTab[],
+  persistedWindowTabs?: Record<string, string[]> | null,
+  persistedActiveByWindow?: Record<string, string | null> | null
+) {
+  const windowTabs = sanitizeWindowTabs(tabs, persistedWindowTabs ?? {});
+  const activeTabByWindow = sanitizeActiveTabs(windowTabs, persistedActiveByWindow ?? {});
+  return { windowTabs, activeTabByWindow };
+}
+
+async function restoreDetachedTabFromPersisted(savedTab: PersistedUiState["tabs"][number]): Promise<{
+  tab?: AppTab;
+  disconnectReason?: string;
+}> {
+  if (savedTab.kind === "ssh_picker") {
+    return {
+      tab: {
+        id: savedTab.id,
+        title: savedTab.title,
+        color: savedTab.color,
+        icon: savedTab.icon,
+        kind: "ssh_picker",
+      },
+    };
+  }
+
+  if (savedTab.session_id) {
+    try {
+      const session = await invoke<SessionDto>("get_terminal_session", { sessionId: savedTab.session_id });
+      return {
+        tab: {
+          ...makeTabFromSession(session),
+          id: savedTab.id,
+          title: savedTab.title,
+          color: savedTab.color,
+          icon: savedTab.icon,
+        },
+      };
+    } catch {
+      // Fall through to disconnected placeholder when possible.
+    }
+  }
+
+  if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
+    return {
+      tab: {
+        id: savedTab.id,
+        title: savedTab.title,
+        color: savedTab.color,
+        icon: "globe",
+        kind: "ssh",
+        sshAlias: savedTab.ssh_alias,
+      },
+      disconnectReason: "The detached window could not reattach to the terminal session.",
+    };
+  }
+
+  return {};
+}
+
+async function broadcastUiState(state: Pick<AppState, "tabs" | "sidebarVisible" | "selectedSidebarTool" | "sidebarWidth" | "fileHistory" | "fileHistoryIndex" | "windowTabs" | "activeTabByWindow">) {
+  const payload = {
+    tabs: state.tabs.map((tab) => ({
+      id: tab.id,
+      title: tab.title,
+      color: tab.color,
+      icon: tab.icon,
+      kind: tab.kind,
+      session_id: tab.sessionId ?? null,
+      ssh_alias: tab.sshAlias ?? null
+    })),
+    active_tab_id: state.activeTabByWindow[MAIN_WINDOW_LABEL] ?? null,
+    sidebar_visible: state.sidebarVisible,
+    selected_sidebar_tool: state.selectedSidebarTool,
+    sidebar_width: state.sidebarWidth,
+    file_history: state.fileHistory,
+    file_history_index: state.fileHistoryIndex,
+    window_tabs: state.windowTabs,
+    active_tab_by_window: state.activeTabByWindow,
+  } satisfies PersistedUiState;
+
+  await emit(UI_STATE_SYNC_EVENT, {
+    uiState: payload,
+    sourceWindow: resolveWindowLabel(),
+  }).catch(() => undefined);
+}
+
+async function persistUiState(state: Pick<AppState, "tabs" | "sidebarVisible" | "selectedSidebarTool" | "sidebarWidth" | "fileHistory" | "fileHistoryIndex" | "windowTabs" | "activeTabByWindow">): Promise<void> {
+  const cleanedWindowTabs = sanitizeWindowTabs(state.tabs, state.windowTabs);
+  const cleanedActive = sanitizeActiveTabs(cleanedWindowTabs, state.activeTabByWindow);
   const payload: PersistedUiState = {
     tabs: state.tabs.map((tab) => ({
       id: tab.id,
@@ -174,18 +377,31 @@ async function persistUiState(state: Pick<AppState, "tabs" | "activeTabId" | "si
       session_id: tab.sessionId ?? null,
       ssh_alias: tab.sshAlias ?? null
     })),
-    active_tab_id: state.activeTabId ?? null,
+    active_tab_id: cleanedActive[MAIN_WINDOW_LABEL] ?? null,
     sidebar_visible: state.sidebarVisible,
-    selected_sidebar_tool: state.selectedSidebarTool
+    selected_sidebar_tool: state.selectedSidebarTool,
+    sidebar_width: state.sidebarWidth,
+    file_history: state.fileHistory,
+    file_history_index: state.fileHistoryIndex,
+    window_tabs: cleanedWindowTabs,
+    active_tab_by_window: cleanedActive,
   };
   await invoke("save_ui_state", { uiState: payload });
+  await broadcastUiState({
+    ...state,
+    windowTabs: cleanedWindowTabs,
+    activeTabByWindow: cleanedActive,
+  });
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   isInitialized: false,
   tabs: [],
   activeTabId: undefined,
+  windowTabs: {},
+  activeTabByWindow: {},
   sidebarVisible: true,
+  sidebarWidth: SIDEBAR_DEFAULT_WIDTH,
   paletteOpen: false,
   settingsOpen: false,
   selectedSidebarTool: "files",
@@ -202,10 +418,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   fileDisplayPath: undefined,
   fileError: undefined,
   selectedFile: undefined,
+  pendingSelectedFilePath: undefined,
+  pendingSelectedFileTabId: undefined,
   lastToast: undefined,
   toastId: 0,
   dirCache: {},
   tabMruOrder: [],
+  fileHistory: {},
+  fileHistoryIndex: {},
 
   // Editor state
   editorFiles: [],
@@ -219,10 +439,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   initialize: async () => {
     if (get().isInitialized) return;
+    const windowLabel = resolveWindowLabel();
 
     const [settings, persisted, hosts] = await Promise.all([
       invoke<AppSettings>("load_settings").catch(() => null),
-      invoke<PersistedUiState>("load_ui_state").catch(() => ({ tabs: [], active_tab_id: null, sidebar_visible: true, selected_sidebar_tool: "files" })),
+      invoke<PersistedUiState>("load_ui_state").catch(() => ({
+        tabs: [],
+        active_tab_id: null,
+        sidebar_visible: true,
+        selected_sidebar_tool: "files",
+        sidebar_width: SIDEBAR_DEFAULT_WIDTH,
+        file_history: {},
+        file_history_index: {},
+        window_tabs: {},
+        active_tab_by_window: {},
+      })),
       invoke<SshHostsPayload>("load_ssh_hosts")
     ]);
 
@@ -250,7 +481,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       managedHosts: hosts.managed,
       sshGroups: hosts.groups,
       sidebarVisible: persisted.sidebar_visible ?? true,
-      selectedSidebarTool: coerceSidebarTool(persisted.selected_sidebar_tool)
+      sidebarWidth: clampSidebarWidth(persisted.sidebar_width),
+      selectedSidebarTool: coerceSidebarTool(persisted.selected_sidebar_tool),
+      fileHistory: persisted.file_history ?? {},
+      fileHistoryIndex: persisted.file_history_index ?? {},
+      ...applyPersistedWindowState([], persisted.window_tabs, persisted.active_tab_by_window),
     });
 
     // Apply persisted theme on startup
@@ -260,80 +495,126 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const restoredTabs: AppTab[] = [];
     const restoredDisconnectReasons: Record<string, string> = {};
-    for (const savedTab of persisted.tabs) {
-      if (savedTab.kind === "local") {
-        try {
-          const session = await invoke<SessionDto>("create_local_session", {
-            shellProfile: coerceShellProfile(platformSettings?.terminal.default_shell),
-            cwd: null
-          });
+    if (windowLabel === MAIN_WINDOW_LABEL) {
+      for (const savedTab of persisted.tabs) {
+        if (savedTab.kind === "local") {
+          try {
+            const session = await invoke<SessionDto>("create_local_session", {
+              shellProfile: coerceShellProfile(platformSettings?.terminal.default_shell),
+              cwd: null
+            });
+            restoredTabs.push({
+              ...makeTabFromSession(session),
+              id: savedTab.id,
+              title: savedTab.title,
+              color: savedTab.color,
+              icon: savedTab.icon
+            });
+          } catch {
+            // Skip
+          }
+        } else if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
           restoredTabs.push({
-            ...makeTabFromSession(session),
             id: savedTab.id,
             title: savedTab.title,
             color: savedTab.color,
-            icon: savedTab.icon
+            icon: "globe",
+            kind: "ssh",
+            sshAlias: savedTab.ssh_alias
           });
-        } catch {
-          // Skip
+          restoredDisconnectReasons[savedTab.id] = "The app was restarted and the SSH channel is no longer attached.";
+        } else {
+          restoredTabs.push({
+            id: savedTab.id,
+            title: savedTab.title,
+            color: savedTab.color,
+            icon: savedTab.icon,
+            kind: "ssh_picker"
+          });
         }
-      } else if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
-        restoredTabs.push({
-          id: savedTab.id,
-          title: savedTab.title,
-          color: savedTab.color,
-          icon: "globe",
-          kind: "ssh",
-          sshAlias: savedTab.ssh_alias
-        });
-        restoredDisconnectReasons[savedTab.id] = "The app was restarted and the SSH channel is no longer attached.";
-      } else {
-        restoredTabs.push({
-          id: savedTab.id,
-          title: savedTab.title,
-          color: savedTab.color,
-          icon: savedTab.icon,
-          kind: "ssh_picker"
-        });
+      }
+    } else {
+      const detachedIds = (persisted.window_tabs as Record<string, string[]> | null | undefined)?.[windowLabel] ?? [];
+      for (const tabId of detachedIds) {
+        const savedTab = persisted.tabs.find((tab) => tab.id === tabId);
+        if (!savedTab) continue;
+        const restored = await restoreDetachedTabFromPersisted(savedTab);
+        if (restored.tab) restoredTabs.push(restored.tab);
+        if (restored.disconnectReason) {
+          restoredDisconnectReasons[savedTab.id] = restored.disconnectReason;
+        }
       }
     }
 
     if (restoredTabs.length === 0) {
-      await get().createLocalTab(coerceShellProfile(platformSettings?.terminal.default_shell));
+      if (windowLabel === MAIN_WINDOW_LABEL) {
+        await get().createLocalTab(coerceShellProfile(platformSettings?.terminal.default_shell));
+      } else {
+        set({ isInitialized: true });
+      }
     } else {
+      const persistedWindowState = applyPersistedWindowState(
+        restoredTabs,
+        persisted.window_tabs,
+        persisted.active_tab_by_window
+      );
+      const activeTabId =
+        persistedWindowState.activeTabByWindow[windowLabel] ??
+        persistedWindowState.activeTabByWindow[MAIN_WINDOW_LABEL] ??
+        restoredTabs[0].id;
       set({
         tabs: restoredTabs,
-        activeTabId: persisted.active_tab_id ?? restoredTabs[0].id,
+        activeTabId: activeTabId ?? undefined,
+        windowTabs: persistedWindowState.windowTabs,
+        activeTabByWindow: persistedWindowState.activeTabByWindow,
         tabDisconnectReasons: restoredDisconnectReasons,
         fileTransitioning: true,
         selectedFile: undefined,
         isInitialized: true
       });
-      get().loadCurrentFiles().catch(() => {});
+      if (activeTabId) {
+        get().loadCurrentFiles().catch(() => {});
+      }
     }
 
     set({ isInitialized: true });
   },
 
-  createLocalTab: async (shellProfile) => {
+  createLocalTab: async (shellProfile, cwd) => {
     const session = await invoke<SessionDto>("create_local_session", {
       shellProfile: coerceShellProfile(shellProfile),
-      cwd: null
+      cwd: cwd ?? null
     });
     const tab = makeTabFromSession(session);
-    set((state) => ({
-      tabs: [...state.tabs, tab],
-      activeTabId: tab.id,
-      fileTransitioning: true,
-      selectedFile: undefined,
-      selectedSidebarTool: "files",
-      tabMruOrder: [tab.id, ...state.tabMruOrder]
-    }));
+    const windowLabel = resolveWindowLabel();
+    set((state) => {
+      const currentWindowTabs = getWindowTabIds(state, windowLabel).filter((id) => id !== tab.id);
+      const windowTabs = {
+        ...state.windowTabs,
+        [windowLabel]: [...currentWindowTabs, tab.id],
+      };
+      const activeTabByWindow = {
+        ...state.activeTabByWindow,
+        [windowLabel]: tab.id,
+      };
+      return {
+        tabs: [...state.tabs, tab],
+        activeTabId: tab.id,
+        windowTabs,
+        activeTabByWindow,
+        fileTransitioning: true,
+        selectedFile: undefined,
+        selectedSidebarTool: "files",
+        tabMruOrder: [tab.id, ...state.tabMruOrder.filter((id) => id !== tab.id)]
+      };
+    });
     await persistUiState(get());
     get().loadCurrentFiles().catch(() => {});
+    return tab.id;
   },
 
   createSshPickerTab: () => {
+    const windowLabel = resolveWindowLabel();
     const tab: AppTab = {
       id: crypto.randomUUID(),
       title: "SSH",
@@ -341,25 +622,265 @@ export const useAppStore = create<AppState>((set, get) => ({
       icon: "globe",
       kind: "ssh_picker"
     };
-    set((state) => ({
-      tabs: [...state.tabs, tab],
-      activeTabId: tab.id,
-      fileEntries: [],
-      fileLoading: false,
-      fileTransitioning: false,
-      fileDisplayTabId: tab.id,
-      fileDisplayPath: undefined,
-      fileError: undefined,
-      selectedFile: undefined,
-      selectedSidebarTool: "files",
-      tabMruOrder: [tab.id, ...state.tabMruOrder]
-    }));
+    set((state) => {
+      const currentWindowTabs = getWindowTabIds(state, windowLabel).filter((id) => id !== tab.id);
+      const windowTabs = {
+        ...state.windowTabs,
+        [windowLabel]: [...currentWindowTabs, tab.id],
+      };
+      const activeTabByWindow = {
+        ...state.activeTabByWindow,
+        [windowLabel]: tab.id,
+      };
+      return {
+        tabs: [...state.tabs, tab],
+        activeTabId: tab.id,
+        windowTabs,
+        activeTabByWindow,
+        fileEntries: [],
+        fileLoading: false,
+        fileTransitioning: false,
+        fileDisplayTabId: tab.id,
+        fileDisplayPath: undefined,
+        fileError: undefined,
+        selectedFile: undefined,
+        selectedSidebarTool: "files",
+        tabMruOrder: [tab.id, ...state.tabMruOrder.filter((id) => id !== tab.id)]
+      };
+    });
     void persistUiState(get());
     return tab.id;
   },
 
+  getWindowTabs: (windowLabel) => {
+    const state = get();
+    const snapshot = getWindowTabsSnapshot(state, windowLabel);
+    return snapshot.tabs
+      .map((id) => state.tabs.find((tab) => tab.id === id))
+      .filter((tab): tab is AppTab => !!tab);
+  },
+
+  getActiveTabIdForWindow: (windowLabel) => {
+    const snapshot = getWindowTabsSnapshot(get(), windowLabel);
+    return snapshot.activeTabId ?? undefined;
+  },
+
+  ensureWindowState: (windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    set((state) => {
+      const windowTabs = sanitizeWindowTabs(state.tabs, state.windowTabs);
+      const activeTabByWindow = sanitizeActiveTabs(windowTabs, state.activeTabByWindow);
+      if (windowTabs[label] && activeTabByWindow[label] !== undefined) {
+        return {};
+      }
+      if (!windowTabs[label]) {
+        windowTabs[label] = label === MAIN_WINDOW_LABEL ? state.tabs.map((tab) => tab.id) : [];
+      }
+      if (activeTabByWindow[label] === undefined) {
+        activeTabByWindow[label] = windowTabs[label][0] ?? null;
+      }
+      return {
+        windowTabs,
+        activeTabByWindow,
+        activeTabId: label === resolveWindowLabel() ? (activeTabByWindow[label] ?? undefined) : state.activeTabId,
+      };
+    });
+  },
+
+  syncWindowStateFromBackend: async (windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    const persisted = await invoke<PersistedUiState>("load_ui_state").catch(() => null);
+    if (!persisted) return;
+    const currentState = get();
+    const currentTabs = [...currentState.tabs];
+    const knownIds = new Set(currentTabs.map((tab) => tab.id));
+    const requestedIds = new Set(Object.values(persisted.window_tabs ?? {}).flat());
+
+    for (const tabId of requestedIds) {
+      if (knownIds.has(tabId)) continue;
+      const savedTab = persisted.tabs.find((tab) => tab.id === tabId);
+      if (!savedTab) continue;
+      const restored = await restoreDetachedTabFromPersisted(savedTab);
+      if (!restored.tab) continue;
+      currentTabs.push(restored.tab);
+    }
+
+    const windowState = applyPersistedWindowState(currentTabs, persisted.window_tabs, persisted.active_tab_by_window);
+    const activeTabId = windowState.activeTabByWindow[label] ?? windowState.activeTabByWindow[MAIN_WINDOW_LABEL] ?? undefined;
+    const nextDisconnectReasons = { ...currentState.tabDisconnectReasons };
+    for (const savedTab of persisted.tabs) {
+      if (!requestedIds.has(savedTab.id)) continue;
+      const restored = await restoreDetachedTabFromPersisted(savedTab);
+      if (restored.disconnectReason) {
+        nextDisconnectReasons[savedTab.id] = restored.disconnectReason;
+      }
+    }
+
+    set((state) => ({
+      tabs: currentTabs,
+      windowTabs: windowState.windowTabs,
+      activeTabByWindow: windowState.activeTabByWindow,
+      tabDisconnectReasons: nextDisconnectReasons,
+      activeTabId: label === resolveWindowLabel() ? activeTabId : state.activeTabId,
+    }));
+  },
+
+  attachExistingSessionTab: (session, options) => {
+    const windowLabel = resolveWindowLabel(options?.windowLabel);
+    const base = makeTabFromSession(session);
+    const tab: AppTab = {
+      ...base,
+      id: options?.tabId ?? base.id,
+      title: options?.title ?? base.title,
+      color: options?.color ?? base.color,
+      icon: options?.icon ?? base.icon,
+    };
+
+    set((state) => {
+      const existingTabs = state.tabs.filter((item) => item.id !== tab.id);
+      const currentWindowTabs = getWindowTabIds({ ...state, tabs: existingTabs }, windowLabel).filter((id) => id !== tab.id);
+      const windowTabs = sanitizeWindowTabs(
+        [...existingTabs, tab],
+        {
+          ...state.windowTabs,
+          [windowLabel]: [...currentWindowTabs, tab.id],
+        }
+      );
+      const activeTabByWindow = sanitizeActiveTabs(windowTabs, {
+        ...state.activeTabByWindow,
+        [windowLabel]: tab.id,
+      });
+      return {
+        tabs: [...existingTabs, tab],
+        windowTabs,
+        activeTabByWindow,
+        activeTabId: windowLabel === resolveWindowLabel() ? tab.id : state.activeTabId,
+        tabMruOrder: [tab.id, ...state.tabMruOrder.filter((id) => id !== tab.id)],
+      };
+    });
+  },
+
+  moveTabToWindow: async (tabId, targetWindowLabel, options) => {
+    const sourceWindowLabel = resolveWindowLabel(options?.sourceWindowLabel);
+    const activate = options?.activate ?? true;
+    const targetTabId = options?.targetTabId;
+    const side = options?.side ?? "after";
+    const wasSourceCurrentWindow = sourceWindowLabel === resolveWindowLabel();
+    const sourceWouldBecomeEmpty = getWindowTabIds(get(), sourceWindowLabel).filter((id) => id !== tabId).length === 0;
+    set((state) => {
+      const currentSource = getWindowTabIds(state, sourceWindowLabel).filter((id) => id !== tabId);
+      const currentTarget = getWindowTabIds(state, targetWindowLabel).filter((id) => id !== tabId);
+      const nextTarget = [...currentTarget];
+      if (targetTabId) {
+        const targetIndex = nextTarget.findIndex((id) => id === targetTabId);
+        const insertIndex = targetIndex < 0 ? nextTarget.length : targetIndex + (side === "after" ? 1 : 0);
+        nextTarget.splice(insertIndex, 0, tabId);
+      } else {
+        nextTarget.push(tabId);
+      }
+      const nextWindowTabs = sanitizeWindowTabs(state.tabs, {
+        ...state.windowTabs,
+        [sourceWindowLabel]: currentSource,
+        [targetWindowLabel]: nextTarget,
+      });
+      const nextActive = sanitizeActiveTabs(nextWindowTabs, {
+        ...state.activeTabByWindow,
+        [sourceWindowLabel]: state.activeTabByWindow[sourceWindowLabel] === tabId ? (currentSource[0] ?? null) : state.activeTabByWindow[sourceWindowLabel] ?? null,
+        [targetWindowLabel]: activate ? tabId : (state.activeTabByWindow[targetWindowLabel] ?? nextTarget[0] ?? tabId),
+      });
+      return {
+        windowTabs: nextWindowTabs,
+        activeTabByWindow: nextActive,
+        activeTabId: sourceWindowLabel === resolveWindowLabel()
+          ? (nextActive[sourceWindowLabel] ?? undefined)
+          : targetWindowLabel === resolveWindowLabel()
+            ? (nextActive[targetWindowLabel] ?? undefined)
+            : state.activeTabId,
+        fileTransitioning: true,
+        selectedFile: undefined,
+      };
+    });
+    await persistUiState(get());
+    if (activate) {
+      await Window.getByLabel(targetWindowLabel)
+        .then(async (targetWindow) => {
+          if (!targetWindow) return;
+          await targetWindow.show().catch(() => undefined);
+          await targetWindow.setFocus().catch(() => undefined);
+        })
+        .catch(() => undefined);
+    }
+    if (wasSourceCurrentWindow && sourceWouldBecomeEmpty) {
+      await get().closeEmptyDetachedWindow(sourceWindowLabel);
+    }
+  },
+
+  detachTabToNewWindow: async (tabId, sourceWindowLabel, placement) => {
+    const label = makeTerminalWindowLabel();
+    await get().moveTabToWindow(tabId, label, { sourceWindowLabel, activate: true });
+    const tab = get().tabs.find((item) => item.id === tabId);
+    openTerminalWorkspaceWindow(label, tab ? `${tab.title} — Termif` : "Termif", placement);
+    if (resolveWindowLabel(sourceWindowLabel) === resolveWindowLabel() && get().getWindowTabs(resolveWindowLabel()).length === 0) {
+      get().loadCurrentFilesFromCache();
+    } else {
+      get().loadCurrentFiles().catch(() => {});
+    }
+  },
+
+  moveTabToMainWindow: async (tabId, sourceWindowLabel) => {
+    await get().moveTabToWindow(tabId, MAIN_WINDOW_LABEL, { sourceWindowLabel, activate: true });
+  },
+
+  moveAllTabsToWindow: async (sourceWindowLabel, targetWindowLabel) => {
+    const tabIds = getWindowTabIds(get(), sourceWindowLabel);
+    for (const tabId of tabIds) {
+      await get().moveTabToWindow(tabId, targetWindowLabel, { sourceWindowLabel, activate: false });
+    }
+    if (tabIds.length > 0) {
+      get().setActiveTab(tabIds[tabIds.length - 1], targetWindowLabel);
+    }
+  },
+
+  closeWindowTabs: async (windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    const tabIds = [...getWindowTabIds(get(), label)];
+    for (const tabId of tabIds) {
+      await get().closeTab(tabId);
+    }
+  },
+
+  closeEmptyDetachedWindow: async (windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    if (label === MAIN_WINDOW_LABEL) return;
+    if (getWindowTabIds(get(), label).length > 0) return;
+    await Window.getByLabel(label)
+      .then((windowRef) => windowRef?.destroy().catch(() => undefined))
+      .catch(() => undefined);
+  },
+
+  closeDetachedWindow: async (windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    if (label === MAIN_WINDOW_LABEL) return;
+    await get().moveAllTabsToWindow(label, MAIN_WINDOW_LABEL);
+    set((state) => {
+      const nextWindowTabs = { ...state.windowTabs };
+      const nextActiveByWindow = { ...state.activeTabByWindow };
+      delete nextWindowTabs[label];
+      delete nextActiveByWindow[label];
+      return {
+        windowTabs: nextWindowTabs,
+        activeTabByWindow: nextActiveByWindow,
+      };
+    });
+    await persistUiState(get());
+    await Window.getByLabel(label)
+      .then((windowRef) => windowRef?.destroy().catch(() => undefined))
+      .catch(() => undefined);
+  },
+
   connectSshTab: async (tabId, alias) => {
     const session = await invoke<SessionDto>("create_ssh_session", { hostAlias: alias });
+    const windowLabel = resolveWindowLabel();
     set((state) => ({
       tabs: state.tabs.map((tab) =>
         tab.id === tabId
@@ -376,6 +897,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
       tabPaths: { ...state.tabPaths, [tabId]: "/" },
       activeTabId: tabId,
+      activeTabByWindow: {
+        ...state.activeTabByWindow,
+        [windowLabel]: tabId,
+      },
       fileTransitioning: true,
       selectedFile: undefined,
       selectedSidebarTool: "files",
@@ -390,6 +915,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   connectSshTabWithOptions: async (tabId, options, saveAsManaged, groupId) => {
+    const windowLabel = resolveWindowLabel();
     const safeAlias = options.alias.trim() || options.host.trim();
     const session = await invoke<SessionDto>("create_ssh_session_with_options", {
       options: {
@@ -435,6 +961,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
       tabPaths: { ...state.tabPaths, [tabId]: "/" },
       activeTabId: tabId,
+      activeTabByWindow: {
+        ...state.activeTabByWindow,
+        [windowLabel]: tabId,
+      },
       fileTransitioning: true,
       selectedFile: undefined,
       selectedSidebarTool: "files"
@@ -491,6 +1021,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   closeTab: async (tabId) => {
+    const windowLabel = resolveWindowLabel();
     const tab = get().tabs.find((item) => item.id === tabId);
     if (tab?.sessionId) {
       await invoke("close_terminal_session", { sessionId: tab.sessionId }).catch(() => undefined);
@@ -499,12 +1030,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const tabs = get().tabs.filter((item) => item.id !== tabId);
     const mru = get().tabMruOrder.filter((id) => id !== tabId);
-    const activeTabId = get().activeTabId === tabId
-      ? (mru[0] ?? tabs[0]?.id)
-      : get().activeTabId;
+    const nextWindowTabs = sanitizeWindowTabs(tabs, Object.fromEntries(
+      Object.entries(get().windowTabs).map(([label, ids]) => [label, ids.filter((id) => id !== tabId)])
+    ));
+    const nextActiveByWindow = sanitizeActiveTabs(nextWindowTabs, Object.fromEntries(
+      Object.entries(get().activeTabByWindow).map(([label, active]) => [label, active === tabId ? null : active])
+    ));
+    const activeTabId = nextActiveByWindow[windowLabel] ?? undefined;
     set({
       tabs,
       activeTabId,
+      windowTabs: nextWindowTabs,
+      activeTabByWindow: nextActiveByWindow,
       tabMruOrder: mru,
       fileTransitioning: true,
       selectedFile: undefined,
@@ -513,14 +1050,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       )
     });
 
-    if (tabs.length === 0) {
+    if (tabs.length === 0 && windowLabel === MAIN_WINDOW_LABEL) {
       await get().createLocalTab(coerceShellProfile(get().settings?.terminal.default_shell));
       return;
     }
 
     await persistUiState(get());
-    get().loadCurrentFilesFromCache();
-    get().loadCurrentFiles().catch(() => {});
+    if (activeTabId) {
+      get().loadCurrentFilesFromCache();
+      get().loadCurrentFiles().catch(() => {});
+    }
+    await get().closeEmptyDetachedWindow(windowLabel);
   },
 
   duplicateTab: async (tabId) => {
@@ -534,6 +1074,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (source.kind === "ssh" && source.sshAlias) {
       const newTabId = crypto.randomUUID();
+      const windowLabel = resolveWindowLabel();
       set((state) => ({
         tabs: [
           ...state.tabs,
@@ -545,7 +1086,15 @@ export const useAppStore = create<AppState>((set, get) => ({
             kind: "ssh_picker"
           }
         ],
-        activeTabId: newTabId
+        activeTabId: newTabId,
+        windowTabs: {
+          ...state.windowTabs,
+          [windowLabel]: [...getWindowTabIds(state, windowLabel), newTabId],
+        },
+        activeTabByWindow: {
+          ...state.activeTabByWindow,
+          [windowLabel]: newTabId,
+        },
       }));
       await get().connectSshTab(newTabId, source.sshAlias);
       return;
@@ -568,32 +1117,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     void persistUiState(get());
   },
 
-  reorderTabs: (fromTabId, toTabId) => {
+  reorderTabs: (fromTabId, toTabId, side = "before", windowLabel) => {
     if (fromTabId === toTabId) return;
+    const label = resolveWindowLabel(windowLabel);
     set((state) => {
-      const fromIndex = state.tabs.findIndex((tab) => tab.id === fromTabId);
-      const toIndex = state.tabs.findIndex((tab) => tab.id === toTabId);
-      if (fromIndex < 0 || toIndex < 0) return {};
-
-      const tabs = [...state.tabs];
-      const [moved] = tabs.splice(fromIndex, 1);
-      tabs.splice(toIndex, 0, moved);
-      return { tabs };
+      const scopedIds = [...getWindowTabIds(state, label)];
+      const ids = reorderScopedTabIds(scopedIds, fromTabId, toTabId, side);
+      if (ids.every((id, index) => id === scopedIds[index])) return {};
+      return {
+        windowTabs: {
+          ...state.windowTabs,
+          [label]: ids,
+        },
+      };
     });
     void persistUiState(get());
   },
 
-  setActiveTab: (tabId) => {
-    if (get().activeTabId === tabId) return;
+  setActiveTab: (tabId, windowLabel) => {
+    const label = resolveWindowLabel(windowLabel);
+    if (label === resolveWindowLabel() && get().activeTabId === tabId) return;
 
     set((state) => ({
-      activeTabId: tabId,
+      activeTabId: label === resolveWindowLabel() ? tabId : state.activeTabId,
+      activeTabByWindow: {
+        ...state.activeTabByWindow,
+        [label]: tabId,
+      },
       fileTransitioning: true,
       selectedFile: undefined,
       selectedSidebarTool: "files",
       tabMruOrder: [tabId, ...state.tabMruOrder.filter((id) => id !== tabId)]
     }));
     void persistUiState(get());
+    if (label !== resolveWindowLabel()) return;
     get().loadCurrentFilesFromCache();
 
     if (fileLoadDebounceTimer !== undefined) {
@@ -606,7 +1163,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   activateNextTab: () => {
-    const { tabs, activeTabId } = get();
+    const tabs = get().getWindowTabs(resolveWindowLabel());
+    const activeTabId = get().getActiveTabIdForWindow(resolveWindowLabel());
     if (tabs.length < 2) return;
     const idx = tabs.findIndex((t) => t.id === activeTabId);
     const next = tabs[(idx + 1) % tabs.length];
@@ -614,7 +1172,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   activatePrevTab: () => {
-    const { tabs, activeTabId } = get();
+    const tabs = get().getWindowTabs(resolveWindowLabel());
+    const activeTabId = get().getActiveTabIdForWindow(resolveWindowLabel());
     if (tabs.length < 2) return;
     const idx = tabs.findIndex((t) => t.id === activeTabId);
     const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
@@ -622,7 +1181,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   activateTabByIndex: (index) => {
-    const { tabs } = get();
+    const tabs = get().getWindowTabs(resolveWindowLabel());
     if (index >= 0 && index < tabs.length) {
       get().setActiveTab(tabs[index].id);
     }
@@ -630,6 +1189,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleSidebar: () => {
     set((state) => ({ sidebarVisible: !state.sidebarVisible }));
+    void persistUiState(get());
+  },
+
+  setSidebarVisible: (visible) => {
+    set({ sidebarVisible: visible });
+    void persistUiState(get());
+  },
+
+  setSidebarWidth: (width) => {
+    set({ sidebarWidth: clampSidebarWidth(width) });
     void persistUiState(get());
   },
 
@@ -693,9 +1262,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         const sshTabPath = get().tabPaths[activeTab.id] ?? sshPath;
         const showHidden = get().settings?.file_manager.show_hidden ?? false;
         const entries = await invoke<FileEntryDto[]>("list_local_entries", { path: sshTabPath, showHidden });
-        set({
-          fileEntries: entries, fileLoading: false, fileTransitioning: false,
-          fileError: undefined, selectedFile: undefined,
+      set({
+        fileEntries: entries, fileLoading: false, fileTransitioning: false,
+        fileError: undefined, selectedFile: undefined,
           fileDisplayTabId: activeTab.id, fileDisplayPath: sshTabPath
         });
         if (!get().tabPaths[activeTab.id]) {
@@ -727,12 +1296,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (cached) {
       // Cache hit: show cached data immediately.
       set({
+        pendingSelectedFilePath:
+          get().pendingSelectedFileTabId === requestTabId ? undefined : get().pendingSelectedFilePath,
+        pendingSelectedFileTabId:
+          get().pendingSelectedFileTabId === requestTabId ? undefined : get().pendingSelectedFileTabId,
         fileEntries: cached,
         fileLoading: false,
         fileTransitioning: false,
         fileDisplayTabId: requestTabId,
         fileDisplayPath: currentPath,
-        fileError: undefined
+        fileError: undefined,
+        selectedFile:
+          get().pendingSelectedFileTabId === requestTabId
+            ? (cached.find((entry) => entry.path === get().pendingSelectedFilePath) ?? undefined)
+            : undefined,
       });
 
       if (!force && isFresh) {
@@ -773,12 +1350,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       set((state) => ({
+        ...(state.pendingSelectedFileTabId === requestTabId
+          ? {
+              pendingSelectedFilePath: undefined,
+              pendingSelectedFileTabId: undefined,
+            }
+          : {}),
         fileEntries: entries,
         fileLoading: false,
         fileTransitioning: false,
         fileDisplayTabId: requestTabId,
         fileDisplayPath: currentPath,
-        selectedFile: undefined,
+        selectedFile:
+          state.pendingSelectedFileTabId === requestTabId
+            ? (entries.find((entry) => entry.path === state.pendingSelectedFilePath) ?? undefined)
+            : undefined,
         tabPaths: { ...state.tabPaths, [activeTab.id]: currentPath },
         dirCache: { ...state.dirCache, [cacheKey]: entries }
       }));
@@ -823,12 +1409,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (cached) {
       set({
+        pendingSelectedFilePath:
+          get().pendingSelectedFileTabId === activeTab.id ? undefined : get().pendingSelectedFilePath,
+        pendingSelectedFileTabId:
+          get().pendingSelectedFileTabId === activeTab.id ? undefined : get().pendingSelectedFileTabId,
         fileEntries: cached,
         fileLoading: false,
         fileTransitioning: false,
         fileDisplayTabId: activeTab.id,
         fileDisplayPath: currentPath,
-        fileError: undefined
+        fileError: undefined,
+        selectedFile:
+          get().pendingSelectedFileTabId === activeTab.id
+            ? (cached.find((entry) => entry.path === get().pendingSelectedFilePath) ?? undefined)
+            : undefined,
       });
       return;
     }
@@ -844,19 +1438,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  navigatePath: async (path) => {
+  navigatePath: async (path, options) => {
     const activeTab = get().tabs.find((tab) => tab.id === get().activeTabId);
     if (!activeTab) return;
+    const normalizedPath = normalizeDisplayPath(path, { remote: activeTab.kind === "ssh" });
+
+    const preserveForward = options?.preserveForward ?? false;
+    const skipHistory = options?.skipHistory ?? false;
 
     set((state) => ({
-      tabPaths: { ...state.tabPaths, [activeTab.id]: path },
+      tabPaths: { ...state.tabPaths, [activeTab.id]: normalizedPath },
       fileTransitioning: true,
-      selectedFile: undefined
+      selectedFile: undefined,
+      ...(skipHistory
+        ? {}
+        : (() => {
+            const next = pushPathHistory(
+              state.fileHistory[activeTab.id] ?? [],
+              state.fileHistoryIndex[activeTab.id],
+              normalizedPath,
+              { preserveForward }
+            );
+            return {
+              fileHistory: { ...state.fileHistory, [activeTab.id]: next.history },
+              fileHistoryIndex: { ...state.fileHistoryIndex, [activeTab.id]: next.index },
+            };
+          })()),
     }));
 
     // Show cached immediately if available
     const showHidden = get().settings?.file_manager.show_hidden ?? false;
-    const cacheKey = buildDirCacheKey(activeTab, path, { showHidden });
+    const cacheKey = buildDirCacheKey(activeTab, normalizedPath, { showHidden });
     const cached = get().dirCache[cacheKey];
     if (cached) {
       set({
@@ -864,7 +1476,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         fileLoading: false,
         fileTransitioning: false,
         fileDisplayTabId: activeTab.id,
-        fileDisplayPath: path,
+        fileDisplayPath: normalizedPath,
         fileError: undefined
       });
     } else {
@@ -872,7 +1484,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         fileEntries: [],
         fileLoading: true,
         fileDisplayTabId: activeTab.id,
-        fileDisplayPath: path,
+        fileDisplayPath: normalizedPath,
         fileError: undefined
       });
     }
@@ -907,7 +1519,105 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().navigatePath(normalized.slice(0, idx));
   },
 
+  goBackPath: async () => {
+    const { activeTabId, fileHistory, fileHistoryIndex } = get();
+    if (!activeTabId) return;
+    const history = fileHistory[activeTabId] ?? [];
+    const target = getRelativeHistoryTarget(history, fileHistoryIndex[activeTabId], "back");
+    if (!target.path) return;
+    const nextIndex = target.index;
+    if (!target) return;
+    set((state) => ({
+      fileHistoryIndex: { ...state.fileHistoryIndex, [activeTabId]: nextIndex },
+    }));
+    await get().navigatePath(target.path, { skipHistory: true });
+  },
+
+  goForwardPath: async () => {
+    const { activeTabId, fileHistory, fileHistoryIndex } = get();
+    if (!activeTabId) return;
+    const history = fileHistory[activeTabId] ?? [];
+    const target = getRelativeHistoryTarget(history, fileHistoryIndex[activeTabId], "forward");
+    if (!target.path) return;
+    const nextIndex = target.index;
+    set((state) => ({
+      fileHistoryIndex: { ...state.fileHistoryIndex, [activeTabId]: nextIndex },
+    }));
+    await get().navigatePath(target.path, { skipHistory: true });
+  },
+
+  canGoBackPath: () => {
+    const { activeTabId, fileHistory, fileHistoryIndex } = get();
+    if (!activeTabId) return false;
+    const history = fileHistory[activeTabId] ?? [];
+    return !!getRelativeHistoryTarget(history, fileHistoryIndex[activeTabId], "back").path;
+  },
+
+  canGoForwardPath: () => {
+    const { activeTabId, fileHistory, fileHistoryIndex } = get();
+    if (!activeTabId) return false;
+    const history = fileHistory[activeTabId] ?? [];
+    return !!getRelativeHistoryTarget(history, fileHistoryIndex[activeTabId], "forward").path;
+  },
+
   setSelectedFile: (file) => set({ selectedFile: file }),
+
+  revealFileInManager: async (path, sessionId, options) => {
+    const allowCrossWindow = options?.allowCrossWindow ?? true;
+    const currentWindowLabel = resolveWindowLabel();
+    const state = get();
+    const currentWindowTabs = state.getWindowTabs(currentWindowLabel);
+    const anyTargetTab = sessionId
+      ? state.tabs.find((tab) => tab.sessionId === sessionId)
+      : undefined;
+    const targetWindowLabel = anyTargetTab ? findWindowLabelForTab(state, anyTargetTab.id) : undefined;
+
+    if (allowCrossWindow && targetWindowLabel && targetWindowLabel !== currentWindowLabel) {
+      await emit(REVEAL_IN_FILE_MANAGER_EVENT, {
+        path,
+        sessionId,
+        targetWindow: targetWindowLabel,
+      }).catch(() => undefined);
+      await Window.getByLabel(targetWindowLabel)
+        .then(async (targetWindow) => {
+          if (!targetWindow) return;
+          await targetWindow.show().catch(() => undefined);
+          await targetWindow.setFocus().catch(() => undefined);
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    let targetTab = sessionId
+      ? currentWindowTabs.find((tab) => tab.sessionId === sessionId)
+      : currentWindowTabs.find((tab) => tab.id === get().activeTabId && tab.kind === "local")
+        ?? currentWindowTabs.find((tab) => tab.kind === "local");
+
+    if (!targetTab && !sessionId) {
+      const createdTabId = await get().createLocalTab(
+        coerceShellProfile(get().settings?.terminal.default_shell),
+        fileDirname(path)
+      );
+      targetTab = get().tabs.find((tab) => tab.id === createdTabId);
+    }
+
+    if (!targetTab) {
+      get().toast("No matching file manager context is open in this window");
+      return;
+    }
+
+    get().setSelectedSidebarTool("files");
+    if (get().activeTabId !== targetTab.id) {
+      get().setActiveTab(targetTab.id);
+    }
+
+    set({
+      pendingSelectedFilePath: path,
+      pendingSelectedFileTabId: targetTab.id,
+    });
+
+    await get().navigatePath(fileDirname(path));
+  },
 
   saveSettings: async (settings) => {
     const previousShowHidden = get().settings?.file_manager.show_hidden;
@@ -940,7 +1650,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openFile: async (path, mode, sessionId) => {
     if (isEditorPopoutLive()) {
-      await requestOpenFileInEditorWindow({ path, mode, sessionId });
+      await requestOpenFileInEditorWindow({
+        path,
+        mode,
+        sessionId,
+        ownerWindowLabel: resolveWindowLabel(),
+      });
       set({ editorVisible: false });
       return;
     }
@@ -1156,3 +1871,5 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   zoomReset: () => set({ zoomLevel: 100 }),
 }));
+
+export { MAIN_WINDOW_LABEL, UI_STATE_SYNC_EVENT, resolveWindowLabel };

@@ -1,7 +1,7 @@
 {
   "identifier": "default",
-  "description": "Default Termif capabilities — main window and editor windows",
-  "windows": ["main", "editor-*"],
+  "description": "Default Termif capabilities — main, detached terminal, and editor windows",
+  "windows": ["main", "terminal-*", "editor-*"],
   "permissions": [
     "core:default",
     "core:window:default",

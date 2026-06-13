@@ -142,6 +142,16 @@ export interface PersistedUiState {
   active_tab_id?: string | null;
   sidebar_visible?: boolean | null;
   selected_sidebar_tool?: "files" | "snippets" | "clipboard" | null;
+  sidebar_width?: number | null;
+  file_history?: Record<string, string[]> | null;
+  file_history_index?: Record<string, number> | null;
+  window_tabs?: Record<string, string[]> | null;
+  active_tab_by_window?: Record<string, string | null> | null;
+}
+
+export interface WindowTabsSnapshot {
+  tabs: string[];
+  activeTabId?: string | null;
 }
 
 export interface AppTab {

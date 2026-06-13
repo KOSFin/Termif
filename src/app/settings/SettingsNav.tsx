@@ -32,13 +32,13 @@ export function SettingsNav({
   return (
     <nav className="settings-nav">
       <div className="settings-nav-header">Settings</div>
-      <div className="settings-search-wrap" style={{ margin: "0 8px 10px" }}>
+      <div className="settings-search-wrap">
         <Search size={13} strokeWidth={2} />
         <input
           className="settings-search-input"
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
-          placeholder="Search all settings..."
+          placeholder="Search settings..."
         />
       </div>
       {sections.map((section) => {

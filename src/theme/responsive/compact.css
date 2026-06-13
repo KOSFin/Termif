@@ -64,13 +64,18 @@
   }
 
   .settings-search-wrap {
-    flex: 0 0 150px;
-    margin: 0 6px 0 0 !important;
+    flex: 1 1 180px;
+    min-width: 0;
+    margin: 0 6px 0 0;
   }
 
   .settings-nav-item {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .settings-search-input {
+    font-size: 12px;
   }
 
   .settings-content {

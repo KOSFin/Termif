@@ -1,9 +1,9 @@
 /* SSH HOSTS PAGE REDESIGN REDUX */
 .new-ssh-design.ssh-picker {
-  padding: 24px 32px;
+  padding: 18px 22px;
   display: flex !important;
   flex-direction: column !important;
-  gap: 20px !important;
+  gap: 14px !important;
   background:
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent-dim) 58%, transparent), transparent 34%),
     color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 72%), transparent) !important;
@@ -32,7 +32,7 @@
 
 .new-ssh-design .ssh-header-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -211,8 +211,8 @@
 .new-ssh-design .ssh-group-heading {
   color: var(--text-bright);
   font-weight: 700;
-  font-size: 1rem;
-  margin: 16px 0 8px 0;
+  font-size: 0.98rem;
+  margin: 10px 0 6px 0;
   display: flex;
   align-items: center;
   gap: 8px;

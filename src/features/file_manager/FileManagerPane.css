@@ -30,7 +30,7 @@
 .file-toolbar-path-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -61,6 +61,13 @@
   color: var(--text);
 }
 
+.file-toolbar button:disabled,
+.file-scope-action:disabled {
+  opacity: 0.38;
+  cursor: default;
+  pointer-events: none;
+}
+
 @keyframes rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -82,6 +89,8 @@
   min-width: 0;
   width: 100%;
   padding: 0 2px;
+  min-height: 26px;
+  align-items: center;
   border-bottom: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -272,6 +281,10 @@
   padding: 4px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--stroke) 45%, transparent);
   background: color-mix(in srgb, var(--accent-dim) 30%, transparent);
+}
+
+.file-path-inline-input {
+  margin-top: 1px;
 }
 
 .file-inline-label {

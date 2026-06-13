@@ -1,44 +1,21 @@
-Termif Source-Available Attribution License 1.0
+MIT License
 
 Copyright (c) 2026 Termif Contributors
 
-This license grants limited rights to use, copy, modify, and redistribute the
-Termif source code and associated documentation, subject to the terms below.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. Permitted Non-Commercial Use
-
-You may use, copy, fork, modify, and redistribute the Software for personal,
-educational, evaluation, research, and other non-commercial purposes.
-
-2. Attribution
-
-Any copy, public fork, redistributed source archive, derivative repository, or
-distributed application that contains substantial portions of the Software must
-include this license and provide visible attribution to the original Termif
-project. Visible attribution must include the text "Based on Termif" or
-"Forked from Termif" and a link to the original Termif repository in a README,
-About page, release notes, documentation, or equivalent product/legal surface.
-
-3. Commercial Use Requires Permission
-
-Commercial distribution, paid hosting, resale, sublicensing for commercial use,
-or embedding substantial portions of the Software in a commercial product or
-service requires prior written permission from the Termif maintainers.
-
-Commercial permission may be granted under a separate written agreement. Nothing
-in this license obligates the maintainers to grant such permission.
-
-4. Trademarks
-
-This license does not grant rights to use the Termif name, logos, or trademarks
-except as needed for factual attribution under section 2.
-
-5. No Warranty
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.

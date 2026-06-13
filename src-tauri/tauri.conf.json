@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Termif",
-  "version": "4.2.6",
-  "identifier": "com.termif.app",
+  "version": "4.3.0",
+  "identifier": "com.termif",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Termif",
@@ -47,7 +48,10 @@
     ],
     "windows": {
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "",
+      "nsis": {
+        "installerHooks": "nsis/termif-shell-integration.nsh"
+      }
     }
   }
 }

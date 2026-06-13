@@ -3,21 +3,28 @@
 .context-anchor {
   position: fixed;
   inset: 0;
-  z-index: 230;
+  z-index: 420;
+  pointer-events: none;
 }
 
+.app-context-menu,
 .tab-context-menu,
 .file-context-menu {
   position: fixed;
-  width: 180px;
+  width: max-content;
+  min-width: 180px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
-  background: var(--bg-elev-2);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
+  background: color-mix(in srgb, var(--bg-elev-2) calc(var(--panel-opacity, 1) * 96%), transparent);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.36);
   overflow: hidden;
-  z-index: 240;
+  z-index: 430;
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(calc(var(--panel-blur, 12px) * 1.15)) saturate(1.16);
+  backdrop-filter: blur(calc(var(--panel-blur, 12px) * 1.15)) saturate(1.16);
 }
 
+.app-context-menu button,
 .tab-context-menu button,
 .file-context-menu button {
   width: 100%;
@@ -32,9 +39,22 @@
   align-items: center;
 }
 
+.app-context-menu button:hover,
 .tab-context-menu button:hover,
 .file-context-menu button:hover {
   background: var(--bg-hover);
+}
+
+.app-context-menu button.danger,
+.tab-context-menu button.danger,
+.file-context-menu button.danger {
+  color: var(--danger);
+}
+
+.app-context-menu button.danger:hover,
+.tab-context-menu button.danger:hover,
+.file-context-menu button.danger:hover {
+  background: var(--danger-dim);
 }
 
 .context-section {
@@ -65,4 +85,15 @@
 
 .color-swatch:hover {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.context-separator {
+  height: 1px;
+  background: color-mix(in srgb, var(--stroke) 82%, transparent);
+  margin: 4px 0;
+}
+
+.context-window-list {
+  display: grid;
+  gap: 4px;
 }

@@ -1,5 +1,6 @@
 import { emit } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT } from "@/app/windows/windowing";
 
 export const EDITOR_OPEN_FILE_EVENT = "termif://editor-open-file";
 export const EDITOR_POPOUT_HEARTBEAT_KEY = "termif.editorPopoutHeartbeat";
@@ -9,6 +10,7 @@ export interface EditorWindowTabSeed {
   mode: "preview" | "edit";
   sessionId?: string;
   serverLabel?: string;
+  ownerWindowLabel?: string;
   content?: string;
   dirty?: boolean;
   error?: string;
@@ -19,6 +21,13 @@ export interface EditorWindowOpenFilePayload {
   mode: "preview" | "edit";
   sessionId?: string;
   serverLabel?: string;
+  ownerWindowLabel?: string;
+}
+
+export interface RevealFileInManagerPayload {
+  path: string;
+  sessionId?: string;
+  ownerWindowLabel?: string;
 }
 
 export function markEditorPopoutLive() {
@@ -36,6 +45,14 @@ export function isEditorPopoutLive() {
 
 export async function requestOpenFileInEditorWindow(payload: EditorWindowOpenFilePayload) {
   await emit(EDITOR_OPEN_FILE_EVENT, payload);
+}
+
+export async function requestRevealFileInManager(payload: RevealFileInManagerPayload) {
+  await emit(REVEAL_IN_FILE_MANAGER_EVENT, {
+    path: payload.path,
+    sessionId: payload.sessionId,
+    targetWindow: payload.ownerWindowLabel ?? MAIN_WINDOW_LABEL,
+  });
 }
 
 function createEditorWebviewWindow(params: URLSearchParams, title: string) {
@@ -60,11 +77,13 @@ export function openEditorWindow(
   path: string,
   mode: "preview" | "edit",
   sessionId?: string,
-  serverLabel?: string
+  serverLabel?: string,
+  ownerWindowLabel?: string
 ) {
   const params = new URLSearchParams({ path, mode });
   if (sessionId) params.set("sessionId", sessionId);
   if (serverLabel) params.set("serverLabel", serverLabel);
+  if (ownerWindowLabel) params.set("ownerWindowLabel", ownerWindowLabel);
   createEditorWebviewWindow(
     params,
     mode === "preview" ? `Preview — ${path.split(/[\\/]/).pop()}` : `Edit — ${path.split(/[\\/]/).pop()}`

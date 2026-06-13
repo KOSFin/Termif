@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { AppTab, SystemStats } from "@/types/models";
 import { classifyPercent, formatClock } from "@/app/shell/shellUtils";
 import { formatUpdateProgress, type AutoUpdateState } from "@/features/update/useAutoUpdater";
+import { ContextMenu, anchorMenuFromRect, type MenuPoint } from "@/components/ContextMenu";
 
 interface StatusBarProps {
   activeTab?: AppTab;
@@ -29,6 +31,7 @@ export function StatusBar({
   onInstallUpdate,
   onRestartUpdate,
 }: StatusBarProps) {
+  const [usersMenuAnchor, setUsersMenuAnchor] = useState<MenuPoint | null>(null);
   const remoteUsers = (remoteStatus?.user_names ?? []).filter((name) => !!name);
   const localClock = buildLocalClock(statusBarEnabled, showServerTime, clockTick);
   const serverClock = buildServerClock({
@@ -76,20 +79,19 @@ export function StatusBar({
 
         {showSshResources ? (
           <div className="status-users-wrap">
-            <span className="status-metric status-users-trigger">
+            <button
+              className="status-metric status-users-trigger"
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setUsersMenuAnchor((current) =>
+                  current
+                    ? null
+                    : anchorMenuFromRect(rect, { width: 180, height: 220 }, "top-end", { offsetY: 8 })
+                );
+              }}
+            >
               Users {remoteStatus?.users !== null && remoteStatus?.users !== undefined ? remoteStatus.users : "--"}
-            </span>
-            <div className="status-users-dropdown">
-              {remoteUsers.length > 0 ? (
-                remoteUsers.map((user, idx) => (
-                  <div key={`${user}-${idx}`} className="status-users-item">
-                    {user}
-                  </div>
-                ))
-              ) : (
-                <div className="status-users-item muted">No active users</div>
-              )}
-            </div>
+            </button>
           </div>
         ) : null}
 
@@ -122,6 +124,25 @@ export function StatusBar({
           </button>
         ) : null}
       </div>
+
+      <ContextMenu
+        open={!!usersMenuAnchor}
+        anchor={usersMenuAnchor}
+        onClose={() => setUsersMenuAnchor(null)}
+        className="file-context-menu"
+        minWidth={180}
+        allowViewportOverflowOnMac
+      >
+        {remoteUsers.length > 0 ? (
+          remoteUsers.map((user, idx) => (
+            <div key={`${user}-${idx}`} className="status-users-item">
+              {user}
+            </div>
+          ))
+        ) : (
+          <div className="status-users-item muted">No active users</div>
+        )}
+      </ContextMenu>
     </footer>
   );
 }

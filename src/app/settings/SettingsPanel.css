@@ -36,6 +36,36 @@
   overflow-x: hidden;
 }
 
+.settings-search-wrap {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 8px 10px;
+  padding: 0 10px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev-2) 48%, transparent);
+}
+
+.settings-search-input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-search-input::placeholder {
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+
 .settings-nav-header {
   padding: 12px;
   font-size: 13px;
@@ -120,6 +150,10 @@
 .settings-section {
   display: grid;
   gap: 14px;
+}
+
+.settings-content-header h2 {
+  min-width: 0;
 }
 
 .settings-row {

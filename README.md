@@ -206,9 +206,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full runtime breakdown.
 
 ## License and Commercial Use
 
-Termif uses a source-available attribution license. You may use, copy, modify, and share the source with visible credit to the original Termif project. Commercial distribution, paid hosting, resale, or embedding in a commercial product requires prior written permission from the Termif maintainers.
-
-This is intentionally not an OSI open-source license such as MIT or Apache-2.0, because those licenses allow commercial use without additional permission.
+Termif is available under the MIT license. You can use, modify, distribute, sublicense, and sell software built from this codebase, including commercial use, as long as the license notice is preserved.
 
 Full legal text: [LICENSE](LICENSE).
 

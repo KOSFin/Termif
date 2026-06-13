@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Plus, Trash2, FolderOpen, Paperclip, Server, Search, ChevronUp, Zap, X } from "lucide-react";
+import { ContextMenu, anchorMenuFromRect, type MenuPoint } from "@/components/ContextMenu";
 import { useAppStore } from "@/store/useAppStore";
 import type { SshConnectOptions, SshHostEntry } from "@/types/models";
 import { HostCard } from "@/features/ssh/HostCard";
@@ -69,6 +70,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const [qcSave, setQcSave] = useState(false);
 
   const [qcPopoverOpen, setQcPopoverOpen] = useState(false);
+  const [qcPopoverAnchor, setQcPopoverAnchor] = useState<MenuPoint | null>(null);
 
   // Search
   const [searchOpen, setSearchOpen] = useState(false);
@@ -81,7 +83,7 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
   const [alreadyConnectedModal, setAlreadyConnectedModal] = useState<string | null>(null);
 
   // Group context menu (right-click on a group heading)
-  const [groupMenu, setGroupMenu] = useState<{ groupId: string; x: number; y: number } | null>(null);
+  const [groupMenu, setGroupMenu] = useState<{ groupId: string; anchor: MenuPoint } | null>(null);
   // Delete-group modal: choose what happens to the hosts inside the group
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
   const [deleteHostsAction, setDeleteHostsAction] = useState<"ungroup" | "move" | "cascade">("ungroup");
@@ -416,36 +418,18 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
               >
                 <Server size={14} strokeWidth={2}/> NEW HOST
               </button>
-              <button onClick={() => setQcPopoverOpen(!qcPopoverOpen)}>
+              <button
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setQcPopoverAnchor(
+                    anchorMenuFromRect(rect, { width: 188, height: 96 }, "bottom-end", { offsetY: 6 })
+                  );
+                  setQcPopoverOpen((value) => !value);
+                }}
+              >
                 <ChevronDown size={14} strokeWidth={2}/>
               </button>
             </div>
-            {qcPopoverOpen && (
-              <>
-                <div className="dropdown-backdrop" onClick={() => setQcPopoverOpen(false)} />
-                <div className="new-host-dropdown">
-                  <button
-                    className="new-host-dropdown-item"
-                    onClick={() => {
-                      setQuickConnectOpen(true);
-                      setQcPopoverOpen(false);
-                    }}
-                  >
-                    <Zap size={14} strokeWidth={2} /> Quick Connect
-                  </button>
-                  <button
-                    className="new-host-dropdown-item"
-                    onClick={() => {
-                      setSettingsDraft({ ...blankHost });
-                      setSettingsTab("connection");
-                      setQcPopoverOpen(false);
-                    }}
-                  >
-                    <Plus size={14} strokeWidth={2} /> Add to list
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -532,7 +516,10 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
                 onClick={() => toggleGroup(group.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setGroupMenu({ groupId: group.id, x: e.clientX, y: e.clientY });
+                  setGroupMenu({
+                    groupId: group.id,
+                    anchor: { x: e.clientX, y: e.clientY },
+                  });
                 }}
               >
                 {group.name} {!expanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
@@ -796,13 +783,50 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
         </div>
       )}
       {/* ── Group Context Menu (right-click on a group heading) ── */}
-      {groupMenu && (
-        <>
-          <div className="dropdown-backdrop" onClick={() => setGroupMenu(null)} onContextMenu={(e) => { e.preventDefault(); setGroupMenu(null); }} />
-          <div
-            className="new-host-dropdown ssh-group-context-menu"
-            style={{ position: "fixed", top: groupMenu.y, left: groupMenu.x, right: "auto" }}
-          >
+      <ContextMenu
+        open={qcPopoverOpen && !!qcPopoverAnchor}
+        anchor={qcPopoverAnchor}
+        onClose={() => {
+          setQcPopoverOpen(false);
+          setQcPopoverAnchor(null);
+        }}
+        className="ssh-group-context-menu"
+        minWidth={188}
+        allowViewportOverflowOnMac
+      >
+        <button
+          className="new-host-dropdown-item"
+          onClick={() => {
+            setQuickConnectOpen(true);
+            setQcPopoverOpen(false);
+            setQcPopoverAnchor(null);
+          }}
+        >
+          <Zap size={14} strokeWidth={2} /> Quick Connect
+        </button>
+        <button
+          className="new-host-dropdown-item"
+          onClick={() => {
+            setSettingsDraft({ ...blankHost });
+            setSettingsTab("connection");
+            setQcPopoverOpen(false);
+            setQcPopoverAnchor(null);
+          }}
+        >
+          <Plus size={14} strokeWidth={2} /> Add to list
+        </button>
+      </ContextMenu>
+
+      <ContextMenu
+        open={!!groupMenu}
+        anchor={groupMenu?.anchor ?? null}
+        onClose={() => setGroupMenu(null)}
+        className="ssh-group-context-menu"
+        allowViewportOverflowOnMac
+        minWidth={188}
+      >
+        {groupMenu ? (
+          <>
             <button
               className="new-host-dropdown-item"
               onClick={() => { openGroupModal(groupMenu.groupId); setGroupMenu(null); }}
@@ -815,9 +839,9 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
             >
               <Trash2 size={14} strokeWidth={2} /> Delete group…
             </button>
-          </div>
-        </>
-      )}
+          </>
+        ) : null}
+      </ContextMenu>
 
       {/* ── Delete Group Modal ── */}
       {deleteGroupTarget && (() => {

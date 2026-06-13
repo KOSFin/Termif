@@ -17,7 +17,7 @@ interface AppCommandContext {
   activatePrevTab: () => void;
   closeTab: (tabId: string) => Promise<void>;
   connectHostFromPalette: (alias: string) => void;
-  createLocalTab: (shellProfile?: string) => Promise<void>;
+  createLocalTab: (shellProfile?: string, cwd?: string) => Promise<string>;
   createSshPickerTab: () => string;
   loadCurrentFiles: (options?: { force?: boolean }) => Promise<void>;
   openFile: (path: string, mode: "preview" | "edit", sessionId?: string) => Promise<void>;

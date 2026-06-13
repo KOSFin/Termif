@@ -2,11 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Save, FolderOpen } from "lucide-react";
+import { ContextMenu, type MenuPoint } from "@/components/ContextMenu";
 import { appShortcutTitle } from "@/platform/platform";
+import { useAppStore } from "@/store/useAppStore";
 import {
   clearEditorPopoutLive,
   EDITOR_OPEN_FILE_EVENT,
   markEditorPopoutLive,
+  requestRevealFileInManager,
   type EditorWindowOpenFilePayload,
   type EditorWindowTabSeed
 } from "./editorWindow";
@@ -19,6 +22,7 @@ interface EditorTab {
   dirty: boolean;
   sessionId?: string;
   serverLabel?: string;
+  ownerWindowLabel?: string;
   error?: string;
 }
 
@@ -30,6 +34,7 @@ function parseQuery() {
   const mode = params.get("mode") === "preview" ? "preview" : "edit";
   const sessionId = params.get("sessionId") ?? undefined;
   const serverLabel = params.get("serverLabel") ?? undefined;
+  const ownerWindowLabel = params.get("ownerWindowLabel") ?? undefined;
   const activeRaw = Number.parseInt(params.get("active") ?? "0", 10);
   const activeIndex = Number.isFinite(activeRaw) ? activeRaw : 0;
 
@@ -49,6 +54,7 @@ function parseQuery() {
               mode: obj.mode === "preview" ? "preview" : "edit",
               sessionId: obj.sessionId,
               serverLabel: typeof obj.serverLabel === "string" ? obj.serverLabel : undefined,
+              ownerWindowLabel: typeof obj.ownerWindowLabel === "string" ? obj.ownerWindowLabel : undefined,
               content: typeof obj.content === "string" ? obj.content : undefined,
               dirty: !!obj.dirty,
               error: typeof obj.error === "string" ? obj.error : undefined,
@@ -61,12 +67,16 @@ function parseQuery() {
     }
   }
 
-  return { path, mode: mode as "preview" | "edit", sessionId, serverLabel, tabs, activeIndex };
+  return { path, mode: mode as "preview" | "edit", sessionId, serverLabel, ownerWindowLabel, tabs, activeIndex };
 }
 
 export function EditorWorkspace() {
+  const { setSelectedSidebarTool } = useAppStore((state) => ({
+    setSelectedSidebarTool: state.setSelectedSidebarTool,
+  }));
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>();
+  const [tabMenu, setTabMenu] = useState<{ tabId: string; anchor: MenuPoint } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<EditorTab[]>([]);
@@ -83,11 +93,12 @@ export function EditorWorkspace() {
       path: seed.path,
       mode: seed.mode,
       content: seed.content ?? "",
-      dirty: !!seed.dirty,
-      sessionId: seed.sessionId,
-      serverLabel: seed.serverLabel ?? (seed.sessionId ? "Remote server" : "Local machine"),
-      error: seed.error,
-    }));
+        dirty: !!seed.dirty,
+        sessionId: seed.sessionId,
+        serverLabel: seed.serverLabel ?? (seed.sessionId ? "Remote server" : "Local machine"),
+        ownerWindowLabel: seed.ownerWindowLabel,
+        error: seed.error,
+      }));
 
     setTabs(seededTabs);
     const clampedActive = Math.max(0, Math.min(activeIndex, seededTabs.length - 1));
@@ -121,7 +132,8 @@ export function EditorWorkspace() {
     path: string,
     mode: "preview" | "edit",
     sessionId?: string,
-    serverLabel?: string
+    serverLabel?: string,
+    ownerWindowLabel?: string
   ) => {
     const existing = tabsRef.current.find((tab) => tab.path === path && tab.sessionId === sessionId);
     if (existing) {
@@ -148,6 +160,7 @@ export function EditorWorkspace() {
           dirty: false,
           sessionId,
           serverLabel: serverLabel ?? (sessionId ? "Remote server" : "Local machine"),
+          ownerWindowLabel,
         }
       ]);
       setActiveTabId(id);
@@ -162,6 +175,7 @@ export function EditorWorkspace() {
           dirty: false,
           sessionId,
           serverLabel: serverLabel ?? (sessionId ? "Remote server" : "Local machine"),
+          ownerWindowLabel,
           error: error instanceof Error ? error.message : String(error)
         }
       ]);
@@ -170,13 +184,13 @@ export function EditorWorkspace() {
   }, []);
 
   useEffect(() => {
-    const { path, mode, sessionId, serverLabel, tabs: seededTabs, activeIndex } = parseQuery();
+    const { path, mode, sessionId, serverLabel, ownerWindowLabel, tabs: seededTabs, activeIndex } = parseQuery();
     if (seededTabs.length > 0) {
       void hydrateFromSeeds(seededTabs, activeIndex);
       return;
     }
     if (path) {
-      void openPath(path, mode, sessionId, serverLabel);
+      void openPath(path, mode, sessionId, serverLabel, ownerWindowLabel);
     }
   }, [hydrateFromSeeds, openPath]);
 
@@ -185,7 +199,7 @@ export function EditorWorkspace() {
     const heartbeat = window.setInterval(markEditorPopoutLive, 1500);
     const unlistenPromise = listen<EditorWindowOpenFilePayload>(EDITOR_OPEN_FILE_EVENT, (event) => {
       const payload = event.payload;
-      void openPath(payload.path, payload.mode, payload.sessionId, payload.serverLabel);
+      void openPath(payload.path, payload.mode, payload.sessionId, payload.serverLabel, payload.ownerWindowLabel);
     });
 
     const onBeforeUnload = () => {
@@ -281,6 +295,14 @@ export function EditorWorkspace() {
               key={tab.id}
               className={`editor-tab ${tab.id === activeTabId ? "active" : ""}`}
               onClick={() => setActiveTabId(tab.id)}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setTabMenu({
+                  tabId: tab.id,
+                  anchor: { x: event.clientX, y: event.clientY },
+                });
+              }}
             >
               <span className="editor-tab-meta">
                 <span className="editor-tab-title">
@@ -364,6 +386,60 @@ export function EditorWorkspace() {
           </div>
         </main>
       ) : null}
+
+      <ContextMenu
+        open={!!tabMenu}
+        anchor={tabMenu?.anchor ?? null}
+        onClose={() => setTabMenu(null)}
+        className="file-context-menu"
+        minWidth={216}
+        allowViewportOverflowOnMac
+      >
+        {tabMenu ? (() => {
+          const tab = tabs.find((item) => item.id === tabMenu.tabId);
+          if (!tab) return null;
+          return (
+            <>
+              <button onClick={() => {
+                void navigator.clipboard.writeText(tab.path);
+                setTabMenu(null);
+              }}>
+                <FolderOpen size={13} strokeWidth={2} /> Copy Path
+              </button>
+              <button
+                disabled={!!tab.sessionId}
+                onClick={() => {
+                  if (!tab.sessionId) {
+                    void invoke("reveal_path", { path: tab.path });
+                  }
+                  setTabMenu(null);
+                }}
+              >
+                <FolderOpen size={13} strokeWidth={2} /> Open in Finder/Explorer
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedSidebarTool("files");
+                  void requestRevealFileInManager({
+                    path: tab.path,
+                    sessionId: tab.sessionId,
+                    ownerWindowLabel: tab.ownerWindowLabel,
+                  }).catch(() => undefined);
+                  setTabMenu(null);
+                }}
+              >
+                <FolderOpen size={13} strokeWidth={2} /> Show in File Manager
+              </button>
+              <button onClick={() => {
+                closeTab(tab.id);
+                setTabMenu(null);
+              }}>
+                <X size={13} strokeWidth={2} /> Close Tab
+              </button>
+            </>
+          );
+        })() : null}
+      </ContextMenu>
     </div>
   );
 }
