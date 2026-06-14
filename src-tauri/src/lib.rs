@@ -677,21 +677,29 @@ pub fn run() {
         .run(|app, event| {
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { urls } = event {
-                let paths: Vec<String> = urls.iter().filter_map(|url| {
-                    if url.scheme() == "file" {
-                        url.to_file_path().ok().map(|p| p.to_string_lossy().to_string())
-                    } else {
-                        None
-                    }
-                }).collect();
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|url| {
+                        if url.scheme() == "file" {
+                            url.to_file_path()
+                                .ok()
+                                .map(|p| p.to_string_lossy().to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
 
                 if !paths.is_empty() {
-                    let requests: Vec<LaunchRequest> = paths.into_iter().filter_map(|path| {
-                        normalize_launch_path(&path, None).map(|p| LaunchRequest {
-                            path: p,
-                            target: LaunchTarget::Tab,
+                    let requests: Vec<LaunchRequest> = paths
+                        .into_iter()
+                        .filter_map(|path| {
+                            normalize_launch_path(&path, None).map(|p| LaunchRequest {
+                                path: p,
+                                target: LaunchTarget::Tab,
+                            })
                         })
-                    }).collect();
+                        .collect();
 
                     if !requests.is_empty() {
                         if let Some(state) = app.try_state::<AppState>() {
