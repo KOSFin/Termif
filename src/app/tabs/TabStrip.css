@@ -93,9 +93,10 @@
 }
 
 .tab.dragging {
-  opacity: 0.55;
-  z-index: 4;
+  opacity: 0.78;
+  z-index: 7;
   pointer-events: none;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
 }
 
 .tab-drag-active {

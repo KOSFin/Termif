@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { getAllWindows, getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
@@ -30,7 +31,7 @@ import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
 import { UpdateBanner } from "@/features/update/UpdateBanner";
 import { useAutoUpdater } from "@/features/update/useAutoUpdater";
-import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, TAB_DRAG_EVENT, formatWindowDisplayTitle, UI_STATE_SYNC_EVENT, type RevealInFileManagerPayload, type TabDragPayload, type UiStateSyncPayload } from "@/app/windows/windowing";
+import { FORCE_CLOSE_WINDOW_EVENT, MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, TAB_DRAG_EVENT, formatWindowDisplayTitle, UI_STATE_SYNC_EVENT, type ForceCloseWindowPayload, type RevealInFileManagerPayload, type TabDragPayload, type UiStateSyncPayload } from "@/app/windows/windowing";
 import { makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
 import { resolveWindowLabel } from "@/store/useAppStore";
 import type { PersistedUiState } from "@/types/models";
@@ -85,6 +86,7 @@ export function AppShell() {
     markTabDisconnected,
     saveSettings,
     toast,
+    updateWindowState,
     activateNextTab,
     activatePrevTab,
     activateTabByIndex,
@@ -140,6 +142,7 @@ export function AppShell() {
     markTabDisconnected: state.markTabDisconnected,
     saveSettings: state.saveSettings,
     toast: state.toast,
+    updateWindowState: state.updateWindowState,
     activateNextTab: state.activateNextTab,
     activatePrevTab: state.activatePrevTab,
     activateTabByIndex: state.activateTabByIndex,
@@ -162,6 +165,7 @@ export function AppShell() {
   const windowTabs = useAppStore((state) => state.windowTabs);
   const activeTabByWindow = useAppStore((state) => state.activeTabByWindow);
   const allTabs = useAppStore((state) => state.tabs);
+  const windowStates = useAppStore((state) => state.windowStates);
 
   const visibleTabs = useMemo(() => {
     return getWindowTabs(windowLabel);
@@ -222,26 +226,62 @@ export function AppShell() {
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const [isMax, setIsMax] = useState(false);
   const closeInProgressRef = useRef(false);
+  const windowStateRestoredRef = useRef(false);
+  const restoredDetachedLabelsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    appWindow.onResized(async () => {
-      try {
-        const maximized = await appWindow.isMaximized();
-        setIsMax(maximized);
-      } catch (e) {
-        console.error(e);
+    let unlistenResize: (() => void) | undefined;
+    let unlistenMove: (() => void) | undefined;
+    let saveTimer: number | undefined;
+
+    const scheduleWindowStateSave = () => {
+      if (saveTimer !== undefined) {
+        window.clearTimeout(saveTimer);
       }
-    }).then(_unlisten => {
-      unlisten = _unlisten;
+      saveTimer = window.setTimeout(async () => {
+        saveTimer = undefined;
+        try {
+          const [position, size, maximized] = await Promise.all([
+            appWindow.outerPosition(),
+            appWindow.outerSize(),
+            appWindow.isMaximized(),
+          ]);
+          setIsMax(maximized);
+          await updateWindowState(windowLabel, {
+            x: position.x,
+            y: position.y,
+            width: size.width,
+            height: size.height,
+            maximized,
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }, 140);
+    };
+
+    appWindow.onResized(() => {
+      scheduleWindowStateSave();
+    }).then((unlisten) => {
+      unlistenResize = unlisten;
+    }).catch(console.error);
+
+    appWindow.onMoved(() => {
+      scheduleWindowStateSave();
+    }).then((unlisten) => {
+      unlistenMove = unlisten;
     }).catch(console.error);
 
     appWindow.isMaximized().then(setIsMax).catch(console.error);
 
     return () => {
-      if (unlisten) unlisten();
+      if (saveTimer !== undefined) {
+        window.clearTimeout(saveTimer);
+      }
+      unlistenResize?.();
+      unlistenMove?.();
     };
-  }, [appWindow]);
+  }, [appWindow, updateWindowState, windowLabel]);
 
   const confirmCloseWithUnsaved = useCallback(() => {
     if (!hasUnsavedEditorFiles()) return true;
@@ -280,6 +320,17 @@ export function AppShell() {
       closeInProgressRef.current = false;
     }
   }, [confirmCloseWithUnsaved, toast]);
+  const onCloseDetachedWindow = useCallback(async () => {
+    if (closeInProgressRef.current) return;
+    if (!confirmCloseWithUnsaved()) return;
+    closeInProgressRef.current = true;
+    try {
+      await closeDetachedWindow(windowLabel);
+    } catch (e) {
+      toast(`Close failed: ${e instanceof Error ? e.message : String(e)}`);
+      closeInProgressRef.current = false;
+    }
+  }, [closeDetachedWindow, confirmCloseWithUnsaved, toast, windowLabel]);
   const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     void appWindow.startDragging();
@@ -434,6 +485,57 @@ export function AppShell() {
   }, [initialize]);
 
   useEffect(() => {
+    if (!isInitialized || windowStateRestoredRef.current) return;
+    const geometry = windowStates[windowLabel];
+    windowStateRestoredRef.current = true;
+    if (!geometry) return;
+
+    void (async () => {
+      if (typeof geometry.width === "number" && typeof geometry.height === "number" && !geometry.maximized) {
+        await appWindow
+          .setSize(new PhysicalSize(Math.max(760, geometry.width), Math.max(560, geometry.height)))
+          .catch(() => undefined);
+      }
+      if (typeof geometry.x === "number" && typeof geometry.y === "number" && !geometry.maximized) {
+        await appWindow
+          .setPosition(new PhysicalPosition(geometry.x, geometry.y))
+          .catch(() => undefined);
+      }
+      if (geometry.maximized) {
+        await appWindow.maximize().catch(() => undefined);
+      }
+    })();
+  }, [appWindow, isInitialized, windowLabel, windowStates]);
+
+  useEffect(() => {
+    if (!isInitialized || !isMainWindow) return;
+
+    void getAllWindows()
+      .then((windows) => {
+        const existing = new Set(windows.map((win) => win.label));
+        for (const [label, tabIds] of Object.entries(windowTabs)) {
+          if (label === MAIN_WINDOW_LABEL || tabIds.length === 0) continue;
+          if (existing.has(label) || restoredDetachedLabelsRef.current.has(label)) continue;
+
+          const title =
+            tabIds
+              .map((id) => allTabs.find((tab) => tab.id === id)?.title)
+              .find((value): value is string => !!value) ?? null;
+          const geometry = windowStates[label];
+          openTerminalWorkspaceWindow(label, formatWindowDisplayTitle(label, title), {
+            x: geometry?.x ?? undefined,
+            y: geometry?.y ?? undefined,
+            width: geometry?.width ?? undefined,
+            height: geometry?.height ?? undefined,
+            maximized: geometry?.maximized ?? undefined,
+          });
+          restoredDetachedLabelsRef.current.add(label);
+        }
+      })
+      .catch(() => undefined);
+  }, [allTabs, isInitialized, isMainWindow, windowStates, windowTabs]);
+
+  useEffect(() => {
     const unlistenPromise = listen<UiStateSyncPayload<PersistedUiState>>(UI_STATE_SYNC_EVENT, (event) => {
       if (event.payload.sourceWindow === windowLabel) return;
       void syncWindowStateFromBackend(windowLabel);
@@ -549,6 +651,20 @@ export function AppShell() {
       void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [windowLabel]);
+
+  useEffect(() => {
+    const unlistenPromise = listen<ForceCloseWindowPayload>(FORCE_CLOSE_WINDOW_EVENT, (event) => {
+      if (event.payload.targetWindow !== windowLabel) return;
+      closeInProgressRef.current = true;
+      void appWindow.destroy().catch(() => {
+        closeInProgressRef.current = false;
+      });
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [appWindow, windowLabel]);
 
   // macOS WebView can autocapitalize values like "root" in plain inputs.
   useEffect(() => {
@@ -711,18 +827,21 @@ export function AppShell() {
 
   useEffect(() => {
     const unlistenPromise = appWindow.onCloseRequested((event) => {
+      if (closeInProgressRef.current) {
+        return;
+      }
       event.preventDefault();
       if (isMainWindow) {
         void onCloseWindow();
         return;
       }
-      void closeDetachedWindow(windowLabel);
+      void onCloseDetachedWindow();
     });
 
     return () => {
       void unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [appWindow, closeDetachedWindow, isMainWindow, onCloseWindow, windowLabel]);
+  }, [appWindow, isMainWindow, onCloseDetachedWindow, onCloseWindow]);
 
   // ── Editor split drag state ─────────────────────────────────────
   const splitDragging = useRef(false);
@@ -971,7 +1090,7 @@ export function AppShell() {
       onMinimize={onMinimize}
       onMaximize={onMaximize}
       onClose={isMainWindow ? onCloseWindow : () => {
-        void closeDetachedWindow(windowLabel);
+        void onCloseDetachedWindow();
       }}
     />
   );

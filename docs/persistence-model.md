@@ -18,7 +18,7 @@ settings.json stores runtime preferences and interaction policy such as appearan
 
 hosts.json stores SSH groups, managed hosts, and override maps for imported host aliases/group assignments derived from ~/.ssh/config.
 
-ui_state.json stores tab presentation metadata, active tab identity, sidebar visibility, and the selected sidebar tool used for startup restoration.
+ui_state.json stores tab presentation metadata, per-window tab membership, active tab identity per window, sidebar visibility, the selected sidebar tool, and saved window geometry used for startup restoration.
 
 On the frontend, command snippets are stored in localStorage under termif.snippets.v1. Terminal scrollback snapshots are stored per tab under termif.terminal.log.\*, capped by the frontend to avoid unbounded growth.
 
@@ -31,6 +31,8 @@ If a file is missing, the backend falls back to model defaults. If UI state is i
 ## Session Restoration Semantics
 
 Termif restores tab metadata, not live process memory. Local tabs are recreated by spawning fresh local shell sessions. When a saved terminal log exists for the restored tab id, the frontend replays that log into xterm before live output resumes, so users can still inspect the previous scrollback after an app restart. Persisted SSH tabs are restored as detached SSH tabs unless and until users reconnect, which prevents silent credential or trust assumptions during boot.
+
+Detached window topology is also restored from ui_state.json. On startup, the main window recreates any saved secondary terminal windows and re-applies their last persisted position, size, and maximized state before interaction continues.
 
 This approach favors deterministic startup and explicit reconnection over hidden remote side effects.
 

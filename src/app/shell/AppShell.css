@@ -7,18 +7,22 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background:
-    linear-gradient(
-      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35)),
-      rgba(0, 0, 0, var(--terminal-bg-dim, 0.35))
-    ),
-    var(--terminal-bg-image, none),
-    color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
+  background: color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   -webkit-backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
   backdrop-filter: blur(var(--window-blur, 8px)) saturate(1.08);
+}
+
+html[data-app-bg-image="true"] .app-root {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--bg) calc(var(--terminal-bg-dim, 0.35) * 100%), transparent),
+      color-mix(in srgb, var(--bg) calc(var(--terminal-bg-dim, 0.35) * 100%), transparent)
+    ),
+    var(--terminal-bg-image, none),
+    color-mix(in srgb, var(--bg) calc(var(--window-opacity, 1) * 100%), transparent);
 }
 
 /* == Topbar =================================================== */

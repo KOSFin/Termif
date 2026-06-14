@@ -60,7 +60,7 @@ export function TabStrip(props: TabStripProps) {
   const [newTabMenuAnchor, setNewTabMenuAnchor] = useState<MenuPoint | null>(null);
   const [scrollLimited, setScrollLimited] = useState(false);
   const [renamingTab, setRenamingTab] = useState<{ id: string; value: string }>();
-  const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; startY: number; currentX: number; active: boolean }>();
+  const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; startY: number; currentX: number; currentY: number; active: boolean }>();
   const [dragOverState, setDragOverState] = useState<{ tabId: string; side: "before" | "after" }>();
   const [externalDropState, setExternalDropState] = useState<{ tabId: string; side: "before" | "after" }>();
 
@@ -234,15 +234,16 @@ export function TabStrip(props: TabStripProps) {
       const moved =
         Math.abs(event.clientX - draggingState.startX) > 5 ||
         Math.abs(event.clientY - draggingState.startY) > 5;
-      setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX, active: prev.active || moved } : prev);
+      setDraggingTab((prev) => prev ? { ...prev, currentX: event.clientX, currentY: event.clientY, active: prev.active || moved } : prev);
       if (!draggingState.active && !moved) return;
       if (moved) {
+        const currentDrag = draggingTabRef.current;
         const payload: TabDragPayload = {
           sourceWindow: currentWindowLabelRef.current,
           tabId: draggingState.id,
           screenX: event.screenX,
           screenY: event.screenY,
-          phase: draggingState.active ? "move" : "start",
+          phase: currentDrag?.active ? "move" : "start",
         };
         void emit(TAB_DRAG_EVENT, payload).catch(() => undefined);
       }
@@ -293,11 +294,12 @@ export function TabStrip(props: TabStripProps) {
               tabId: draggingState.id,
               screenX: event.screenX,
               screenY: event.screenY,
+              targetWindow: target,
             };
             void emit(TAB_DROP_EVENT, dropPayload).catch(() => undefined);
-        } else {
-          onDetachAtPositionRef.current(draggingState.id, { x: event.screenX, y: event.screenY });
-        }
+          } else {
+            onDetachAtPositionRef.current(draggingState.id, { x: event.screenX, y: event.screenY });
+          }
         } else if (moved && over.insideStrip && over.tabId && over.tabId !== draggingState.id) {
           onReorderRef.current(draggingState.id, over.tabId, over.side);
         }
@@ -335,6 +337,7 @@ export function TabStrip(props: TabStripProps) {
     const unlistenPromise = listen<TabDropPayload>(TAB_DROP_EVENT, (event) => {
       const payload = event.payload;
       if (payload.sourceWindow === currentWindowLabelRef.current) return;
+      if (payload.targetWindow && payload.targetWindow !== currentWindowLabelRef.current) return;
       const clientX = payload.screenX - window.screenX;
       const clientY = payload.screenY - window.screenY;
       const insideWindow =
@@ -416,6 +419,11 @@ export function TabStrip(props: TabStripProps) {
               data-tab-id={tab.id}
               style={{
                 "--tab-color": tab.color,
+                ...(isDragging
+                  ? {
+                      transform: `translate(${(draggingTab?.currentX ?? 0) - (draggingTab?.startX ?? 0)}px, ${(draggingTab?.currentY ?? 0) - (draggingTab?.startY ?? 0)}px) scale(1.02)`,
+                    }
+                  : {}),
               } as CSSProperties}
               role="tab"
               tabIndex={0}
@@ -425,7 +433,14 @@ export function TabStrip(props: TabStripProps) {
                 if (event.button !== 0 || renamingTab) return;
                 const target = event.target as HTMLElement;
                 if (target.closest("button, input")) return;
-                setDraggingTab({ id: tab.id, startX: event.clientX, startY: event.clientY, currentX: event.clientX, active: false });
+                setDraggingTab({
+                  id: tab.id,
+                  startX: event.clientX,
+                  startY: event.clientY,
+                  currentX: event.clientX,
+                  currentY: event.clientY,
+                  active: false,
+                });
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {

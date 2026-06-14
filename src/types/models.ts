@@ -137,6 +137,14 @@ export interface PersistedTab {
   ssh_alias?: string | null;
 }
 
+export interface PersistedWindowState {
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
+  maximized?: boolean | null;
+}
+
 export interface PersistedUiState {
   tabs: PersistedTab[];
   active_tab_id?: string | null;
@@ -147,6 +155,7 @@ export interface PersistedUiState {
   file_history_index?: Record<string, number> | null;
   window_tabs?: Record<string, string[]> | null;
   active_tab_by_window?: Record<string, string | null> | null;
+  window_states?: Record<string, PersistedWindowState> | null;
 }
 
 export interface WindowTabsSnapshot {

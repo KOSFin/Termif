@@ -373,6 +373,8 @@ pub struct PersistedUiState {
     pub window_tabs: std::collections::HashMap<String, Vec<String>>,
     #[serde(default)]
     pub active_tab_by_window: std::collections::HashMap<String, Option<String>>,
+    #[serde(default)]
+    pub window_states: std::collections::HashMap<String, PersistedWindowState>,
 }
 
 fn default_sidebar_visible() -> bool {
@@ -395,8 +397,18 @@ impl Default for PersistedUiState {
             file_history_index: std::collections::HashMap::new(),
             window_tabs: std::collections::HashMap::new(),
             active_tab_by_window: std::collections::HashMap::new(),
+            window_states: std::collections::HashMap::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PersistedWindowState {
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub maximized: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

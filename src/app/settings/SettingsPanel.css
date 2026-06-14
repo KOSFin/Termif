@@ -116,9 +116,27 @@
   transition: background 0.1s, color 0.1s;
 }
 
+.settings-nav-repo-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.settings-nav-repo-version {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 .settings-nav-repo:hover {
   color: var(--text-bright);
   background: var(--bg-hover);
+}
+
+.settings-nav-repo:hover .settings-nav-repo-version {
+  color: var(--text);
 }
 
 .settings-content {

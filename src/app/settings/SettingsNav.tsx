@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { Search } from "lucide-react";
 import { sections, type SettingsSection } from "./SettingsPanel.model";
 import { invoke } from "@tauri-apps/api/core";
@@ -29,6 +31,14 @@ export function SettingsNav({
   onSectionChange,
   onSearchQueryChange,
 }: SettingsNavProps) {
+  const [appVersion, setAppVersion] = useState<string>("");
+
+  useEffect(() => {
+    void getVersion()
+      .then(setAppVersion)
+      .catch(() => undefined);
+  }, []);
+
   return (
     <nav className="settings-nav">
       <div className="settings-nav-header">Settings</div>
@@ -65,7 +75,10 @@ export function SettingsNav({
         title="Open Termif on GitHub"
       >
         <GithubIcon size={15} />
-        Termif
+        <span className="settings-nav-repo-text">
+          <span>Termif</span>
+          <span className="settings-nav-repo-version">{appVersion ? `v${appVersion}` : ""}</span>
+        </span>
       </a>
     </nav>
   );

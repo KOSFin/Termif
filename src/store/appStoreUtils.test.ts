@@ -146,4 +146,28 @@ describe("main window route", () => {
     const mod = await import("@/store/useAppStore");
     expect(mod.resolveWindowLabel()).toBe("main");
   });
+
+  it("does not leak detached tabs back into the main window when the main mapping is intentionally empty", async () => {
+    vi.resetModules();
+    const mockWindow = { label: "main" };
+    vi.doMock("@tauri-apps/api/window", () => ({
+      getCurrentWindow: () => mockWindow,
+      Window: {},
+    }));
+    vi.stubGlobal("window", { location: { hash: "" } });
+
+    const mod = await import("@/store/useAppStore");
+    const tabs = [
+      { id: "main-tab", title: "Main", color: "#fff", icon: "terminal", kind: "local" as const },
+      { id: "detached-tab", title: "Detached", color: "#fff", icon: "terminal", kind: "local" as const },
+    ];
+
+    expect(mod.getWindowTabIds({
+      tabs,
+      windowTabs: {
+        main: [],
+        "terminal-1": ["detached-tab"],
+      },
+    }, "main")).toEqual([]);
+  });
 });
