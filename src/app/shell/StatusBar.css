@@ -41,9 +41,6 @@ html[data-app-bg-image="true"] .sidebar {
   background: color-mix(in srgb, #101827 calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 40%), transparent);
 }
 
-html[data-app-bg-image="true"] .terminal-pane::before {
-  background: color-mix(in srgb, #101827 calc(var(--terminal-opacity, 1) * 42%), transparent);
-}
 
 html[data-app-bg-image="true"][data-theme="paper"] .topbar,
 html[data-app-bg-image="true"][data-theme="paper"] .sidebar,
@@ -56,9 +53,6 @@ html[data-app-bg-image="true"][data-theme="paper"] .sidebar {
   background: color-mix(in srgb, #d7dde6 calc(var(--panel-opacity, 1) * var(--window-opacity, 1) * 38%), transparent);
 }
 
-html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
-  background: color-mix(in srgb, #d7dde6 calc(var(--terminal-opacity, 1) * 38%), transparent);
-}
 
 .statusbar-left,
 .statusbar-right {

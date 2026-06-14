@@ -63,6 +63,23 @@ export function TabStrip(props: TabStripProps) {
   const [draggingTab, setDraggingTab] = useState<{ id: string; startX: number; startY: number; currentX: number; active: boolean }>();
   const [dragOverState, setDragOverState] = useState<{ tabId: string; side: "before" | "after" }>();
   const [externalDropState, setExternalDropState] = useState<{ tabId: string; side: "before" | "after" }>();
+
+  // Live-reordered tab list during drag (browser-style visual reorder)
+  const liveTabOrder = useMemo<typeof props.tabs>(() => {
+    if (!draggingTab?.active || !dragOverState) return props.tabs;
+    const dragId = draggingTab.id;
+    const overState = dragOverState;
+    const without = props.tabs.filter((t) => t.id !== dragId);
+    const draggedTab = props.tabs.find((t) => t.id === dragId);
+    if (!draggedTab) return props.tabs;
+    const targetIdx = without.findIndex((t) => t.id === overState.tabId);
+    if (targetIdx < 0) return props.tabs;
+    const insertIdx = overState.side === "after" ? targetIdx + 1 : targetIdx;
+    const next = [...without];
+    next.splice(insertIdx, 0, draggedTab);
+    return next;
+  }, [draggingTab, dragOverState, props.tabs]);
+
   const renamingTabId = renamingTab?.id;
   const draggingTabId = draggingTab?.id;
 
@@ -389,16 +406,16 @@ export function TabStrip(props: TabStripProps) {
           }
         }}
       >
-        {props.tabs.map((tab) => {
+        {liveTabOrder.map((tab) => {
           const active = tab.id === props.activeTabId;
+          const isDragging = draggingTab?.id === tab.id && draggingTab.active;
           return (
             <div
               key={tab.id}
-              className={`tab ${active ? "active" : ""}${draggingTab?.id === tab.id && draggingTab.active ? " dragging" : ""}${dragOverState?.tabId === tab.id && draggingTab?.id !== tab.id ? ` drag-over drag-${dragOverState.side}` : ""}${externalDropState?.tabId === tab.id && draggingTab?.id !== tab.id ? ` external-drop external-${externalDropState.side}` : ""}`}
+              className={`tab ${active ? "active" : ""}${isDragging ? " dragging" : ""}${externalDropState?.tabId === tab.id && !isDragging ? ` external-drop external-${externalDropState.side}` : ""}`}
               data-tab-id={tab.id}
               style={{
                 "--tab-color": tab.color,
-                transform: draggingTab?.id === tab.id && draggingTab.active ? `translateX(${draggingTab.currentX - draggingTab.startX}px)` : undefined,
               } as CSSProperties}
               role="tab"
               tabIndex={0}

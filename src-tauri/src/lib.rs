@@ -672,8 +672,45 @@ pub fn run() {
             load_ui_state,
             save_ui_state,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Termif");
+        .build(tauri::generate_context!())
+        .expect("error building Termif")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = event {
+                let paths: Vec<String> = urls.iter().filter_map(|url| {
+                    if url.scheme() == "file" {
+                        url.to_file_path().ok().map(|p| p.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                }).collect();
+
+                if !paths.is_empty() {
+                    let requests: Vec<LaunchRequest> = paths.into_iter().filter_map(|path| {
+                        normalize_launch_path(&path, None).map(|p| LaunchRequest {
+                            path: p,
+                            target: LaunchTarget::Tab,
+                        })
+                    }).collect();
+
+                    if !requests.is_empty() {
+                        if let Some(state) = app.try_state::<AppState>() {
+                            if let Ok(mut pending) = state.launch_requests.lock() {
+                                pending.extend(requests.clone());
+                            }
+                        }
+                        let _ = app.emit("termif://launch-paths", LaunchPathsPayload { requests });
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                }
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }
 
 fn resolve_launch_requests(argv: &[String], cwd: Option<&str>) -> Vec<LaunchRequest> {

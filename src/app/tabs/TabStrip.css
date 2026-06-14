@@ -88,11 +88,14 @@
   background: var(--tab-color, var(--accent));
 }
 
+.tab-drag-active .tab {
+  transition: background 0.1s, color 0.1s;
+}
+
 .tab.dragging {
-  opacity: 0.62;
+  opacity: 0.55;
   z-index: 4;
   pointer-events: none;
-  transition: none;
 }
 
 .tab-drag-active {
@@ -100,25 +103,6 @@
   user-select: none;
 }
 
-.tab.drag-over {
-  background: color-mix(in srgb, var(--tab-color, var(--accent)) 45%, transparent);
-}
-
-.tab.drag-over::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 999px;
-  background: var(--accent);
-}
-
-.tab.drag-after::before {
-  left: auto;
-  right: 0;
-}
 
 .tab.external-drop::before {
   content: "";

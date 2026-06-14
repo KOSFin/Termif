@@ -42,10 +42,14 @@
   content: "";
   position: absolute;
   inset: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+html[data-app-bg-image="true"] .terminal-pane::before {
   background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 58%), transparent);
   -webkit-backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
   backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
-  pointer-events: none;
 }
 
 .terminal-pane .xterm {
@@ -85,8 +89,8 @@
   color: var(--text-bright);
 }
 
-html:not([data-app-bg-image="true"])[data-theme="paper"] .terminal-pane::before {
-  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 78%), transparent);
+html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
+  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 72%), transparent);
 }
 
 /* == SSH Connecting overlay ==================================== */

@@ -239,7 +239,9 @@ export function SshHostPicker({ tabId }: SshHostPickerProps) {
 
   const chooseIdentityFile = async (target: "settings" | "quickConnect") => {
     try {
-      const selected = await openDialog({ multiple: false, directory: false });
+      const home = await invoke<string>("get_home_dir").catch(() => undefined);
+      const sshDir = home ? `${home}/.ssh` : undefined;
+      const selected = await openDialog({ multiple: false, directory: false, defaultPath: sshDir });
       if (typeof selected !== "string") return;
       if (target === "settings") {
         setSettingsDraft((p) => p ? { ...p, identity_file: selected } : p);
