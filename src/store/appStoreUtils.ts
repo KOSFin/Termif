@@ -143,3 +143,32 @@ export function getRelativeHistoryTarget(
 
   return { index: nextIndex, path: history[nextIndex] };
 }
+
+export function ensurePathHistorySeed(
+  history: string[],
+  currentIndex: number | undefined,
+  path: string
+): { history: string[]; index: number; changed: boolean } {
+  if (history.length === 0) {
+    return {
+      history: [path],
+      index: 0,
+      changed: true,
+    };
+  }
+
+  const resolvedIndex = getResolvedHistoryIndex(history, currentIndex);
+  if (resolvedIndex >= 0 && history[resolvedIndex] === path) {
+    return {
+      history,
+      index: resolvedIndex,
+      changed: false,
+    };
+  }
+
+  return {
+    history,
+    index: resolvedIndex,
+    changed: false,
+  };
+}

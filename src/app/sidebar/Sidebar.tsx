@@ -21,11 +21,16 @@ export function Sidebar({ hidden }: SidebarProps) {
   }));
 
   const asideRef = useRef<HTMLElement>(null);
+  const hiddenRef = useRef(hidden);
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs]);
 
   useEffect(() => {
+    hiddenRef.current = hidden;
+  }, [hidden]);
+
+  useEffect(() => {
     const aside = asideRef.current;
-    if (!aside || hidden) return;
+    if (!aside) return;
 
     const handle = aside.querySelector<HTMLElement>(".sidebar-resize-handle");
     if (!handle) return;
@@ -42,26 +47,53 @@ export function Sidebar({ hidden }: SidebarProps) {
       return { min, max, hideThreshold };
     };
 
-    const onMove = (event: MouseEvent) => {
-      if (!dragging) return;
-      const { min, max, hideThreshold } = calcBounds();
-      const workspaceRect = aside.parentElement?.getBoundingClientRect();
-      const nextWidth = workspaceRect ? event.clientX - workspaceRect.left : event.clientX;
-      if (nextWidth <= hideThreshold) {
-        setSidebarVisible(false);
-        return;
-      }
-
-      const clamped = Math.max(min, Math.min(max, Math.round(nextWidth)));
-      if (rafId) window.cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => setSidebarWidth(clamped));
-    };
-
-    const onUp = () => {
+    const cleanupDrag = () => {
       dragging = false;
       document.body.classList.remove("sidebar-resizing");
       document.removeEventListener("mousemove", onMove, true);
       document.removeEventListener("mouseup", onUp, true);
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    };
+
+    const scheduleSidebarWidth = (nextWidth: number) => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setSidebarWidth(nextWidth);
+        rafId = 0;
+      });
+    };
+
+    const applyDragWidth = (clientX: number) => {
+      const { min, max, hideThreshold } = calcBounds();
+      const workspaceRect = aside.parentElement?.getBoundingClientRect();
+      const rawWidth = workspaceRect ? clientX - workspaceRect.left : clientX;
+
+      if (rawWidth <= hideThreshold) {
+        if (!hiddenRef.current) {
+          hiddenRef.current = true;
+          setSidebarVisible(false);
+        }
+        return;
+      }
+
+      const clamped = Math.max(min, Math.min(max, Math.round(rawWidth)));
+      if (hiddenRef.current) {
+        hiddenRef.current = false;
+        setSidebarVisible(true);
+      }
+      scheduleSidebarWidth(clamped);
+    };
+
+    const onMove = (event: MouseEvent) => {
+      if (!dragging) return;
+      applyDragWidth(event.clientX);
+    };
+
+    const onUp = () => {
+      cleanupDrag();
     };
 
     const onDown = (event: MouseEvent) => {
@@ -75,12 +107,10 @@ export function Sidebar({ hidden }: SidebarProps) {
 
     handle.addEventListener("mousedown", onDown);
     return () => {
+      cleanupDrag();
       handle.removeEventListener("mousedown", onDown);
-      document.removeEventListener("mousemove", onMove, true);
-      document.removeEventListener("mouseup", onUp, true);
-      if (rafId) window.cancelAnimationFrame(rafId);
     };
-  }, [hidden, setSidebarVisible, setSidebarWidth]);
+  }, [setSidebarVisible, setSidebarWidth]);
 
   useEffect(() => {
     if (hidden) return;

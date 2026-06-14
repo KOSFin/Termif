@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildDirCacheKey,
+  ensurePathHistorySeed,
   getRelativeHistoryTarget,
   getResolvedHistoryIndex,
   isConnectionError,
@@ -114,5 +115,35 @@ describe("app store utils", () => {
     expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 1, "forward")).toEqual({ index: 2, path: "/c" });
     expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 0, "back")).toEqual({ index: 0, path: undefined });
     expect(getRelativeHistoryTarget(["/a", "/b", "/c"], 2, "forward")).toEqual({ index: 2, path: undefined });
+  });
+
+  it("seeds initial history with the current path once", () => {
+    expect(ensurePathHistorySeed([], undefined, "/a")).toEqual({
+      history: ["/a"],
+      index: 0,
+      changed: true,
+    });
+
+    const existing = ["/a", "/b"];
+    expect(ensurePathHistorySeed(existing, 1, "/b")).toEqual({
+      history: existing,
+      index: 1,
+      changed: false,
+    });
+  });
+});
+
+describe("main window route", () => {
+  it("uses the main window label outside detached terminal routes", async () => {
+    vi.resetModules();
+    const mockWindow = { label: "terminal-123" };
+    vi.doMock("@tauri-apps/api/window", () => ({
+      getCurrentWindow: () => mockWindow,
+      Window: {},
+    }));
+    vi.stubGlobal("window", { location: { hash: "" } });
+
+    const mod = await import("@/store/useAppStore");
+    expect(mod.resolveWindowLabel()).toBe("main");
   });
 });

@@ -124,6 +124,11 @@
   background: color-mix(in srgb, var(--accent) 80%, transparent);
 }
 
+.sidebar-resizing .sidebar,
+.sidebar-resizing .sidebar-hidden {
+  transition: none;
+}
+
 .sidebar-resizing,
 .sidebar-resizing * {
   cursor: col-resize !important;

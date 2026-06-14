@@ -30,6 +30,7 @@ import {
 } from "@/platform/platform";
 import {
   buildDirCacheKey,
+  ensurePathHistorySeed,
   getRelativeHistoryTarget,
   isConnectionError,
   makeTabFromSession,
@@ -251,8 +252,14 @@ function sanitizeActiveTabs(windowTabs: Record<string, string[]>, activeByWindow
   return cleaned;
 }
 
+function isDetachedTerminalRoute() {
+  return typeof window !== "undefined" && window.location.hash.startsWith("#/terminal-window");
+}
+
 function resolveWindowLabel(windowLabel?: string) {
-  return windowLabel ?? currentWindow.label ?? MAIN_WINDOW_LABEL;
+  if (windowLabel) return windowLabel;
+  if (!isDetachedTerminalRoute()) return MAIN_WINDOW_LABEL;
+  return currentWindow.label ?? MAIN_WINDOW_LABEL;
 }
 
 function getWindowTabIds(state: Pick<AppState, "tabs" | "windowTabs">, windowLabel?: string) {
@@ -1285,6 +1292,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const currentPath =
       get().tabPaths[activeTab.id] ??
       (activeTab.kind === "ssh" ? "/" : getDefaultLocalPath());
+
+    const historySeed = ensurePathHistorySeed(
+      get().fileHistory[activeTab.id] ?? [],
+      get().fileHistoryIndex[activeTab.id],
+      currentPath
+    );
+    if (historySeed.changed) {
+      set((state) => ({
+        fileHistory: { ...state.fileHistory, [activeTab.id]: historySeed.history },
+        fileHistoryIndex: { ...state.fileHistoryIndex, [activeTab.id]: historySeed.index },
+      }));
+    }
+
     const requestSeq = ++fileLoadRequestSeq;
 
     // Show cached data instantly — only show loading spinner if no cache exists

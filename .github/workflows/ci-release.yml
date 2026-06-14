@@ -350,11 +350,3 @@ jobs:
             release-artifacts/*.sig
             release-artifacts/latest.json
             release-artifacts/checksums-*.txt
-            release-artifacts/Termif-macOS-arm64.dmg
-            release-artifacts/Termif-macOS-x64.dmg
-            release-artifacts/Termif-macOS-arm64.app.zip
-            release-artifacts/Termif-macOS-x64.app.zip
-            release-artifacts/Termif-Windows-x64.msi
-            release-artifacts/Termif-Windows-x64-setup.exe
-            release-artifacts/Termif-Linux-x64.AppImage
-            release-artifacts/Termif-Linux-x64.deb
