@@ -54,7 +54,7 @@ impl Persistence {
 fn legacy_app_data_dirs(root: &Path) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(parent) = root.parent() {
-        for legacy in ["com.termif", "termif"] {
+        for legacy in ["com.termif.app", "com.termif", "termif"] {
             let candidate = parent.join(legacy);
             if candidate != root {
                 dirs.push(candidate);

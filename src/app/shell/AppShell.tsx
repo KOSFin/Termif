@@ -159,10 +159,19 @@ export function AppShell() {
     zoomReset: state.zoomReset,
   }));
 
-  const visibleTabs = useMemo(() => getWindowTabs(windowLabel), [getWindowTabs, windowLabel]);
+  const windowTabs = useAppStore((state) => state.windowTabs);
+  const activeTabByWindow = useAppStore((state) => state.activeTabByWindow);
+  const allTabs = useAppStore((state) => state.tabs);
+
+  const visibleTabs = useMemo(() => {
+    return getWindowTabs(windowLabel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getWindowTabs, windowLabel, windowTabs, allTabs]);
+
   const visibleActiveTabId = useMemo(
     () => getActiveTabIdForWindow(windowLabel) ?? activeTabId,
-    [activeTabId, getActiveTabIdForWindow, windowLabel]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeTabId, getActiveTabIdForWindow, windowLabel, activeTabByWindow]
   );
 
   const connectHostFromPalette = useCallback((alias: string) => {
