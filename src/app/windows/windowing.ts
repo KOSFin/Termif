@@ -8,7 +8,6 @@ export const UI_STATE_SYNC_EVENT = "termif://ui-state-sync";
 export const TAB_DRAG_EVENT = "termif://tab-drag";
 export const TAB_DROP_EVENT = "termif://tab-drop";
 export const REVEAL_IN_FILE_MANAGER_EVENT = "termif://reveal-in-file-manager";
-export const FORCE_CLOSE_WINDOW_EVENT = "termif://force-close-window";
 
 export interface UiStateSyncPayload<T> {
   uiState: T;
@@ -45,10 +44,6 @@ export interface TabDropPayload {
 export interface RevealInFileManagerPayload {
   path: string;
   sessionId?: string;
-  targetWindow: string;
-}
-
-export interface ForceCloseWindowPayload {
   targetWindow: string;
 }
 

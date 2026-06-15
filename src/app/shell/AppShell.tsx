@@ -31,7 +31,7 @@ import { SshHostPicker } from "../../features/ssh/SshHostPicker";
 import { InlineEditorPanel } from "@/features/editor/InlineEditorPanel";
 import { UpdateBanner } from "@/features/update/UpdateBanner";
 import { useAutoUpdater } from "@/features/update/useAutoUpdater";
-import { FORCE_CLOSE_WINDOW_EVENT, MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, TAB_DRAG_EVENT, formatWindowDisplayTitle, UI_STATE_SYNC_EVENT, type ForceCloseWindowPayload, type RevealInFileManagerPayload, type TabDragPayload, type UiStateSyncPayload } from "@/app/windows/windowing";
+import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, TAB_DRAG_EVENT, formatWindowDisplayTitle, UI_STATE_SYNC_EVENT, type RevealInFileManagerPayload, type TabDragPayload, type UiStateSyncPayload } from "@/app/windows/windowing";
 import { makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
 import { resolveWindowLabel } from "@/store/useAppStore";
 import type { PersistedUiState } from "@/types/models";
@@ -164,13 +164,12 @@ export function AppShell() {
 
   const windowTabs = useAppStore((state) => state.windowTabs);
   const activeTabByWindow = useAppStore((state) => state.activeTabByWindow);
-  const allTabs = useAppStore((state) => state.tabs);
   const windowStates = useAppStore((state) => state.windowStates);
 
   const visibleTabs = useMemo(() => {
     return getWindowTabs(windowLabel);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getWindowTabs, windowLabel, windowTabs, allTabs]);
+  }, [getWindowTabs, windowLabel, windowTabs]);
 
   const visibleActiveTabId = useMemo(
     () => getActiveTabIdForWindow(windowLabel) ?? activeTabId,
@@ -227,7 +226,6 @@ export function AppShell() {
   const [isMax, setIsMax] = useState(false);
   const closeInProgressRef = useRef(false);
   const windowStateRestoredRef = useRef(false);
-  const restoredDetachedLabelsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let unlistenResize: (() => void) | undefined;
@@ -330,7 +328,6 @@ export function AppShell() {
       toast(`Close failed: ${e instanceof Error ? e.message : String(e)}`);
       closeInProgressRef.current = false;
     }
-    // closeInProgressRef stays true — window is being destroyed via FORCE_CLOSE_WINDOW_EVENT
   }, [closeDetachedWindow, confirmCloseWithUnsaved, toast, windowLabel]);
   const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -509,34 +506,6 @@ export function AppShell() {
   }, [appWindow, isInitialized, windowLabel, windowStates]);
 
   useEffect(() => {
-    if (!isInitialized || !isMainWindow) return;
-
-    void getAllWindows()
-      .then((windows) => {
-        const existing = new Set(windows.map((win) => win.label));
-        for (const [label, tabIds] of Object.entries(windowTabs)) {
-          if (label === MAIN_WINDOW_LABEL || tabIds.length === 0) continue;
-          if (existing.has(label) || restoredDetachedLabelsRef.current.has(label)) continue;
-
-          const title =
-            tabIds
-              .map((id) => allTabs.find((tab) => tab.id === id)?.title)
-              .find((value): value is string => !!value) ?? null;
-          const geometry = windowStates[label];
-          openTerminalWorkspaceWindow(label, formatWindowDisplayTitle(label, title), {
-            x: geometry?.x ?? undefined,
-            y: geometry?.y ?? undefined,
-            width: geometry?.width ?? undefined,
-            height: geometry?.height ?? undefined,
-            maximized: geometry?.maximized ?? undefined,
-          });
-          restoredDetachedLabelsRef.current.add(label);
-        }
-      })
-      .catch(() => undefined);
-  }, [allTabs, isInitialized, isMainWindow, windowStates, windowTabs]);
-
-  useEffect(() => {
     const unlistenPromise = listen<UiStateSyncPayload<PersistedUiState>>(UI_STATE_SYNC_EVENT, (event) => {
       if (event.payload.sourceWindow === windowLabel) return;
       void syncWindowStateFromBackend(windowLabel);
@@ -652,20 +621,6 @@ export function AppShell() {
       void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [windowLabel]);
-
-  useEffect(() => {
-    const unlistenPromise = listen<ForceCloseWindowPayload>(FORCE_CLOSE_WINDOW_EVENT, (event) => {
-      if (event.payload.targetWindow !== windowLabel) return;
-      closeInProgressRef.current = true;
-      void appWindow.destroy().catch(() => {
-        closeInProgressRef.current = false;
-      });
-    });
-
-    return () => {
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [appWindow, windowLabel]);
 
   // macOS WebView can autocapitalize values like "root" in plain inputs.
   useEffect(() => {

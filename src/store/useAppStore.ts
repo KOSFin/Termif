@@ -7,7 +7,7 @@ import {
   isEditorPopoutLive,
   requestOpenFileInEditorWindow
 } from "@/features/file_manager/editorWindow";
-import { FORCE_CLOSE_WINDOW_EVENT, MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, UI_STATE_SYNC_EVENT, makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
+import { MAIN_WINDOW_LABEL, REVEAL_IN_FILE_MANAGER_EVENT, UI_STATE_SYNC_EVENT, makeTerminalWindowLabel, openTerminalWorkspaceWindow } from "@/app/windows/windowing";
 import type {
   AppSettings,
   AppTab,
@@ -35,6 +35,7 @@ import {
   ensurePathHistorySeed,
   getRelativeHistoryTarget,
   isConnectionError,
+  mergeWindowTabsToMainWindow,
   makeTabFromSession,
   normalizeDisplayPath,
   normalizeLineEndings,
@@ -427,6 +428,12 @@ async function restoreDetachedTabFromPersisted(savedTab: PersistedUiState["tabs"
   return {};
 }
 
+async function destroyWindowByLabel(windowLabel: string) {
+  const windowRef = await Window.getByLabel(windowLabel).catch(() => null);
+  if (!windowRef) return;
+  await windowRef.destroy().catch(() => undefined);
+}
+
 async function broadcastUiState(
   state: Pick<AppState, "tabs" | "sidebarVisible" | "selectedSidebarTool" | "sidebarWidth" | "fileHistory" | "fileHistoryIndex" | "windowTabs" | "activeTabByWindow">,
   windowStates?: Record<string, PersistedWindowState>
@@ -464,6 +471,16 @@ async function persistUiState(
 ): Promise<void> {
   const cleanedWindowTabs = sanitizeWindowTabs(state.tabs, state.windowTabs);
   const cleanedActive = sanitizeActiveTabs(cleanedWindowTabs, state.activeTabByWindow);
+  const normalizedState =
+    resolveWindowLabel() === MAIN_WINDOW_LABEL
+      ? mergeWindowTabsToMainWindow(
+          state.tabs.map((tab) => tab.id),
+          cleanedWindowTabs,
+          cleanedActive,
+          MAIN_WINDOW_LABEL
+        )
+      : { windowTabs: cleanedWindowTabs, activeTabByWindow: cleanedActive };
+
   const payload: PersistedUiState = {
     tabs: state.tabs.map((tab) => ({
       id: tab.id,
@@ -480,15 +497,15 @@ async function persistUiState(
     sidebar_width: state.sidebarWidth,
     file_history: state.fileHistory,
     file_history_index: state.fileHistoryIndex,
-    window_tabs: cleanedWindowTabs,
-    active_tab_by_window: cleanedActive,
-    window_states: sanitizeWindowStates(cleanedWindowTabs, windowStates),
+    window_tabs: normalizedState.windowTabs,
+    active_tab_by_window: normalizedState.activeTabByWindow,
+    window_states: sanitizeWindowStates(normalizedState.windowTabs, windowStates),
   };
   await invoke("save_ui_state", { uiState: payload });
   await broadcastUiState({
     ...state,
-    windowTabs: cleanedWindowTabs,
-    activeTabByWindow: cleanedActive,
+    windowTabs: normalizedState.windowTabs,
+    activeTabByWindow: normalizedState.activeTabByWindow,
   }, payload.window_states ?? {});
 }
 
@@ -624,21 +641,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     } else {
-      const detachedIds = (persisted.window_tabs as Record<string, string[]> | null | undefined)?.[windowLabel] ?? [];
-      if (detachedIds.length === 0) {
-        set({ isInitialized: true });
-        await restoreWindowGeometry(windowLabel, persisted.window_states?.[windowLabel]);
-        return;
-      }
-      for (const tabId of detachedIds) {
-        const savedTab = persisted.tabs.find((tab) => tab.id === tabId);
-        if (!savedTab) continue;
-        const restored = await restoreDetachedTabFromPersisted(savedTab);
-        if (restored.tab) restoredTabs.push(restored.tab);
-        if (restored.disconnectReason) {
-          restoredDisconnectReasons[savedTab.id] = restored.disconnectReason;
-        }
-      }
+      set({ isInitialized: true });
+      await restoreWindowGeometry(windowLabel, persisted.window_states?.[windowLabel]);
+      return;
     }
 
     if (restoredTabs.length === 0) {
@@ -791,6 +796,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const label = resolveWindowLabel(windowLabel);
     const persisted = await invoke<PersistedUiState>("load_ui_state").catch(() => null);
     if (!persisted) return;
+    if (label === MAIN_WINDOW_LABEL) {
+      const merged = mergeWindowTabsToMainWindow(
+        persisted.tabs.map((tab) => tab.id),
+        persisted.window_tabs,
+        persisted.active_tab_by_window,
+        MAIN_WINDOW_LABEL
+      );
+      persisted.window_tabs = merged.windowTabs;
+      persisted.active_tab_by_window = merged.activeTabByWindow;
+      persisted.window_states = sanitizeWindowStates(merged.windowTabs, persisted.window_states ?? {});
+    }
     const currentState = get();
     const currentTabs = [...currentState.tabs];
     const knownIds = new Set(currentTabs.map((tab) => tab.id));
@@ -975,9 +991,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const persisted = await invoke<PersistedUiState>("load_ui_state").catch(() => null);
     const windowStates = sanitizeWindowStates(get().windowTabs, persisted?.window_states ?? {});
     delete windowStates[label];
-    set({ windowStates });
+    set((state) => {
+      const nextWindowTabs = { ...state.windowTabs };
+      const nextActiveByWindow = { ...state.activeTabByWindow };
+      delete nextWindowTabs[label];
+      delete nextActiveByWindow[label];
+      return {
+        windowTabs: nextWindowTabs,
+        activeTabByWindow: nextActiveByWindow,
+        windowStates,
+      };
+    });
     await persistUiState(get(), windowStates);
-    await emit(FORCE_CLOSE_WINDOW_EVENT, { targetWindow: label }).catch(() => undefined);
+    await destroyWindowByLabel(label);
   },
 
   closeDetachedWindow: async (windowLabel) => {
@@ -1016,7 +1042,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     });
     await persistUiState(get(), windowStates);
-    await emit(FORCE_CLOSE_WINDOW_EVENT, { targetWindow: label }).catch(() => undefined);
+    await destroyWindowByLabel(label);
   },
 
   connectSshTab: async (tabId, alias) => {

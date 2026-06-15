@@ -9,6 +9,7 @@ import {
   normalizeDisplayPath,
   normalizeLineEndings,
   pushPathHistory,
+  mergeWindowTabsToMainWindow,
   reorderScopedTabIds,
 } from "@/store/appStoreUtils";
 import type { AppTab, SessionDto } from "@/types/models";
@@ -129,6 +130,31 @@ describe("app store utils", () => {
       history: existing,
       index: 1,
       changed: false,
+    });
+  });
+
+  it("folds detached window tabs back into the main window in stable order", () => {
+    expect(
+      mergeWindowTabsToMainWindow(
+        ["main-a", "detached-a", "detached-b"],
+        {
+          main: ["main-a"],
+          "terminal-1": ["detached-b"],
+          "terminal-2": ["detached-a"],
+        },
+        {
+          main: "main-a",
+          "terminal-1": "detached-b",
+          "terminal-2": "detached-a",
+        }
+      )
+    ).toEqual({
+      windowTabs: {
+        main: ["main-a", "detached-b", "detached-a"],
+      },
+      activeTabByWindow: {
+        main: "main-a",
+      },
     });
   });
 });

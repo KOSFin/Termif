@@ -118,7 +118,6 @@ export function TabStrip(props: TabStripProps) {
       }
       prev.set(tabId, currX);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveOrderKey]);
 
   const contextTab = useMemo(
@@ -151,7 +150,7 @@ export function TabStrip(props: TabStripProps) {
     draggingTabRef.current = draggingTab;
   }, [draggingTab]);
 
-  const resolveStripDropTarget = useCallback((clientX: number, clientY: number) => {
+  const resolveStripDropTarget = useCallback((clientX: number, clientY: number, dragTabId?: string) => {
     const stripBounds = stripRef.current?.getBoundingClientRect();
     if (!stripBounds) {
       return { insideStrip: false } as const;
@@ -167,11 +166,23 @@ export function TabStrip(props: TabStripProps) {
       return { insideStrip: false } as const;
     }
 
+    const tabElements = Array.from(
+      scrollRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []
+    );
+
+    const draggedRect = dragTabId
+      ? tabElements.find((el) => el.dataset.tabId === dragTabId)?.getBoundingClientRect()
+      : undefined;
+    const pointerBiasX =
+      draggedRect && dragTabId
+        ? clientX + (clientX - (draggedRect.left + draggedRect.width / 2))
+        : clientX;
+
     const tabElement = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-tab-id]");
     const tabId = tabElement?.dataset.tabId;
     if (tabElement && tabId) {
       const rect = tabElement.getBoundingClientRect();
-      const side: "before" | "after" = clientX <= rect.left + rect.width / 2 ? "before" : "after";
+      const side: "before" | "after" = pointerBiasX <= rect.left + rect.width / 2 ? "before" : "after";
       return { insideStrip: true, tabId, side } as const;
     }
 
@@ -179,9 +190,6 @@ export function TabStrip(props: TabStripProps) {
       return { insideStrip: true } as const;
     }
 
-    const tabElements = Array.from(
-      scrollRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []
-    );
     if (tabElements.length === 0) {
       return { insideStrip: true } as const;
     }
@@ -191,7 +199,7 @@ export function TabStrip(props: TabStripProps) {
     const firstId = first.dataset.tabId;
     const lastId = last.dataset.tabId;
     const firstRect = first.getBoundingClientRect();
-    if (firstId && clientX <= firstRect.left + firstRect.width / 2) {
+    if (firstId && pointerBiasX <= firstRect.left + firstRect.width / 2) {
       return { insideStrip: true, tabId: firstId, side: "before" as const } as const;
     }
 
@@ -273,16 +281,20 @@ export function TabStrip(props: TabStripProps) {
         };
         void emit(TAB_DRAG_EVENT, payload).catch(() => undefined);
       }
-      const over = resolveStripDropTarget(event.clientX, event.clientY);
+      const nextState =
+        draggingTabRef.current
+          ? { ...draggingState, ...draggingTabRef.current, currentX: event.clientX, currentY: event.clientY, active: draggingState.active || moved }
+          : { ...draggingState, currentX: event.clientX, currentY: event.clientY, active: draggingState.active || moved };
+      const over = resolveStripDropTarget(event.clientX, event.clientY, nextState.id);
       setDragOverState(
-        over.insideStrip && over.tabId && over.tabId !== draggingState.id
+        nextState.active && over.insideStrip && over.tabId && over.tabId !== draggingState.id
           ? { tabId: over.tabId, side: over.side }
           : undefined
       );
     };
 
     const onUp = (event: MouseEvent) => {
-      const over = resolveStripDropTarget(event.clientX, event.clientY);
+      const over = resolveStripDropTarget(event.clientX, event.clientY, draggingState.id);
       const moved =
         draggingState.active ||
         Math.abs(event.clientX - draggingState.startX) > 5 ||
@@ -372,7 +384,7 @@ export function TabStrip(props: TabStripProps) {
         clientX <= window.innerWidth &&
         clientY <= window.innerHeight;
       if (!insideWindow) return;
-      const target = resolveStripDropTarget(clientX, clientY);
+      const target = resolveStripDropTarget(clientX, clientY, payload.tabId);
       const targetTabId = target.insideStrip ? target.tabId : undefined;
       const side = target.insideStrip ? target.side : undefined;
       onAcceptDroppedTabRef.current({
@@ -407,7 +419,7 @@ export function TabStrip(props: TabStripProps) {
         setExternalDropState(undefined);
         return;
       }
-      const target = resolveStripDropTarget(clientX, clientY);
+      const target = resolveStripDropTarget(clientX, clientY, payload.tabId);
       if (!target.insideStrip || !target.tabId) {
         setExternalDropState(undefined);
         return;
