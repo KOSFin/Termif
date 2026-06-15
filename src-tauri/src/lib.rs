@@ -681,22 +681,40 @@ pub fn run() {
 
                 for url in &urls {
                     if url.scheme() == "file" {
-                        if let Some(path) = url.to_file_path().ok().and_then(|p| normalize_launch_path(&p.to_string_lossy(), None)) {
-                            requests.push(LaunchRequest { path, target: LaunchTarget::Tab });
+                        if let Some(path) = url
+                            .to_file_path()
+                            .ok()
+                            .and_then(|p| normalize_launch_path(&p.to_string_lossy(), None))
+                        {
+                            requests.push(LaunchRequest {
+                                path,
+                                target: LaunchTarget::Tab,
+                            });
                         }
                     } else if url.scheme() == "termif" {
                         // termif://open?path=/some/dir&target=tab|window
-                        if url.host_str() == Some("open") || url.path() == "/open" || url.host_str() == Some("new-tab") || url.host_str() == Some("new-window") {
+                        if url.host_str() == Some("open")
+                            || url.path() == "/open"
+                            || url.host_str() == Some("new-tab")
+                            || url.host_str() == Some("new-window")
+                        {
                             let target = if url.host_str() == Some("new-window") {
                                 LaunchTarget::Window
                             } else {
-                                // check query param target=window
                                 url.query_pairs()
                                     .find(|(k, _)| k == "target")
-                                    .map(|(_, v)| if v == "window" { LaunchTarget::Window } else { LaunchTarget::Tab })
+                                    .map(|(_, v)| {
+                                        if v == "window" {
+                                            LaunchTarget::Window
+                                        } else {
+                                            LaunchTarget::Tab
+                                        }
+                                    })
                                     .unwrap_or(LaunchTarget::Tab)
                             };
-                            if let Some((_, path_val)) = url.query_pairs().find(|(k, _)| k == "path") {
+                            if let Some((_, path_val)) =
+                                url.query_pairs().find(|(k, _)| k == "path")
+                            {
                                 if let Some(path) = normalize_launch_path(&path_val, None) {
                                     requests.push(LaunchRequest { path, target });
                                 }
