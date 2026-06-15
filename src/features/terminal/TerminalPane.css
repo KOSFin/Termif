@@ -42,14 +42,14 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 48%), transparent);
+  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 100%), transparent);
   pointer-events: none;
   -webkit-backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.35)) saturate(1.03);
   backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.35)) saturate(1.03);
 }
 
 html[data-app-bg-image="true"] .terminal-pane::before {
-  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 58%), transparent);
+  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 85%), transparent);
   -webkit-backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
   backdrop-filter: blur(calc(var(--window-blur, 8px) * 0.65)) saturate(1.06);
 }
@@ -91,13 +91,6 @@ html[data-app-bg-image="true"] .terminal-pane::before {
   color: var(--text-bright);
 }
 
-html[data-app-bg-image="true"][data-theme="paper"] .terminal-pane::before {
-  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 72%), transparent);
-}
-
-html[data-theme="paper"] .terminal-pane::before {
-  background: color-mix(in srgb, var(--bg) calc(var(--terminal-opacity, 1) * 62%), transparent);
-}
 
 /* == SSH Connecting overlay ==================================== */
 

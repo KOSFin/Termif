@@ -677,41 +677,44 @@ pub fn run() {
         .run(|app, event| {
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { urls } = event {
-                let paths: Vec<String> = urls
-                    .iter()
-                    .filter_map(|url| {
-                        if url.scheme() == "file" {
-                            url.to_file_path()
-                                .ok()
-                                .map(|p| p.to_string_lossy().to_string())
-                        } else {
-                            None
+                let mut requests: Vec<LaunchRequest> = Vec::new();
+
+                for url in &urls {
+                    if url.scheme() == "file" {
+                        if let Some(path) = url.to_file_path().ok().and_then(|p| normalize_launch_path(&p.to_string_lossy(), None)) {
+                            requests.push(LaunchRequest { path, target: LaunchTarget::Tab });
                         }
-                    })
-                    .collect();
-
-                if !paths.is_empty() {
-                    let requests: Vec<LaunchRequest> = paths
-                        .into_iter()
-                        .filter_map(|path| {
-                            normalize_launch_path(&path, None).map(|p| LaunchRequest {
-                                path: p,
-                                target: LaunchTarget::Tab,
-                            })
-                        })
-                        .collect();
-
-                    if !requests.is_empty() {
-                        if let Some(state) = app.try_state::<AppState>() {
-                            if let Ok(mut pending) = state.launch_requests.lock() {
-                                pending.extend(requests.clone());
+                    } else if url.scheme() == "termif" {
+                        // termif://open?path=/some/dir&target=tab|window
+                        if url.host_str() == Some("open") || url.path() == "/open" || url.host_str() == Some("new-tab") || url.host_str() == Some("new-window") {
+                            let target = if url.host_str() == Some("new-window") {
+                                LaunchTarget::Window
+                            } else {
+                                // check query param target=window
+                                url.query_pairs()
+                                    .find(|(k, _)| k == "target")
+                                    .map(|(_, v)| if v == "window" { LaunchTarget::Window } else { LaunchTarget::Tab })
+                                    .unwrap_or(LaunchTarget::Tab)
+                            };
+                            if let Some((_, path_val)) = url.query_pairs().find(|(k, _)| k == "path") {
+                                if let Some(path) = normalize_launch_path(&path_val, None) {
+                                    requests.push(LaunchRequest { path, target });
+                                }
                             }
                         }
-                        let _ = app.emit("termif://launch-paths", LaunchPathsPayload { requests });
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                    }
+                }
+
+                if !requests.is_empty() {
+                    if let Some(state) = app.try_state::<AppState>() {
+                        if let Ok(mut pending) = state.launch_requests.lock() {
+                            pending.extend(requests.clone());
                         }
+                    }
+                    let _ = app.emit("termif://launch-paths", LaunchPathsPayload { requests });
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
                     }
                 }
             }

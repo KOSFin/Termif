@@ -408,6 +408,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   }
                 />
               </div>
+              <div id="setting-terminal-opacity" className="settings-row" style={{ display: matches("terminal opacity", "terminal background", "terminal transparency") ? undefined : "none" }}>
+                <label>Terminal Background Opacity</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={draft.appearance.terminal_opacity ?? 1}
+                  style={rangeProgressStyle(draft.appearance.terminal_opacity ?? 1, 0, 1)}
+                  onChange={(e) =>
+                    setDraft((p) =>
+                      p ? { ...p, appearance: { ...p.appearance, terminal_opacity: Number(e.target.value) } } : p
+                    )
+                  }
+                />
+              </div>
               <div id="setting-app-blur" className="settings-row" style={{ display: matches("app blur", "window blur", "glass", "transparency", "desktop") ? undefined : "none" }}>
                 <label>App Background Blur</label>
                 <input

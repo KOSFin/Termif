@@ -72,7 +72,7 @@ export function getTerminalWindowOptions(title?: string, geometry?: WindowGeomet
     transparent: true,
     focus: true,
     center: geometry?.x === undefined || geometry?.y === undefined,
-    decorations: desktopPlatform === "macos",
+    decorations: false,
     ...(desktopPlatform === "macos"
       ? {
           titleBarStyle: "overlay" as const,

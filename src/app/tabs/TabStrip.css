@@ -89,19 +89,20 @@
 }
 
 .tab-drag-active .tab {
-  transition: background 0.1s, color 0.1s;
-}
-
-.tab.dragging {
-  opacity: 0.78;
-  z-index: 7;
-  pointer-events: none;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  transition: background 0.1s, color 0.1s, transform 0.1s ease;
 }
 
 .tab-drag-active {
   cursor: grabbing;
   user-select: none;
+}
+
+.tab.dragging {
+  transition: none;
+  opacity: 0.78;
+  z-index: 7;
+  pointer-events: none;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
 }
 
 

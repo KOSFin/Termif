@@ -330,6 +330,7 @@ export function AppShell() {
       toast(`Close failed: ${e instanceof Error ? e.message : String(e)}`);
       closeInProgressRef.current = false;
     }
+    // closeInProgressRef stays true — window is being destroyed via FORCE_CLOSE_WINDOW_EVENT
   }, [closeDetachedWindow, confirmCloseWithUnsaved, toast, windowLabel]);
   const onStartWindowDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -1138,6 +1139,8 @@ export function AppShell() {
             targetTabId,
             side,
             activate: true,
+          }).then(() => {
+            loadCurrentFiles().catch(() => {});
           });
         }}
         onMoveTabToMainWindow={(tabId) => {

@@ -947,6 +947,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   moveTabToMainWindow: async (tabId, sourceWindowLabel) => {
     await get().moveTabToWindow(tabId, MAIN_WINDOW_LABEL, { sourceWindowLabel, activate: true });
+    get().loadCurrentFiles().catch(() => {});
   },
 
   moveAllTabsToWindow: async (sourceWindowLabel, targetWindowLabel) => {

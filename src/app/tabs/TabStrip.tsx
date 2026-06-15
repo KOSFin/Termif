@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ElementRef, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ElementRef, type ReactNode } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { listen } from "@tauri-apps/api/event";
 import { Window } from "@tauri-apps/api/window";
@@ -94,6 +94,35 @@ export function TabStrip(props: TabStripProps) {
   const currentWindowLabelRef = useRef(props.currentWindowLabel);
   const onMoveTabToWindowRef = useRef(props.onMoveTabToWindow);
   const onAcceptDroppedTabRef = useRef(props.onAcceptDroppedTab);
+
+  // FLIP animation for tab reorder during drag
+  const prevTabPositionsRef = useRef<Map<string, number>>(new Map());
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    const elements = Array.from(scrollRef.current.querySelectorAll<HTMLElement>("[data-tab-id]"));
+    const prev = prevTabPositionsRef.current;
+    // animate elements that moved
+    elements.forEach((el) => {
+      const tabId = el.dataset.tabId;
+      if (!tabId || el.classList.contains("dragging")) return;
+      const prevX = prev.get(tabId);
+      const currRect = el.getBoundingClientRect();
+      if (prevX !== undefined && Math.abs(prevX - currRect.left) > 1) {
+        const delta = prevX - currRect.left;
+        el.style.transform = `translateX(${delta}px)`;
+        el.style.transition = "none";
+        requestAnimationFrame(() => {
+          el.style.transform = "";
+          el.style.transition = "transform 0.12s ease";
+        });
+      }
+    });
+    // save new positions
+    elements.forEach((el) => {
+      const tabId = el.dataset.tabId;
+      if (tabId) prev.set(tabId, el.getBoundingClientRect().left);
+    });
+  });
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),

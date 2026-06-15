@@ -17,40 +17,5 @@
       </array>
     </dict>
   </array>
-  <key>NSServices</key>
-  <array>
-    <dict>
-      <key>NSMenuItem</key>
-      <dict>
-        <key>default</key>
-        <string>New Termif Tab Here</string>
-      </dict>
-      <key>NSMessage</key>
-      <string>openFolderInNewTab</string>
-      <key>NSPortName</key>
-      <string>Termif</string>
-      <key>NSSendTypes</key>
-      <array>
-        <string>NSFilenamesPboardType</string>
-        <string>public.file-url</string>
-      </array>
-    </dict>
-    <dict>
-      <key>NSMenuItem</key>
-      <dict>
-        <key>default</key>
-        <string>New Termif Window Here</string>
-      </dict>
-      <key>NSMessage</key>
-      <string>openFolderInNewWindow</string>
-      <key>NSPortName</key>
-      <string>Termif</string>
-      <key>NSSendTypes</key>
-      <array>
-        <string>NSFilenamesPboardType</string>
-        <string>public.file-url</string>
-      </array>
-    </dict>
-  </array>
 </dict>
 </plist>
