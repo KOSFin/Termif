@@ -36,6 +36,7 @@ import {
   getRelativeHistoryTarget,
   isConnectionError,
   makeTabFromSession,
+  mergeWindowTabsIntoMainWindow,
   normalizeDisplayPath,
   normalizeLineEndings,
   pushPathHistory,
@@ -308,6 +309,11 @@ function applyPersistedWindowState(
   const windowTabs = sanitizeWindowTabs(tabs, persistedWindowTabs ?? {});
   const activeTabByWindow = sanitizeActiveTabs(windowTabs, persistedActiveByWindow ?? {});
   return { windowTabs, activeTabByWindow };
+}
+
+function buildSingleWindowTabState(tabs: AppTab[], persistedWindowTabs?: Record<string, string[]> | null) {
+  const ordered = sanitizeWindowTabs(tabs, persistedWindowTabs ?? {});
+  return mergeWindowTabsIntoMainWindow(ordered, tabs.map((tab) => tab.id), MAIN_WINDOW_LABEL);
 }
 
 function sanitizeWindowStates(
@@ -585,43 +591,51 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const restoredTabs: AppTab[] = [];
     const restoredDisconnectReasons: Record<string, string> = {};
+    const restoreTab = async (savedTab: PersistedUiState["tabs"][number]) => {
+      if (savedTab.kind === "local") {
+        try {
+          const session = await invoke<SessionDto>("create_local_session", {
+            shellProfile: coerceShellProfile(platformSettings?.terminal.default_shell),
+            cwd: null
+          });
+          restoredTabs.push({
+            ...makeTabFromSession(session),
+            id: savedTab.id,
+            title: savedTab.title,
+            color: savedTab.color,
+            icon: savedTab.icon
+          });
+        } catch {
+          // Skip
+        }
+        return;
+      }
+
+      if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
+        restoredTabs.push({
+          id: savedTab.id,
+          title: savedTab.title,
+          color: savedTab.color,
+          icon: "globe",
+          kind: "ssh",
+          sshAlias: savedTab.ssh_alias
+        });
+        restoredDisconnectReasons[savedTab.id] = "The app was restarted and the SSH channel is no longer attached.";
+        return;
+      }
+
+      restoredTabs.push({
+        id: savedTab.id,
+        title: savedTab.title,
+        color: savedTab.color,
+        icon: savedTab.icon,
+        kind: "ssh_picker"
+      });
+    };
+
     if (windowLabel === MAIN_WINDOW_LABEL) {
       for (const savedTab of persisted.tabs) {
-        if (savedTab.kind === "local") {
-          try {
-            const session = await invoke<SessionDto>("create_local_session", {
-              shellProfile: coerceShellProfile(platformSettings?.terminal.default_shell),
-              cwd: null
-            });
-            restoredTabs.push({
-              ...makeTabFromSession(session),
-              id: savedTab.id,
-              title: savedTab.title,
-              color: savedTab.color,
-              icon: savedTab.icon
-            });
-          } catch {
-            // Skip
-          }
-        } else if (savedTab.kind === "ssh" && savedTab.ssh_alias) {
-          restoredTabs.push({
-            id: savedTab.id,
-            title: savedTab.title,
-            color: savedTab.color,
-            icon: "globe",
-            kind: "ssh",
-            sshAlias: savedTab.ssh_alias
-          });
-          restoredDisconnectReasons[savedTab.id] = "The app was restarted and the SSH channel is no longer attached.";
-        } else {
-          restoredTabs.push({
-            id: savedTab.id,
-            title: savedTab.title,
-            color: savedTab.color,
-            icon: savedTab.icon,
-            kind: "ssh_picker"
-          });
-        }
+        await restoreTab(savedTab);
       }
     } else {
       const detachedIds = (persisted.window_tabs as Record<string, string[]> | null | undefined)?.[windowLabel] ?? [];
@@ -633,11 +647,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       for (const tabId of detachedIds) {
         const savedTab = persisted.tabs.find((tab) => tab.id === tabId);
         if (!savedTab) continue;
-        const restored = await restoreDetachedTabFromPersisted(savedTab);
-        if (restored.tab) restoredTabs.push(restored.tab);
-        if (restored.disconnectReason) {
-          restoredDisconnectReasons[savedTab.id] = restored.disconnectReason;
-        }
+        await restoreTab(savedTab);
       }
     }
 
@@ -650,7 +660,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else {
       const persistedWindowState = applyPersistedWindowState(
         restoredTabs,
-        persisted.window_tabs,
+        windowLabel === MAIN_WINDOW_LABEL
+          ? buildSingleWindowTabState(restoredTabs, persisted.window_tabs)
+          : persisted.window_tabs,
         persisted.active_tab_by_window
       );
       const activeTabId =
@@ -907,6 +919,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         [targetWindowLabel]: activate ? tabId : (state.activeTabByWindow[targetWindowLabel] ?? nextTarget[0] ?? tabId),
       });
       return {
+        tabs: state.tabs,
         windowTabs: nextWindowTabs,
         activeTabByWindow: nextActive,
         activeTabId: sourceWindowLabel === resolveWindowLabel()
@@ -928,7 +941,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         })
         .catch(() => undefined);
     }
-    if (sourceWouldBecomeEmpty) {
+    if (sourceWouldBecomeEmpty && sourceWindowLabel !== MAIN_WINDOW_LABEL) {
       await get().closeEmptyDetachedWindow(sourceWindowLabel);
     }
   },

@@ -6,6 +6,7 @@ import {
   getResolvedHistoryIndex,
   isConnectionError,
   makeTabFromSession,
+  mergeWindowTabsIntoMainWindow,
   normalizeDisplayPath,
   normalizeLineEndings,
   pushPathHistory,
@@ -80,6 +81,16 @@ describe("app store utils", () => {
     expect(reorderScopedTabIds(["a", "b", "c"], "c", "a", "before")).toEqual(["c", "a", "b"]);
     expect(reorderScopedTabIds(["a", "b", "c"], "b", "a", "before")).toEqual(["b", "a", "c"]);
     expect(reorderScopedTabIds(["a", "b", "c"], "b", "c", "after")).toEqual(["a", "c", "b"]);
+  });
+
+  it("merges detached window tab mappings back into main-window order without duplicates", () => {
+    expect(mergeWindowTabsIntoMainWindow({
+      main: ["a"],
+      "terminal-1": ["b", "c"],
+      "terminal-2": ["c", "d"],
+    }, ["a", "b", "c", "d", "e"])).toEqual({
+      main: ["a", "b", "c", "d", "e"],
+    });
   });
 
   it("pushes path history while truncating stale forward entries by default", () => {

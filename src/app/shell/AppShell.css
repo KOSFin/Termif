@@ -45,7 +45,7 @@ html[data-app-bg-image="true"] .app-root {
 .platform-macos .topbar {
   height: 44px;
   min-height: 44px;
-  padding-left: 78px;
+  padding-left: 0;
   border-bottom-color: color-mix(in srgb, var(--stroke) 52%, transparent);
   background: color-mix(in srgb, var(--bg-elev-1) calc(var(--topbar-opacity, 0.88) * var(--window-opacity, 1) * 100%), transparent);
   -webkit-backdrop-filter: blur(calc(20px + var(--window-blur, 8px))) saturate(1.25);
@@ -128,12 +128,9 @@ html[data-app-bg-image="true"] .app-root {
 }
 
 .platform-macos .window-controls {
-  display: none;
-  width: 72px;
-  height: 38px;
-  justify-content: center;
-  gap: 8px;
-  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 1px;
+  margin-right: 1px;
 }
 
 .topbar-btn {

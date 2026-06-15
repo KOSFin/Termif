@@ -118,7 +118,6 @@ export function TabStrip(props: TabStripProps) {
       }
       prev.set(tabId, currX);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveOrderKey]);
 
   const contextTab = useMemo(

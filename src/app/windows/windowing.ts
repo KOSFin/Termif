@@ -52,8 +52,8 @@ export interface ForceCloseWindowPayload {
   targetWindow: string;
 }
 
-export function formatWindowDisplayTitle(label: string, activeTitle?: string | null) {
-  return activeTitle ? `${activeTitle} — Termif` : "Termif";
+export function formatWindowDisplayTitle(_label: string, _activeTitle?: string | null) {
+  return "Termif";
 }
 
 export function makeTerminalWindowLabel() {

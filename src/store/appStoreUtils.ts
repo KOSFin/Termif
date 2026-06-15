@@ -94,6 +94,39 @@ export function reorderScopedTabIds(
   return ids;
 }
 
+export function mergeWindowTabsIntoMainWindow(
+  windowTabs: Record<string, string[]>,
+  orderedTabIds: string[],
+  mainLabel = "main"
+): Record<string, string[]> {
+  const knownIds = new Set(orderedTabIds);
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  const pushId = (id: string) => {
+    if (!knownIds.has(id) || seen.has(id)) return;
+    seen.add(id);
+    merged.push(id);
+  };
+
+  for (const id of windowTabs[mainLabel] ?? []) {
+    pushId(id);
+  }
+
+  for (const [label, ids] of Object.entries(windowTabs)) {
+    if (label === mainLabel) continue;
+    for (const id of ids) {
+      pushId(id);
+    }
+  }
+
+  for (const id of orderedTabIds) {
+    pushId(id);
+  }
+
+  return { [mainLabel]: merged };
+}
+
 export function getResolvedHistoryIndex(history: string[], currentIndex?: number): number {
   if (history.length === 0) return -1;
   if (typeof currentIndex !== "number" || !Number.isFinite(currentIndex)) {
