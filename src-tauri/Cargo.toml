@@ -1,6 +1,6 @@
 [package]
 name = "termif"
-version = "4.3.6"
+version = "4.3.7"
 description = "Termif - local-first cross-platform SSH workspace"
 authors = ["Termif Contributors"]
 license-file = "../LICENSE"

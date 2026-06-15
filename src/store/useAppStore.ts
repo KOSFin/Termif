@@ -431,7 +431,16 @@ async function restoreDetachedTabFromPersisted(savedTab: PersistedUiState["tabs"
 async function destroyWindowByLabel(windowLabel: string) {
   const windowRef = await Window.getByLabel(windowLabel).catch(() => null);
   if (!windowRef) return;
-  await windowRef.destroy().catch(() => undefined);
+  // Prefer destroy() (synchronous teardown, no close-requested round-trip).
+  // Fall back to close() so a window can never be left emptied-but-alive if
+  // destroy is unavailable for any reason.
+  const destroyed = await windowRef
+    .destroy()
+    .then(() => true)
+    .catch(() => false);
+  if (!destroyed) {
+    await windowRef.close().catch(() => undefined);
+  }
 }
 
 async function broadcastUiState(
@@ -653,32 +662,36 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ isInitialized: true });
       }
     } else {
-      const persistedWindowState = applyPersistedWindowState(
-        restoredTabs,
+      // Detached terminal windows are not recreated by the OS on a cold start —
+      // only the main window boots. Collapse every persisted per-window tab group
+      // into the main window so no tab is stranded in a phantom window and no
+      // stray side window can appear on launch. (Browser-style: everything that
+      // survives a restart lives in one window until the user tears tabs out again.)
+      const collapsed = mergeWindowTabsToMainWindow(
+        restoredTabs.map((tab) => tab.id),
         persisted.window_tabs,
-        persisted.active_tab_by_window
+        persisted.active_tab_by_window,
+        MAIN_WINDOW_LABEL
       );
       const activeTabId =
-        persistedWindowState.activeTabByWindow[windowLabel] ??
-        persistedWindowState.activeTabByWindow[MAIN_WINDOW_LABEL] ??
-        restoredTabs[0].id;
+        collapsed.activeTabByWindow[MAIN_WINDOW_LABEL] ?? restoredTabs[0].id;
       set({
         tabs: restoredTabs,
         activeTabId: activeTabId ?? undefined,
-        windowTabs: persistedWindowState.windowTabs,
-        activeTabByWindow: persistedWindowState.activeTabByWindow,
-        windowStates: sanitizeWindowStates(persistedWindowState.windowTabs, persisted.window_states ?? {}),
+        windowTabs: collapsed.windowTabs,
+        activeTabByWindow: collapsed.activeTabByWindow,
+        windowStates: sanitizeWindowStates(collapsed.windowTabs, persisted.window_states ?? {}),
         tabDisconnectReasons: restoredDisconnectReasons,
         fileTransitioning: true,
         selectedFile: undefined,
         isInitialized: true
       });
-      if (windowLabel !== MAIN_WINDOW_LABEL) {
-        await restoreWindowGeometry(windowLabel, persisted.window_states?.[windowLabel]);
-      }
       if (activeTabId) {
         get().loadCurrentFiles().catch(() => {});
       }
+      // Persist the collapsed layout immediately so the stale per-window groups
+      // (and their phantom window_states) can never resurface on the next launch.
+      await persistUiState(get(), get().windowStates);
     }
 
     set({ isInitialized: true });

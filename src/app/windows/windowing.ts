@@ -56,6 +56,7 @@ export function makeTerminalWindowLabel() {
 }
 
 export function getTerminalWindowOptions(title?: string, geometry?: WindowGeometry) {
+  const isMac = desktopPlatform === "macos";
   return {
     url: "/#/terminal-window",
     title: title ?? "Termif",
@@ -67,8 +68,11 @@ export function getTerminalWindowOptions(title?: string, geometry?: WindowGeomet
     transparent: true,
     focus: true,
     center: geometry?.x === undefined || geometry?.y === undefined,
-    decorations: false,
-    ...(desktopPlatform === "macos"
+    // Match the main window exactly: macOS uses native decorations so the
+    // traffic-light controls are present; Windows/Linux use the custom
+    // titlebar (decorations off) and render <WindowControls/> in-app.
+    decorations: isMac,
+    ...(isMac
       ? {
           titleBarStyle: "overlay" as const,
           hiddenTitle: true,
