@@ -82,6 +82,7 @@ export function TabStrip(props: TabStripProps) {
 
   const renamingTabId = renamingTab?.id;
   const draggingTabId = draggingTab?.id;
+  const liveOrderKey = liveTabOrder.map((t) => t.id).join(",");
 
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -101,28 +102,24 @@ export function TabStrip(props: TabStripProps) {
     if (!scrollRef.current) return;
     const elements = Array.from(scrollRef.current.querySelectorAll<HTMLElement>("[data-tab-id]"));
     const prev = prevTabPositionsRef.current;
-    // animate elements that moved
     elements.forEach((el) => {
       const tabId = el.dataset.tabId;
       if (!tabId || el.classList.contains("dragging")) return;
       const prevX = prev.get(tabId);
-      const currRect = el.getBoundingClientRect();
-      if (prevX !== undefined && Math.abs(prevX - currRect.left) > 1) {
-        const delta = prevX - currRect.left;
-        el.style.transform = `translateX(${delta}px)`;
+      const currX = el.getBoundingClientRect().left;
+      if (prevX !== undefined && Math.abs(prevX - currX) > 1) {
+        const delta = prevX - currX;
         el.style.transition = "none";
+        el.style.transform = `translateX(${delta}px)`;
         requestAnimationFrame(() => {
           el.style.transform = "";
           el.style.transition = "transform 0.12s ease";
         });
       }
+      prev.set(tabId, currX);
     });
-    // save new positions
-    elements.forEach((el) => {
-      const tabId = el.dataset.tabId;
-      if (tabId) prev.set(tabId, el.getBoundingClientRect().left);
-    });
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveOrderKey]);
 
   const contextTab = useMemo(
     () => props.tabs.find((tab) => tab.id === contextTabId),

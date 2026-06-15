@@ -46,18 +46,7 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "macOS": {
-      "infoPlist": {
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLName": "com.termif.app",
-            "CFBundleURLSchemes": [
-              "termif"
-            ]
-          }
-        ]
-      }
-    },
+    "macOS": {},
     "windows": {
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
