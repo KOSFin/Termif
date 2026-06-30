@@ -576,6 +576,13 @@ fn save_ui_state(ui_state: PersistedUiState, state: State<'_, AppState>) -> Resu
 // ── App entry point ───────────────────────────────────────────────────────────
 
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // WebKitGTK's DMABuf renderer causes Wayland protocol errors (Error 71) on
+        // some setups. Disabling it falls back to a compatible path.
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             let requests = resolve_launch_requests(&argv, Some(cwd.as_str()));

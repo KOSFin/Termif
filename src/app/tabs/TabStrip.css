@@ -99,12 +99,29 @@
 
 .tab.dragging {
   transition: none;
-  opacity: 0.78;
-  z-index: 7;
+  opacity: 0.85;
   pointer-events: none;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
+/* Ghost is riding a window edge because the cursor has left the window bounds.
+   Signal that releasing here will move the tab to another window or open a new
+   one — the web view can't render the tab out over the desktop, so this edge
+   cue stands in for the floating drag image. */
+.tab.dragging.dragging-edge {
+  opacity: 0.96;
+  outline: 2px dashed color-mix(in srgb, var(--accent) 80%, white 10%);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 14px 28px rgba(0, 0, 0, 0.34);
+}
+
+/* Invisible placeholder keeping the dragged tab's space in the flex flow */
+.tab.tab-drag-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+  flex-shrink: 0;
+}
 
 .tab.external-drop::before {
   content: "";

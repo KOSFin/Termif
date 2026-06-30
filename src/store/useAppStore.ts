@@ -478,17 +478,15 @@ async function persistUiState(
   state: Pick<AppState, "tabs" | "sidebarVisible" | "selectedSidebarTool" | "sidebarWidth" | "fileHistory" | "fileHistoryIndex" | "windowTabs" | "activeTabByWindow">,
   windowStates?: Record<string, PersistedWindowState>
 ): Promise<void> {
+  // Persist the real per-window tab mapping verbatim. We intentionally do NOT
+  // collapse detached windows into main here: doing so would yank a freshly
+  // torn-off tab back into the main window before the new window can read it,
+  // and would resurrect a tab when its detached window is closed. The cold-start
+  // collapse (only the main window boots) lives in `initialize`, which is the
+  // single place where folding tabs back into main is actually correct.
   const cleanedWindowTabs = sanitizeWindowTabs(state.tabs, state.windowTabs);
   const cleanedActive = sanitizeActiveTabs(cleanedWindowTabs, state.activeTabByWindow);
-  const normalizedState =
-    resolveWindowLabel() === MAIN_WINDOW_LABEL
-      ? mergeWindowTabsToMainWindow(
-          state.tabs.map((tab) => tab.id),
-          cleanedWindowTabs,
-          cleanedActive,
-          MAIN_WINDOW_LABEL
-        )
-      : { windowTabs: cleanedWindowTabs, activeTabByWindow: cleanedActive };
+  const normalizedState = { windowTabs: cleanedWindowTabs, activeTabByWindow: cleanedActive };
 
   const payload: PersistedUiState = {
     tabs: state.tabs.map((tab) => ({
@@ -650,6 +648,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     } else {
+      // A detached terminal window boots on its own (e.g. reload, or a tear-off
+      // whose UI_STATE_SYNC broadcast we may have missed before this listener
+      // was mounted). Pull the persisted layout directly and rehydrate whatever
+      // tabs are assigned to this window's label, reattaching to their live
+      // sessions. This is what makes a torn-off tab reliably appear instead of
+      // showing an empty window.
+      await get().syncWindowStateFromBackend(windowLabel);
       set({ isInitialized: true });
       await restoreWindowGeometry(windowLabel, persisted.window_states?.[windowLabel]);
       return;
@@ -809,17 +814,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const label = resolveWindowLabel(windowLabel);
     const persisted = await invoke<PersistedUiState>("load_ui_state").catch(() => null);
     if (!persisted) return;
-    if (label === MAIN_WINDOW_LABEL) {
-      const merged = mergeWindowTabsToMainWindow(
-        persisted.tabs.map((tab) => tab.id),
-        persisted.window_tabs,
-        persisted.active_tab_by_window,
-        MAIN_WINDOW_LABEL
-      );
-      persisted.window_tabs = merged.windowTabs;
-      persisted.active_tab_by_window = merged.activeTabByWindow;
-      persisted.window_states = sanitizeWindowStates(merged.windowTabs, persisted.window_states ?? {});
-    }
+    // No collapse-to-main here: a live sync must reflect the real per-window
+    // layout so torn-off tabs stay in their own window and closed detached
+    // windows don't resurrect their tabs in main. Folding into main only
+    // happens at cold start in `initialize`.
     const currentState = get();
     const currentTabs = [...currentState.tabs];
     const knownIds = new Set(currentTabs.map((tab) => tab.id));
